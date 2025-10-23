@@ -1,5 +1,6 @@
 # httptap
 
+[![codecov](https://codecov.io/github/ozeranskii/httptap/graph/badge.svg?token=OFOHOI1X5J)](https://codecov.io/github/ozeranskii/httptap)
 [![PyPI](https://img.shields.io/pypi/v/httptap?color=3775A9&label=PyPI&logo=pypi)](https://pypi.org/project/httptap/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/httptap?logo=python)](https://pypi.org/project/httptap/)
 [![License](https://img.shields.io/github/license/ozeranskii/httptap?color=2E7D32)](https://github.com/ozeranskii/httptap/blob/main/LICENSE)
