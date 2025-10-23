@@ -1,0 +1,56 @@
+version: 2
+
+updates:
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    target-branch: "main"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    rebase-strategy: "auto"
+
+  # Python dependencies via pip
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    target-branch: "main"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    versioning-strategy: increase
+    groups:
+      # Group pytest-related packages
+      pytest:
+        patterns:
+          - "pytest*"
+      # Group dev tools
+      dev-tools:
+        patterns:
+          - "ruff"
+          - "mypy"
+      # Group test dependencies
+      test-dependencies:
+        patterns:
+          - "pytest-*"
+          - "faker"
+    ignore:
+      # Ignore major version updates for stable dependencies
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

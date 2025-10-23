@@ -1,0 +1,44 @@
+name: Dependency Check
+
+on:
+  schedule:
+    # Run weekly on Mondays at 8:00 UTC
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+jobs:
+  check-dependencies:
+    name: Check for Outdated Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Check for outdated dependencies
+        run: |
+          uv sync --locked
+          uv pip list --outdated
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Run pip-audit
+        run: |
+          uv tool install pip-audit
+          uv pip compile pyproject.toml -o requirements.txt
+          uv tool run pip-audit -r requirements.txt
+        continue-on-error: true
