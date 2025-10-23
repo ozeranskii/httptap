@@ -6,7 +6,7 @@
 [![Build](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Lint](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-`httptap` is a rich-powered CLI that dissects an HTTP request into every meaningful phase—DNS, TCP connect, TLS handshake, server wait, and body transfer—and renders the results as a timeline table, compact summary, or machine-friendly metrics. It is designed for interactive troubleshooting, regression analysis, and recording of performance baselines.
+`httptap` is a rich-powered CLI that dissects an HTTP request into every meaningful phase-DNS, TCP connect, TLS handshake, server wait, and body transfer and renders the results as a timeline table, compact summary, or machine-friendly metrics. It is designed for interactive troubleshooting, regression analysis, and recording of performance baselines.
 
 ---
 
@@ -51,7 +51,7 @@ uv pip install .
 
 ## Quick Start
 
-Currently `httptap` issues a `GET` request and streams the entire response body. Other HTTP methods and payloads are not supported yet; this keeps the interface simple and avoids exposing sensitive request data in output. If you need to profile `POST`/`PUT` workloads, you can wrap `httptap` and override the request executor to plug in custom behaviour (see “Custom Implementations”).
+Currently `httptap` issues a `GET` request and streams the entire response body. Other HTTP methods and payloads are not supported yet; this keeps the interface simple and avoids exposing sensitive request data in output. If you need to profile `POST`/`PUT` workloads, you can wrap `httptap` and override the request executor to plug in custom behavior.
 
 Run a single request and display a rich waterfall:
 
