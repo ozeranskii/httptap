@@ -35,13 +35,13 @@
 
 ### Using `uv`
 
-```bash
+```shell
 uv pip install httptap
 ```
 
 ### From source
 
-```bash
+```shell
 git clone https://github.com/ozeranskii/httptap.git
 cd httptap
 uv pip install .
@@ -55,13 +55,13 @@ Currently `httptap` issues a `GET` request and streams the entire response body.
 
 Run a single request and display a rich waterfall:
 
-```bash
+```shell
 httptap https://httpbin.io
 ```
 
 Add custom headers (repeat `-H` for multiple values):
 
-```bash
+```shell
 httptap \
   -H "Accept: application/json" \
   -H "Authorization: Bearer super-secret" \
@@ -70,19 +70,19 @@ httptap \
 
 Follow redirect chains and dump metrics to JSON:
 
-```bash
+```shell
 httptap --follow --json out/report.json https://httpbin.io/redirect/2
 ```
 
 Collect compact (single-line) timings suitable for logs:
 
-```bash
+```shell
 httptap --compact https://httpbin.io/get
 ```
 
 Expose raw metrics for scripts:
 
-```bash
+```shell
 httptap --metrics-only https://httpbin.io/get | tee timings.log
 ```
 
@@ -233,7 +233,7 @@ The redirect summary includes a total row:
 
 ## Metrics-only scripting
 
-```bash
+```shell
 httptap --metrics-only https://httpbin.io/get
 ```
 ```terminaloutput
@@ -264,7 +264,7 @@ steps = analyzer.analyze_url("https://httpbin.io")
 
 ## Development
 
-```bash
+```shell
 git clone https://github.com/ozeranskii/httptap.git
 cd httptap
 uv sync
