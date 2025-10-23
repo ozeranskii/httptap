@@ -1,0 +1,165 @@
+[project]
+name = "httptap"
+version = "0.1.0"
+description = "HTTP request visualizer with detailed timing breakdown (DNS → TCP → TLS → HTTP)"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "Apache-2.0" }
+
+authors = [
+    { name = "Sergei Ozeranskii" },
+]
+maintainers = [
+    { name = "Sergei Ozeranskii" },
+]
+
+keywords = [
+    "http",
+    "https",
+    "performance",
+    "timing",
+    "dns",
+    "tls",
+    "ssl",
+    "networking",
+    "monitoring",
+    "diagnostics",
+    "waterfall",
+    "curl",
+    "httpx",
+]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: System :: Networking :: Monitoring",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Utilities",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+    "Environment :: Console",
+    "Operating System :: OS Independent",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "httpx[http2]>=0.28.1",
+    "rich>=14.2.0",
+    "dnspython>=2.8.0",
+]
+
+[project.scripts]
+httptap = "httptap.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ozeranskii/httptap"
+Documentation = "https://github.com/ozeranskii/httptap?tab=readme-ov-file"
+Repository = "https://github.com/ozeranskii/httptap.git"
+Issues = "https://github.com/ozeranskii/httptap/issues"
+Changelog = "https://github.com/ozeranskii/httptap/blob/main/CHANGELOG.md"
+
+[tool.uv]
+package = true
+
+[tool.setuptools]
+packages = ["httptap"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.1",
+    "mypy>=1.18.2",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
+    "pytest-httpx>=0.35.0",
+    "faker>=37.11.0",
+]
+
+typing = [
+    "mypy>=1.18.2",
+]
+
+test = [
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
+    "pytest-httpx>=0.35.0",
+    "faker>=37.11.0"
+]
+
+lint = [
+    "ruff>=0.14.1",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "ALL",
+]
+ignore = [
+    "D203",
+    "D213",
+    "COM812",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "SLF001",  # Private member accessed (allowed in tests)
+    "ARG001",  # Unused function argument (mock signatures)
+    "PLC0415",  # Import should be at top-level (allowed in test functions)
+    "PLR2004",  # Magic value used in comparison (allowed in tests)
+    "F841",  # Local variable assigned but never used (test unpacking)
+    "D",  # Missing docstring in public function (skip in tests)
+    "S101"  # Use of `assert` detected (allowed in tests)
+]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=httptap",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--cov-branch",
+]
+
+[tool.coverage.run]
+source = ["httptap"]
+branch = true
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
