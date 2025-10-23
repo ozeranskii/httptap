@@ -146,6 +146,8 @@ addopts = [
     "--cov-report=html",
     "--cov-report=xml",
     "--cov-branch",
+    "--junitxml=junit.xml",
+    "-o junit_family=legacy"
 ]
 
 [tool.coverage.run]
