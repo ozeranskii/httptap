@@ -127,7 +127,8 @@ indent-style = "space"
     "PLR2004",  # Magic value used in comparison (allowed in tests)
     "F841",  # Local variable assigned but never used (test unpacking)
     "D",  # Missing docstring in public function (skip in tests)
-    "S101"  # Use of `assert` detected (allowed in tests)
+    "S101",  # Use of `assert` detected (allowed in tests)
+    "ERA001"  # Found commented-out code (allowed in tests)
 ]
 
 [tool.mypy]
