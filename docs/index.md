@@ -1,3 +1,8 @@
+---
+title: httptap
+description: Rich-powered CLI that dissects an HTTP request into every meaningful phase
+---
+
 # httptap
 
 <div style="text-align: center; margin-bottom: 2em;">
