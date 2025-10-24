@@ -119,6 +119,19 @@ def test_main_header_error(
     assert "Header name cannot be empty" in captured.err
 
 
+def test_cli_version(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """--version prints version information and exits cleanly."""
+
+    monkeypatch.setattr("sys.argv", ["httptap", "--version"])
+
+    with pytest.raises(SystemExit) as excinfo:
+        main()
+
+    assert excinfo.value.code == 0
+    stdout = capsys.readouterr().out
+    assert stdout.startswith("httptap ")
+
+
 def _make_step(
     *,
     url: str = "https://example.test",

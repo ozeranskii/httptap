@@ -1,0 +1,10 @@
+name: "CodeQL Config"
+
+# Query filters to suppress false positives
+query-filters:
+  - exclude:
+      id: py/insecure-protocol
+      reason: >
+        httptap inspects legacy TLS endpoints (TLSv1.0/TLSv1.1) for diagnostic
+        purposes and does not transmit sensitive production data. Blocking these
+        protocols would prevent troubleshooting older systems.

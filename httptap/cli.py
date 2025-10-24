@@ -17,6 +17,7 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.text import Text
 
+from . import __version__
 from .analyzer import HTTPTapAnalyzer
 from .constants import (
     DEFAULT_TIMEOUT_SECONDS,
@@ -110,6 +111,13 @@ Exit codes:
   {EXIT_FATAL_ERROR:>3} (EX_SOFTWARE) : Internal error
   {EXIT_NETWORK_ERROR:>3} (EX_TEMPFAIL) : Network/TLS error (partial output available)
         """,
+    )
+
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Show the httptap version and exit.",
     )
 
     parser.add_argument(
