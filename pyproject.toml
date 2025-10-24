@@ -65,11 +65,15 @@ Repository = "https://github.com/ozeranskii/httptap.git"
 Issues = "https://github.com/ozeranskii/httptap/issues"
 Changelog = "https://github.com/ozeranskii/httptap/blob/main/CHANGELOG.md"
 
+[build-system]
+requires = ["uv_build>=0.9.5,<0.10.0"]
+build-backend = "uv_build"
+
 [tool.uv]
 package = true
 
-[tool.setuptools]
-packages = ["httptap"]
+[tool.uv.build-backend]
+module-root = ""
 
 [dependency-groups]
 dev = [

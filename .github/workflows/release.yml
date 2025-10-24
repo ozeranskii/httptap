@@ -1,0 +1,189 @@
+name: Release
+
+env:
+  PACKAGE_NAME: httptap
+  CHANGELOG_FILE: CHANGELOG.md
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Exact version (e.g., 0.3.0) - leave empty to use bump"
+        required: false
+        type: string
+      bump:
+        description: "Bump type (used if version is empty)"
+        required: false
+        type: choice
+        default: "patch"
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      notes: ${{ steps.notes.outputs.text }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Update project version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            # Explicit version provided
+            VERSION="${{ inputs.version }}"
+            echo "Using explicit version: ${VERSION}"
+            uv version "${VERSION}"
+          else
+            # Use bump semantics
+            BUMP="${{ inputs.bump }}"
+            echo "Bumping version: ${BUMP}"
+            uv version --bump "${BUMP}"
+            # Get the new version
+            VERSION=$(uv version --short)
+          fi
+
+          TAG="v${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Final version: ${VERSION}"
+
+      - name: Ensure changelog exists
+        run: touch ${CHANGELOG_FILE}
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@git-cliff
+
+      - name: Generate changelog entry
+        id: notes
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          git cliff --config .release/git-cliff.toml --tag "${TAG}" --prepend ${CHANGELOG_FILE}
+          # Use --unreleased for first release or when --latest returns empty
+          NOTES=$(git cliff --config .release/git-cliff.toml --tag "${TAG}" --latest --strip header 2>/dev/null || \
+                  git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --strip header)
+          {
+            echo "text<<EOF"
+            echo "${NOTES}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit release changes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git add pyproject.toml ${CHANGELOG_FILE}
+          git commit -m "chore: release v${VERSION}"
+
+      - name: Create and push tag
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git push origin HEAD
+          git push origin "${TAG}"
+
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: prepare
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --locked --group test
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Build distribution
+        run: uv build
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+          compression-level: 6
+          if-no-files-found: error
+
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [ prepare, build ]
+    environment:
+      name: pypi
+      url: https://pypi.org/project/${{ env.PACKAGE_NAME }}/
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@v1.13.0
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [ prepare, build, publish-pypi ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ needs.prepare.outputs.tag }} \
+            dist/* \
+            --repo ${{ github.repository }} \
+            --title "${{ needs.prepare.outputs.tag }}" \
+            --notes '${{ needs.prepare.outputs.notes }}'

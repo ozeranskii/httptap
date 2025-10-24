@@ -119,6 +119,7 @@ jobs:
           path: dist/
           retention-days: 7
           compression-level: 6
+          if-no-files-found: error
 
   all-checks-pass:
     name: All Checks Passed

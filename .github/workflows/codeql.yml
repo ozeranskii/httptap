@@ -47,7 +47,7 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-          config-file: .github/codeql/config.yml
+          config-file: ./.github/codeql/config.yml
 
       - name: Run manual build steps
         if: matrix.build-mode == 'manual'
