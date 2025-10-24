@@ -1,0 +1,114 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for httptap
+title: "[Feature]: "
+labels: [ "enhancement", "triage" ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe what you'd like to see in httptap.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: Which area does this feature relate to?
+      options:
+        - Output/Visualization (new format, display improvements)
+        - Timing/Metrics (new measurements, accuracy improvements)
+        - Network/Protocol (DNS, TLS, HTTP features)
+        - CLI/UX (command-line interface, user experience)
+        - Export/Integration (JSON, other formats, API)
+        - Performance (speed, memory usage)
+        - Testing/Development (testing tools, dev experience)
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? What's the use case?
+      placeholder: |
+        Currently, when I want to..., I have to...
+        This is problematic because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How do you envision this feature working?
+      placeholder: |
+        I would like httptap to...
+        Example usage: `httptap --new-flag https://example.com`
+        Expected output: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Are there alternative approaches or workarounds you've considered?
+      placeholder: |
+        - Alternative 1: ...
+        - Alternative 2: ...
+        - Current workaround: ...
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples
+      description: |
+        Provide examples of how this feature would be used:
+        - Command examples
+        - Expected output
+        - Sample JSON structure
+        - Code snippets
+      placeholder: |
+        ```bash
+        # Example command
+        httptap --new-feature https://example.com
+        ```
+
+        Expected output:
+        ```
+        ...
+        ```
+      render: shell
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Nice to have
+        - Would improve my workflow
+        - Critical for my use case
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you be interested in contributing this feature?
+      options:
+        - label: I would be willing to submit a PR for this feature
+        - label: I need guidance on how to implement this
+        - label: I can help test this feature
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and discussions
+          required: true
+        - label: This feature aligns with httptap's purpose (HTTP diagnostics/performance analysis)
+          required: true

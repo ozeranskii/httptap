@@ -1,0 +1,116 @@
+name: 🐌 Performance Issue
+description: Report performance problems or inaccurate timing measurements
+title: "[Performance]: "
+labels: [ "performance", "triage" ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report performance issues with httptap itself or inaccuracies in timing measurements.
+
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: Issue Type
+      description: What kind of performance issue are you experiencing?
+      options:
+        - httptap is slow to execute
+        - High memory usage
+        - Inaccurate timing measurements
+        - Inconsistent results between runs
+        - Other performance concern
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Performance Issue Description
+      description: Describe the performance problem in detail
+      placeholder: |
+        When measuring requests to..., I notice that...
+        The timing seems off by...
+    validations:
+      required: true
+
+  - type: textarea
+    id: measurements
+    attributes:
+      label: Measurements
+      description: Provide actual measurements or timing data
+      placeholder: |
+        httptap output:
+        ```
+        Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0
+        ```
+
+        Expected (from curl/browser/other tool):
+        ```
+        DNS: ~10ms, TLS: ~150ms, Total: ~300ms
+        ```
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: comparison
+    attributes:
+      label: Comparison with Other Tools
+      description: How do the results compare with curl, httpstat, browser DevTools, etc.?
+      placeholder: |
+        curl timing:
+        ```
+        time_namelookup: 0.010
+        time_connect: 0.100
+        time_appconnect: 0.250
+        time_starttransfer: 0.400
+        time_total: 0.450
+        ```
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps
+      description: Detailed steps to reproduce the performance issue
+      value: |
+        1. Run: `httptap https://example.com`
+        2. Observe timing: ...
+        3. Compare with: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      value: |
+        - **httptap version**:
+        - **Python version**:
+        - **OS**:
+        - **Network**: (e.g., WiFi, Ethernet, VPN, Corporate proxy)
+        - **Target URL**: (if safe to share)
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Performance Metrics
+      description: If applicable, provide profiling data or resource usage
+      placeholder: |
+        - Execution time:
+        - Memory usage:
+        - CPU usage:
+        - Multiple runs consistency:
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing performance issues
+          required: true
+        - label: I have tested with the latest version of httptap
+          required: true
+        - label: I have compared with other tools (curl, httpstat, browser)
