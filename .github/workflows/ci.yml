@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -114,6 +117,8 @@ jobs:
         with:
           name: dist
           path: dist/
+          retention-days: 7
+          compression-level: 6
 
   all-checks-pass:
     name: All Checks Passed
@@ -124,11 +129,21 @@ jobs:
     steps:
       - name: Check all jobs
         run: |
-          if [[ "${{ needs.lint.result }}" != "success" ]] || \
-             [[ "${{ needs.type-check.result }}" != "success" ]] || \
-             [[ "${{ needs.test.result }}" != "success" ]] || \
-             [[ "${{ needs.build.result }}" != "success" ]]; then
+          echo "lint: $LINT_RESULT"
+          echo "type-check: $TYPE_CHECK_RESULT"
+          echo "test: $TEST_RESULT"
+          echo "build: $BUILD_RESULT"
+
+          if [[ "$LINT_RESULT" != "success" ]] || \
+             [[ "$TYPE_CHECK_RESULT" != "success" ]] || \
+             [[ "$TEST_RESULT" != "success" ]] || \
+             [[ "$BUILD_RESULT" != "success" ]]; then
             echo "One or more checks failed"
             exit 1
           fi
           echo "All checks passed successfully!"
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          TYPE_CHECK_RESULT: ${{ needs.type-check.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          BUILD_RESULT: ${{ needs.build.result }}

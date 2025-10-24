@@ -6,6 +6,9 @@ on:
     - cron: "0 8 * * 1"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   check-lockfile:
     name: Check Lockfile Status
@@ -43,10 +46,18 @@ jobs:
       - name: Export dependencies for audit
         run: uv export --no-hashes --no-editable -o requirements.txt
 
+      - name: Upload requirements for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: requirements-audit
+          path: requirements.txt
+          retention-days: 7
+
       - name: Install and run pip-audit
         run: |
           uv tool install pip-audit
-          uv tool run pip-audit -r requirements.txt
+          uv tool run pip-audit -r requirements.txt --desc
         continue-on-error: true
 
   test-dependency-updates:

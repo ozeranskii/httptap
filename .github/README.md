@@ -63,11 +63,14 @@ Main CI pipeline that runs on every push and pull request to `main` branch.
 - **all-checks-pass**: Meta-job ensuring all checks succeeded
 
 **Features:**
+- Explicit permissions (contents: read) for security
 - Concurrency control (cancels outdated runs)
 - Multi-OS matrix testing (ubuntu-latest, macos-latest, windows-latest)
 - Code coverage upload to Codecov
 - Uses `setup-uv@v7` with built-in caching
 - GitHub annotations for Ruff violations
+- Artifact retention policy (7 days auto-cleanup)
+- Environment variable isolation in job result checks
 
 #### `dependencies.yml` - Dependency Management
 
@@ -75,8 +78,14 @@ Weekly dependency health checks and security audits.
 
 **Jobs:**
 - **check-lockfile**: Verifies `uv.lock` is up-to-date with `pyproject.toml`
-- **security-audit**: Runs pip-audit on exported dependencies
+- **security-audit**: Runs pip-audit on exported dependencies with detailed descriptions
 - **test-dependency-updates**: Tests compatibility with latest versions (manual trigger only)
+
+**Security Features:**
+- Explicit permissions (contents: read) for least privilege
+- Weekly automated security audits with pip-audit
+- Requirements file uploaded as artifact for review
+- Detailed vulnerability descriptions
 
 **Triggers:**
 - Scheduled: Every Monday at 08:00 UTC
@@ -167,6 +176,9 @@ gh run list --workflow="CI"
 8. **Action version consistency**: Same versions across all workflows
 9. **Security auditing**: Weekly pip-audit runs for vulnerability detection
 10. **Lockfile verification**: Ensures dependency lock is always valid
+11. **Explicit permissions**: Workflows use least-privilege permissions (contents: read)
+12. **Artifact retention**: Auto-cleanup after 7 days to prevent storage bloat
+13. **Environment variable isolation**: Prevents code injection in workflow scripts
 
 ## Troubleshooting
 
@@ -210,9 +222,20 @@ git commit -m "chore: update lockfile"
 
 **Action:**
 1. Review the vulnerability details in the workflow logs
-2. Check if updates are available: `uv lock --upgrade`
-3. If no fix is available, add to ignore a list or update manually
-4. `continue-on-error: true` prevents blocking CI
+2. Download the `requirements-audit` artifact from the workflow run
+3. Check if updates are available: `uv lock --upgrade`
+4. If no fix is available, add to ignore list or update manually
+5. `continue-on-error: true` prevents blocking CI
+
+### GitHub Security Alerts
+
+**Issue:** CodeQL or Dependabot security alerts
+
+**Actions:**
+1. Review alerts in the Security tab
+2. For workflow permissions: Ensure `permissions:` block is present
+3. For dependency vulnerabilities: Check if Dependabot has created a PR
+4. Review SECURITY.md for vulnerability reporting process
 
 ## Further Reading
 
