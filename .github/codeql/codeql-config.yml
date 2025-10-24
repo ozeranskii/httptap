@@ -1,0 +1,13 @@
+name: "CodeQL Config"
+
+# Query filters to suppress false positives
+query-filters:
+  - exclude:
+      id: py/insecure-protocol
+      # Reason: httptap is a diagnostic tool that needs to connect to legacy servers
+      # with old TLS versions (TLSv1.0, TLSv1.1) for troubleshooting purposes.
+      # This is NOT a security issue because:
+      # 1. httptap does not transmit sensitive data in production
+      # 2. The tool is designed to INSPECT TLS connections, not secure them
+      # 3. Rejecting old TLS would make the tool useless for diagnosing legacy systems
+      # See SECURITY.md "TLS Protocol Versions" section for detailed explanation.
