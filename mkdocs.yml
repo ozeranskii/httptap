@@ -40,6 +40,7 @@ theme:
     - content.code.annotate
     - content.tabs.link
   icon:
+    logo: material/flash
     repo: fontawesome/brands/github
 
 extra:
@@ -50,8 +51,17 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/ozeranskii
       name: GitHub Profile
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/httptap/
+      name: PyPI Package
 
 plugins:
+  - social:
+      cards: true
+      cards_dir: assets/images/social
+      cards_layout_options:
+        background_color: "#1a1f4b"
+        color: "#f5f7ff"
   - search:
       separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
 
@@ -93,13 +103,6 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
-
-extra:
-  social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/ozeranskii/httptap
-    - icon: fontawesome/brands/python
-      link: https://pypi.org/project/httptap/
 
 nav:
   - Home: index.md
