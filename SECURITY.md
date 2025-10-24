@@ -223,6 +223,24 @@ httptap is a network diagnostic tool that makes HTTP(S) requests. Be aware:
 
 **Recommendation**: Use in trusted networks. Be cautious when testing production systems.
 
+### TLS Protocol Versions
+
+**Important**: httptap intentionally accepts all TLS versions (including TLSv1.0 and TLSv1.1) to enable diagnosis of legacy servers.
+
+**Why this is safe:**
+- httptap is a **diagnostic tool**, not a production application
+- It does not transmit sensitive data (passwords, tokens, PII)
+- The purpose is to **inspect** TLS connections, not to secure them
+- Rejecting old TLS versions would make the tool useless for troubleshooting legacy systems
+
+**Security implications:**
+- ✅ Safe: Diagnosing your own legacy APIs
+- ✅ Safe: Testing connectivity to third-party services
+- ⚠️ Caution: Do not use httptap to transmit sensitive authentication credentials to servers using TLSv1.0/1.1
+- ⚠️ Caution: The tool will connect to any server, regardless of TLS version
+
+**If you need to enforce minimum TLS version** for your own servers, httptap will help you identify which servers need upgrading.
+
 ### Dependencies
 
 We regularly monitor dependencies for security vulnerabilities:

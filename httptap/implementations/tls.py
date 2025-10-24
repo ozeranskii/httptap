@@ -30,6 +30,10 @@ class SocketTLSInspector:
             with closing(connection) as raw_sock:
                 self._populate_network_info(raw_sock, network_info)
 
+                # Diagnostic tool: intentionally allows TLSv1.0+ to inspect legacy servers.
+                # This is NOT a security issue because httptap is used for troubleshooting,
+                # not for transmitting sensitive data in production.
+                # See SECURITY.md "Safe Usage" section for usage guidelines.
                 context = ssl.create_default_context()
                 with context.wrap_socket(raw_sock, server_hostname=host) as tls_sock:
                     tls_version, cipher_suite, cert_info = extract_tls_info(tls_sock)
