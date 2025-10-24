@@ -6,9 +6,12 @@ on:
     - cron: "0 8 * * 1"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  check-dependencies:
-    name: Check for Outdated Dependencies
+  check-lockfile:
+    name: Check Lockfile Status
     runs-on: ubuntu-latest
 
     steps:
@@ -20,10 +23,12 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Check for outdated dependencies
-        run: |
-          uv sync --locked
-          uv pip list --outdated
+      - name: Check if lockfile is up-to-date
+        run: uv lock --check
+
+      - name: Show dependency tree
+        if: always()
+        run: uv tree
 
   security-audit:
     name: Security Audit
@@ -35,10 +40,49 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
 
-      - name: Run pip-audit
+      - name: Export dependencies for audit
+        run: uv export --no-hashes --no-editable -o requirements.txt
+
+      - name: Upload requirements for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: requirements-audit
+          path: requirements.txt
+          retention-days: 7
+
+      - name: Install and run pip-audit
         run: |
           uv tool install pip-audit
-          uv pip compile pyproject.toml -o requirements.txt
-          uv tool run pip-audit -r requirements.txt
+          uv tool run pip-audit -r requirements.txt --desc
         continue-on-error: true
+
+  test-dependency-updates:
+    name: Test Dependency Updates
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Update lockfile with latest versions
+        run: uv lock --upgrade
+
+      - name: Install updated dependencies
+        run: uv sync
+
+      - name: Run tests with updated dependencies
+        run: uv run pytest tests/ -v
+
+      - name: Show lockfile diff
+        if: always()
+        run: git diff uv.lock

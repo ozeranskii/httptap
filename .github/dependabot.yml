@@ -18,8 +18,8 @@ updates:
       include: "scope"
     rebase-strategy: "auto"
 
-  # Python dependencies via pip
-  - package-ecosystem: "pip"
+  # Python dependencies via uv
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -32,9 +32,7 @@ updates:
     target-branch: "main"
     commit-message:
       prefix: "chore"
-      prefix-development: "chore"
       include: "scope"
-    versioning-strategy: increase
     groups:
       # Group pytest-related packages
       pytest:
@@ -50,6 +48,10 @@ updates:
         patterns:
           - "pytest-*"
           - "faker"
+      # Group httpx and related
+      http-client:
+        patterns:
+          - "httpx*"
     ignore:
       # Ignore major version updates for stable dependencies
       - dependency-name: "*"
