@@ -1,24 +1,62 @@
 # httptap
 
-[![codecov](https://codecov.io/github/ozeranskii/httptap/graph/badge.svg?token=OFOHOI1X5J)](https://codecov.io/github/ozeranskii/httptap)
-[![PyPI](https://img.shields.io/pypi/v/httptap?color=3775A9&label=PyPI&logo=pypi)](https://pypi.org/project/httptap/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/httptap?logo=python)](https://pypi.org/project/httptap/)
-[![License](https://img.shields.io/github/license/ozeranskii/httptap?color=2E7D32)](https://github.com/ozeranskii/httptap/blob/main/LICENSE)
-[![Build](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
-[![Lint](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+<table>
+  <tr>
+    <th>Releases</th>
+    <th>CI &amp; Analysis</th>
+    <th>Project Info</th>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://pypi.org/project/httptap/">
+        <img src="https://img.shields.io/pypi/v/httptap?color=3775A9&label=PyPI&logo=pypi" alt="PyPI" />
+      </a><br />
+      <a href="https://pypi.org/project/httptap/">
+        <img src="https://img.shields.io/pypi/pyversions/httptap?logo=python" alt="Python Versions" />
+      </a>
+    </td>
+    <td>
+      <a href="https://github.com/ozeranskii/httptap/actions/workflows/ci.yml">
+        <img src="https://github.com/ozeranskii/httptap/actions/workflows/ci.yml/badge.svg" alt="CI" />
+      </a><br />
+      <a href="https://github.com/ozeranskii/httptap/actions/workflows/codeql.yml">
+        <img src="https://github.com/ozeranskii/httptap/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" />
+      </a><br />
+      <a href="https://codecov.io/github/ozeranskii/httptap">
+        <img src="https://codecov.io/github/ozeranskii/httptap/graph/badge.svg?token=OFOHOI1X5J" alt="Coverage" />
+      </a>
+    </td>
+    <td>
+      <a href="https://github.com/astral-sh/uv">
+        <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json" alt="Build Tool" />
+      </a><br />
+      <a href="https://github.com/astral-sh/ruff">
+        <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Lint" />
+      </a><br />
+      <a href="https://github.com/ozeranskii/httptap/blob/main/LICENSE">
+        <img src="https://img.shields.io/github/license/ozeranskii/httptap?color=2E7D32" alt="License" />
+      </a>
+    </td>
+  </tr>
+</table>
 
-`httptap` is a rich-powered CLI that dissects an HTTP request into every meaningful phase-DNS, TCP connect, TLS handshake, server wait, and body transfer and renders the results as a timeline table, compact summary, or machine-friendly metrics. It is designed for interactive troubleshooting, regression analysis, and recording of performance baselines.
+`httptap` is a rich-powered CLI that dissects an HTTP request into every meaningful phase-DNS, TCP connect, TLS
+handshake, server wait, and body transfer and renders the results as a timeline table, compact summary, or
+machine-friendly metrics. It is designed for interactive troubleshooting, regression analysis, and recording of
+performance baselines.
 
 ---
 
 ## Highlights
 
-- **Phase-by-phase timing** – precise measurements built from httpcore trace hooks (with sane fallbacks when metal-level data is unavailable).
+- **Phase-by-phase timing** – precise measurements built from httpcore trace hooks (with sane fallbacks when metal-level
+  data is unavailable).
 - **IPv4/IPv6 aware** – the resolver and TLS inspector report both the address and its family.
 - **TLS insights** – certificate CN, expiry countdown, cipher suite, and protocol version are captured automatically.
 - **Multiple output modes** – rich waterfall view, compact single-line summaries, or `--metrics-only` for scripting.
 - **JSON export** – persist full step data (including redirect chains) for later processing.
-- **Extensible** – clean Protocol interfaces for DNS, TLS, timing, visualization, and export so you can plug in custom behavior.
+- **Extensible** – clean Protocol interfaces for DNS, TLS, timing, visualization, and export so you can plug in custom
+  behavior.
 
 ---
 
@@ -52,7 +90,9 @@ uv pip install .
 
 ## Quick Start
 
-Currently `httptap` issues a `GET` request and streams the entire response body. Other HTTP methods and payloads are not supported yet; this keeps the interface simple and avoids exposing sensitive request data in output. If you need to profile `POST`/`PUT` workloads, you can wrap `httptap` and override the request executor to plug in custom behavior.
+Currently `httptap` issues a `GET` request and streams the entire response body. Other HTTP methods and payloads are not
+supported yet; this keeps the interface simple and avoids exposing sensitive request data in output. If you need to
+profile `POST`/`PUT` workloads, you can wrap `httptap` and override the request executor to plug in custom behavior.
 
 Run a single request and display a rich waterfall:
 
@@ -90,6 +130,7 @@ httptap --metrics-only https://httpbin.io/get | tee timings.log
 ---
 
 ## Sample Output
+
 ![sample-output.png](docs/assets/sample-output.png)
 
 The redirect summary includes a total row:
@@ -237,6 +278,7 @@ The redirect summary includes a total row:
 ```shell
 httptap --metrics-only https://httpbin.io/get
 ```
+
 ```terminaloutput
 Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=389 ip=44.211.11.205 family=IPv4
 tls_version=TLSv1.2
@@ -253,9 +295,11 @@ Swap in your own resolver or TLS inspector (anything satisfying the Protocol fro
 ```python
 from httptap import HTTPTapAnalyzer, SystemDNSResolver
 
+
 class HardcodedDNS(SystemDNSResolver):
     def resolve(self, host, port, timeout):
         return "93.184.216.34", "IPv4", 0.1
+
 
 analyzer = HTTPTapAnalyzer(dns_resolver=HardcodedDNS())
 steps = analyzer.analyze_url("https://httpbin.io")
@@ -291,12 +335,15 @@ We welcome bug reports, feature proposals, doc improvements, and creative new vi
 
 ## License
 
-Apache License 2.0 © httptap contributors. See [LICENSE](https://github.com/ozeranskii/httptap/blob/main/LICENSE) for details.
+Apache License 2.0 © httptap contributors. See [LICENSE](https://github.com/ozeranskii/httptap/blob/main/LICENSE) for
+details.
 
 ---
 
 ## Acknowledgements
 
-- Built on the shoulders of fantastic libraries: [httpx](https://www.python-httpx.org/), [httpcore](https://github.com/encode/httpcore), and [Rich](https://github.com/Textualize/rich).
+- Built on the shoulders of fantastic
+  libraries: [httpx](https://www.python-httpx.org/), [httpcore](https://github.com/encode/httpcore),
+  and [Rich](https://github.com/Textualize/rich).
 - Inspired by the tooling ecosystem around web performance (e.g., DevTools waterfalls, `curl --trace`).
 - Special thanks to everyone who opens issues, shares ideas, or contributes patches.
