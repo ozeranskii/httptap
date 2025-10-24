@@ -102,6 +102,10 @@ lint = [
     "ruff>=0.14.1",
 ]
 
+docs = [
+    "mkdocs-material>=9.6.22",
+]
+
 [tool.ruff]
 target-version = "py313"
 line-length = 120

@@ -1,0 +1,122 @@
+site_name: httptap Documentation
+site_url: https://httptap.dev/
+site_description: HTTP request visualizer with detailed timing breakdown
+site_author: Sergei Ozeranskii
+repo_url: https://github.com/ozeranskii/httptap
+repo_name: ozeranskii/httptap
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2025 Sergei Ozeranskii
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+extra:
+  social:
+    - icon: fontawesome/brands/telegram
+      link: https://t.me/sergeiozeranskii
+      name: Telegram Channel
+    - icon: fontawesome/brands/github
+      link: https://github.com/ozeranskii
+      name: GitHub Profile
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+
+markdown_extensions:
+  # Python Markdown
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+  # Python Markdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ozeranskii/httptap
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/httptap/
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+  - Usage:
+      - Basic Usage: usage/basic.md
+      - Output Formats: usage/output-formats.md
+      - Advanced Features: usage/advanced.md
+  - API Reference:
+      - Overview: api/overview.md
+      - Core Components: api/core.md
+      - Interfaces: api/interfaces.md
+  - Development:
+      - Contributing: development/contributing.md
+      - Release Process: development/release.md
+  - About:
+      - License: about/license.md
+      - Changelog: about/changelog.md
