@@ -129,6 +129,29 @@ httptap --metrics-only https://httpbin.io/get | tee timings.log
 
 ---
 
+## Releasing
+
+### Prerequisites
+
+- GitHub Environment `pypi` must be configured in repository settings
+- PyPI Trusted Publishing configured for `ozeranskii/httptap`
+
+### Steps
+
+1. Trigger the **Release** workflow from GitHub Actions:
+   - Provide exact version (e.g., `0.3.0`), OR
+   - Select bump type: `patch`, `minor`, or `major`
+2. The workflow will:
+   - Update version in `pyproject.toml` using `uv version`
+   - Generate changelog with `git-cliff` and update `CHANGELOG.md`
+   - Commit changes and create a git tag
+   - Run full test suite on the tagged version
+   - Build wheel and source distribution
+   - Publish to PyPI via Trusted Publishing (OIDC)
+   - Create GitHub Release with generated notes
+
+---
+
 ## Sample Output
 
 ![sample-output.png](docs/assets/sample-output.png)

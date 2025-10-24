@@ -53,6 +53,8 @@ jobs:
           name: requirements-audit
           path: requirements.txt
           retention-days: 7
+          compression-level: 9
+          if-no-files-found: warn
 
       - name: Install and run pip-audit
         run: |
