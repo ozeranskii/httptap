@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/ozeranskii/httptap/discussions
+    about: Ask questions, share ideas, or discuss the project
+  - name: 🔒 Security Issue
+    url: https://github.com/ozeranskii/httptap/security/advisories/new
+    about: Report a security vulnerability privately

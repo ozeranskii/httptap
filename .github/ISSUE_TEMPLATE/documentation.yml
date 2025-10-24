@@ -1,0 +1,92 @@
+name: 📚 Documentation
+description: Report issues with documentation or suggest improvements
+title: "[Docs]: "
+labels: [ "documentation", "triage" ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us improve httptap documentation!
+
+  - type: dropdown
+    id: doc_type
+    attributes:
+      label: Documentation Type
+      description: Which documentation needs attention?
+      options:
+        - README.md
+        - Code examples
+        - API/Protocol documentation
+        - Installation instructions
+        - CLI usage/help text
+        - SECURITY.md
+        - CONTRIBUTING.md
+        - Error messages
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: Issue Type
+      description: What kind of documentation issue is this?
+      options:
+        - Missing information
+        - Outdated/incorrect information
+        - Unclear/confusing explanation
+        - Typo/grammar error
+        - Broken link
+        - Missing example
+        - Translation issue
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the documentation issue or improvement
+      placeholder: |
+        The documentation at [location] says..., but it should...
+        I was trying to..., but the docs don't explain...
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Location
+      description: Where is the problematic documentation?
+      placeholder: |
+        - File: README.md, line 42
+        - URL: https://github.com/ozeranskii/httptap#installation
+        - CLI help: `httptap --help`
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: How would you improve this documentation?
+      placeholder: |
+        The documentation should include...
+        An example showing...
+        A clarification that...
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to submit a PR to fix this documentation
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have checked the latest version of the documentation
+          required: true
