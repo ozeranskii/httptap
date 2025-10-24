@@ -86,8 +86,9 @@ jobs:
         id: notes
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          git cliff --config .release/git-cliff.toml --tag "${TAG}" --prepend ${CHANGELOG_FILE}
-          # Use --unreleased for first release or when --latest returns empty
+          # Generate full changelog and prepend to CHANGELOG.md
+          git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --prepend ${CHANGELOG_FILE}
+          # Extract notes for GitHub release (try --latest, fallback to --unreleased)
           NOTES=$(git cliff --config .release/git-cliff.toml --tag "${TAG}" --latest --strip header 2>/dev/null || \
                   git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --strip header)
           {
