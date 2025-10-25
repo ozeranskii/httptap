@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1] - 2025-10-25
+
+### Documentation
+
+- Add full documentation site and GitHub Pages deploy ([#15](https://github.com/ozeranskii/httptap/issues/15))
+- Add imaging support and social card configuration ([#16](https://github.com/ozeranskii/httptap/issues/16))
+
+### Miscellaneous Tasks
+
+- Widen Python support to 3.10–3.14 and modernize metadata ([#17](https://github.com/ozeranskii/httptap/issues/17))
+- Refresh and commit uv.lock during release workflow ([#21](https://github.com/ozeranskii/httptap/issues/21))
+
 ## [0.1.0] - 2025-10-24
 
 ### Documentation
