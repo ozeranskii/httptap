@@ -42,7 +42,19 @@ uv sync
 
 This installs httptap in editable mode with all development dependencies.
 
-3. **Verify installation**
+3. **Set up pre-commit hooks (recommended)**
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install the git hook scripts
+pre-commit install
+```
+
+This will automatically run ruff (linting/formatting) and mypy (type checking) before each commit.
+
+4. **Verify installation**
 
 ```bash
 uv run httptap --version
@@ -52,6 +64,36 @@ uv run mypy httptap
 ```
 
 ## Development Workflow
+
+### Pre-commit Hooks
+
+If you've set up pre-commit hooks (recommended), they will automatically run before each commit:
+
+- **Ruff**: Lints and formats your code
+- **MyPy**: Performs type checking
+
+**If hooks fail:**
+
+- Fix the issues and commit again
+- The hooks will re-run automatically
+- You can skip hooks with `git commit --no-verify` (not recommended)
+
+**Manual pre-commit run:**
+
+```bash
+# Run hooks on all files
+pre-commit run --all-files
+
+# Run specific hook
+pre-commit run ruff
+pre-commit run mypy
+
+# Validate configuration
+pre-commit validate-config
+```
+
+**CI Validation:**
+The CI automatically validates that the pre-commit configuration stays in sync and all hooks work correctly. This ensures consistency across all contributors.
 
 ### Code Style
 
@@ -179,12 +221,14 @@ Then create a pull request on GitHub using the [PR template](.github/pull_reques
 ### Before Submitting
 
 - [ ] All tests pass: `uv run pytest`
-- [ ] Code is formatted: `uv run ruff format .`
-- [ ] Linting passes: `uv run ruff check .`
-- [ ] Type checking passes: `uv run mypy httptap`
+- [ ] Code is formatted: `uv run ruff format .` (or let pre-commit handle it)
+- [ ] Linting passes: `uv run ruff check .` (or let pre-commit handle it)
+- [ ] Type checking passes: `uv run mypy httptap` (or let pre-commit handle it)
 - [ ] Documentation updated (if applicable)
 - [ ] Tests added for new features
 - [ ] Changelog updated (if significant change)
+
+**Note**: If you're using pre-commit hooks, the formatting, linting, and type checking will be handled automatically before each commit.
 
 ### PR Description
 
