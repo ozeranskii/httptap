@@ -45,13 +45,19 @@ The release process is triggered manually via GitHub Actions.
    ```
    Updates `version` in `pyproject.toml`
 
-2. **Changelog Generation**
+2. **Lockfile Refresh**
+   ```bash
+   uv lock
+   ```
+   Regenerates `uv.lock` so it stays in sync with the new version
+
+3. **Changelog Generation**
    ```bash
    git cliff --tag v0.2.0 --unreleased --prepend CHANGELOG.md
    ```
    Generates changelog from conventional commits
 
-3. **Commit and Tag**
+4. **Commit and Tag**
    ```bash
    git commit -m "chore: release v0.2.0"
    git tag -a v0.2.0 -m "Release v0.2.0"
@@ -59,7 +65,7 @@ The release process is triggered manually via GitHub Actions.
    git push origin v0.2.0
    ```
 
-4. **Build**
+5. **Build**
    ```bash
    uv sync --locked --group test
    uv run pytest  # Full test suite
@@ -169,33 +175,39 @@ If you need to release manually (not recommended):
 uv version 0.2.0
 ```
 
-### 2. Generate Changelog
+### 2. Regenerate Lockfile
+
+```bash
+uv lock
+```
+
+### 3. Generate Changelog
 
 ```bash
 git cliff --tag v0.2.0 --unreleased --prepend CHANGELOG.md
 ```
 
-### 3. Commit Changes
+### 4. Commit Changes
 
 ```bash
-git add pyproject.toml CHANGELOG.md
+git add pyproject.toml uv.lock CHANGELOG.md
 git commit -m "chore: release v0.2.0"
 ```
 
-### 4. Create Tag
+### 5. Create Tag
 
 ```bash
 git tag -a v0.2.0 -m "Release v0.2.0"
 ```
 
-### 5. Push
+### 6. Push
 
 ```bash
 git push origin main
 git push origin v0.2.0
 ```
 
-### 6. Build and Publish
+### 7. Build and Publish
 
 ```bash
 uv build
