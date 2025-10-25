@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import sys
 from io import StringIO
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 
 from httptap.models import StepMetrics, TimingMetrics
 from httptap.visualizer import WaterfallVisualizer
+
+if TYPE_CHECKING:
+    import pytest
 
 
 class TestWaterfallVisualizer:
@@ -206,6 +211,37 @@ class TestWaterfallVisualizer:
         assert sum(widths) <= 80
         # Proportions should roughly match (larger durations get more chars)
         assert widths[2] >= widths[0]  # 30ms should get more than 10ms
+
+    def test_compute_phase_widths_adds_slack_for_remaining_width(self) -> None:
+        """Slack branch should assign leftover characters to longest remainder."""
+        console = Console()
+        visualizer = WaterfallVisualizer(console, max_bar_width=40)
+
+        durations = [1000.0, 1.0]
+        widths = visualizer._compute_phase_widths(durations)
+
+        assert sum(widths) == 40
+        assert widths[1] >= 2  # slack assigned to smaller duration
+
+    def test_compute_phase_widths_reduces_overflow_when_iterations_exhausted(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Overflow branch should trim counts when scaling loop hits limit."""
+        console = Console()
+        visualizer = WaterfallVisualizer(console, max_bar_width=5)
+
+        def single_iteration(_n: int) -> list[int]:
+            return [0]
+
+        module_dict = sys.modules["httptap.visualizer"].__dict__
+        monkeypatch.setitem(module_dict, "range", single_iteration)
+
+        durations = [500.0, 400.0, 300.0]
+        widths = visualizer._compute_phase_widths(durations)
+
+        assert sum(widths) <= visualizer.max_bar_width
+        assert all(w >= 1 for w in widths)
 
     def test_compute_phase_widths_respects_max_width(self) -> None:
         """Test that _compute_phase_widths respects max_bar_width."""

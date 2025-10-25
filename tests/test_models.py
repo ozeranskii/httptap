@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import pytest
 
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
+from httptap.utils import UTC
+
+if TYPE_CHECKING:
+    from faker import Faker
 
 
 class TestTimingMetrics:
@@ -25,22 +29,28 @@ class TestTimingMetrics:
         assert timing.xfer_ms == 0.0
         assert timing.is_estimated is False
 
-    def test_initialization_with_values(self) -> None:
+    def test_initialization_with_values(self, faker: Faker) -> None:
         """Test initializing TimingMetrics with specific values."""
+        dns_ms = faker.pyfloat(left_digits=2, right_digits=1, positive=True)
+        connect_ms = faker.pyfloat(left_digits=2, right_digits=1, positive=True)
+        tls_ms = faker.pyfloat(left_digits=2, right_digits=1, positive=True)
+        ttfb_ms = faker.pyfloat(left_digits=3, right_digits=1, positive=True)
+        total_ms = ttfb_ms + faker.pyfloat(left_digits=2, right_digits=1, positive=True)
+
         timing = TimingMetrics(
-            dns_ms=10.5,
-            connect_ms=20.3,
-            tls_ms=50.1,
-            ttfb_ms=100.0,
-            total_ms=150.0,
+            dns_ms=dns_ms,
+            connect_ms=connect_ms,
+            tls_ms=tls_ms,
+            ttfb_ms=ttfb_ms,
+            total_ms=total_ms,
             is_estimated=True,
         )
 
-        assert timing.dns_ms == 10.5
-        assert timing.connect_ms == 20.3
-        assert timing.tls_ms == 50.1
-        assert timing.ttfb_ms == 100.0
-        assert timing.total_ms == 150.0
+        assert timing.dns_ms == dns_ms
+        assert timing.connect_ms == connect_ms
+        assert timing.tls_ms == tls_ms
+        assert timing.ttfb_ms == ttfb_ms
+        assert timing.total_ms == total_ms
         assert timing.is_estimated is True
 
     def test_calculate_derived_computes_wait_ms(self) -> None:
@@ -138,53 +148,68 @@ class TestNetworkInfo:
         assert network.cert_cn is None
         assert network.cert_days_left is None
 
-    def test_initialization_with_values(self) -> None:
+    def test_initialization_with_values(self, faker: Faker) -> None:
         """Test initializing NetworkInfo with specific values."""
+        ip = faker.ipv4()
+        ip_family = "IPv4"
+        tls_version = faker.random_element(["TLSv1.2", "TLSv1.3"])
+        tls_cipher = faker.pystr(min_chars=12, max_chars=32)
+        cert_cn = faker.domain_name()
+        cert_days_left = faker.pyint(min_value=1, max_value=365)
+
         network = NetworkInfo(
-            ip="93.184.216.34",
-            ip_family="IPv4",
-            tls_version="TLSv1.3",
-            tls_cipher="TLS_AES_256_GCM_SHA384",
-            cert_cn="example.com",
-            cert_days_left=90,
+            ip=ip,
+            ip_family=ip_family,
+            tls_version=tls_version,
+            tls_cipher=tls_cipher,
+            cert_cn=cert_cn,
+            cert_days_left=cert_days_left,
         )
 
-        assert network.ip == "93.184.216.34"
-        assert network.ip_family == "IPv4"
-        assert network.tls_version == "TLSv1.3"
-        assert network.tls_cipher == "TLS_AES_256_GCM_SHA384"
-        assert network.cert_cn == "example.com"
-        assert network.cert_days_left == 90
+        assert network.ip == ip
+        assert network.ip_family == ip_family
+        assert network.tls_version == tls_version
+        assert network.tls_cipher == tls_cipher
+        assert network.cert_cn == cert_cn
+        assert network.cert_days_left == cert_days_left
 
-    def test_to_dict_includes_all_fields(self) -> None:
+    def test_to_dict_includes_all_fields(self, faker: Faker) -> None:
         """Test that to_dict() includes all network fields."""
+        ip = faker.ipv6()
+        ip_family = "IPv6"
+        tls_version = faker.random_element(["TLSv1.2", "TLSv1.3"])
+        tls_cipher = faker.pystr(min_chars=12, max_chars=32)
+        cert_cn = faker.domain_name()
+        cert_days_left = faker.pyint(min_value=1, max_value=365)
+
         network = NetworkInfo(
-            ip="2606:2800:220:1:248:1893:25c8:1946",
-            ip_family="IPv6",
-            tls_version="TLSv1.2",
-            tls_cipher="ECDHE-RSA-AES128-GCM-SHA256",
-            cert_cn="example.com",
-            cert_days_left=45,
+            ip=ip,
+            ip_family=ip_family,
+            tls_version=tls_version,
+            tls_cipher=tls_cipher,
+            cert_cn=cert_cn,
+            cert_days_left=cert_days_left,
         )
 
         result = network.to_dict()
 
         assert result == {
-            "ip": "2606:2800:220:1:248:1893:25c8:1946",
-            "ip_family": "IPv6",
-            "tls_version": "TLSv1.2",
-            "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
-            "cert_cn": "example.com",
-            "cert_days_left": 45,
+            "ip": ip,
+            "ip_family": ip_family,
+            "tls_version": tls_version,
+            "tls_cipher": tls_cipher,
+            "cert_cn": cert_cn,
+            "cert_days_left": cert_days_left,
         }
 
-    def test_to_dict_handles_none_values(self) -> None:
+    def test_to_dict_handles_none_values(self, faker: Faker) -> None:
         """Test that to_dict() handles None values correctly."""
-        network = NetworkInfo(ip="1.2.3.4")
+        ip = faker.ipv4()
+        network = NetworkInfo(ip=ip)
 
         result = network.to_dict()
 
-        assert result["ip"] == "1.2.3.4"
+        assert result["ip"] == ip
         assert result["tls_version"] is None
         assert result["cert_cn"] is None
 
@@ -204,52 +229,61 @@ class TestResponseInfo:
         assert response.location is None
         assert response.headers == {}
 
-    def test_initialization_with_values(self) -> None:
+    def test_initialization_with_values(self, faker: Faker) -> None:
         """Test initializing ResponseInfo with specific values."""
-        test_date = datetime(2025, 10, 22, 12, 0, 0, tzinfo=UTC)
-        headers = {"content-type": "application/json", "server": "nginx"}
+        test_date = faker.date_time(tzinfo=UTC)
+        headers = {faker.word(): faker.pystr(min_chars=4, max_chars=12)}
+        status = faker.random_element([200, 201, 204])
+        byte_count = faker.pyint(min_value=128, max_value=4096)
+        content_type = faker.mime_type()
+        server = faker.hostname()
 
         response = ResponseInfo(
-            status=200,
-            bytes=1024,
-            content_type="application/json",
-            server="nginx",
+            status=status,
+            bytes=byte_count,
+            content_type=content_type,
+            server=server,
             date=test_date,
             location=None,
             headers=headers,
         )
 
-        assert response.status == 200
-        assert response.bytes == 1024
-        assert response.content_type == "application/json"
-        assert response.server == "nginx"
+        assert response.status == status
+        assert response.bytes == byte_count
+        assert response.content_type == content_type
+        assert response.server == server
         assert response.date == test_date
         assert response.location is None
         assert response.headers == headers
 
-    def test_to_dict_includes_all_fields(self) -> None:
+    def test_to_dict_includes_all_fields(self, faker: Faker) -> None:
         """Test that to_dict() includes all response fields."""
-        test_date = datetime(2025, 10, 22, 12, 0, 0, tzinfo=UTC)
-        headers = {"server": "Apache"}
+        test_date = faker.date_time(tzinfo=UTC)
+        headers = {faker.word(): faker.pystr(min_chars=4, max_chars=12)}
+        status = faker.random_element([400, 404, 410])
+        byte_count = faker.pyint(min_value=128, max_value=2048)
+        content_type = faker.mime_type()
+        server = faker.hostname()
+        location = f"/{faker.word()}"
 
         response = ResponseInfo(
-            status=404,
-            bytes=512,
-            content_type="text/html",
-            server="Apache",
+            status=status,
+            bytes=byte_count,
+            content_type=content_type,
+            server=server,
             date=test_date,
-            location="/new-page",
+            location=location,
             headers=headers,
         )
 
         result = response.to_dict()
 
-        assert result["status"] == 404
-        assert result["bytes"] == 512
-        assert result["content_type"] == "text/html"
-        assert result["server"] == "Apache"
-        assert result["date"] == "2025-10-22T12:00:00+00:00"
-        assert result["location"] == "/new-page"
+        assert result["status"] == status
+        assert result["bytes"] == byte_count
+        assert result["content_type"] == content_type
+        assert result["server"] == server
+        assert result["date"] == test_date.isoformat()
+        assert result["location"] == location
         assert result["headers"] == headers
 
     def test_to_dict_handles_none_date(self) -> None:
@@ -260,14 +294,14 @@ class TestResponseInfo:
 
         assert result["date"] is None
 
-    def test_to_dict_formats_date_as_iso(self) -> None:
+    def test_to_dict_formats_date_as_iso(self, faker: Faker) -> None:
         """Test that to_dict() formats date as ISO string."""
-        test_date = datetime(2025, 1, 15, 18, 30, 45, tzinfo=UTC)
+        test_date = faker.date_time(tzinfo=UTC)
         response = ResponseInfo(date=test_date)
 
         result = response.to_dict()
 
-        assert result["date"] == "2025-01-15T18:30:45+00:00"
+        assert result["date"] == test_date.isoformat()
 
 
 class TestStepMetrics:
@@ -285,50 +319,52 @@ class TestStepMetrics:
         assert step.error is None
         assert step.note is None
 
-    def test_initialization_with_values(self) -> None:
+    def test_initialization_with_values(self, faker: Faker) -> None:
         """Test initializing StepMetrics with specific values."""
         timing = TimingMetrics(total_ms=100.0)
-        network = NetworkInfo(ip="1.2.3.4")
-        response = ResponseInfo(status=200)
+        network = NetworkInfo(ip=faker.ipv4())
+        response = ResponseInfo(status=faker.random_element([200, 201]))
+        url = faker.url()
+        error_message = faker.sentence()
+        note = faker.sentence()
 
         step = StepMetrics(
-            url="https://example.com",
+            url=url,
             step_number=2,
             timing=timing,
             network=network,
             response=response,
-            error="Connection failed",
-            note="Retry attempt",
+            error=error_message,
+            note=note,
         )
 
-        assert step.url == "https://example.com"
+        assert step.url == url
         assert step.step_number == 2
         assert step.timing is timing
         assert step.network is network
         assert step.response is response
-        assert step.error == "Connection failed"
-        assert step.note == "Retry attempt"
+        assert step.error == error_message
+        assert step.note == note
 
-    def test_to_dict_includes_all_fields(self) -> None:
+    def test_to_dict_includes_all_fields(self, faker: Faker) -> None:
         """Test that to_dict() includes all step fields."""
-        step = StepMetrics(
-            url="https://example.com/api",
-            step_number=3,
-        )
+        url = faker.url()
+        step_number = faker.pyint(min_value=1, max_value=5)
+        step = StepMetrics(url=url, step_number=step_number)
 
         result = step.to_dict()
 
-        assert result["url"] == "https://example.com/api"
-        assert result["step_number"] == 3
+        assert result["url"] == url
+        assert result["step_number"] == step_number
         assert "timing" in result
         assert "network" in result
         assert "response" in result
         assert result["error"] is None
         assert result["note"] is None
 
-    def test_has_error_returns_true_when_error_present(self) -> None:
+    def test_has_error_returns_true_when_error_present(self, faker: Faker) -> None:
         """Test that has_error property returns True when error exists."""
-        step = StepMetrics(error="Timeout occurred")
+        step = StepMetrics(error=faker.sentence())
 
         assert step.has_error is True
 
@@ -338,9 +374,9 @@ class TestStepMetrics:
 
         assert step.has_error is False
 
-    def test_is_redirect_returns_true_for_3xx_with_location(self) -> None:
+    def test_is_redirect_returns_true_for_3xx_with_location(self, faker: Faker) -> None:
         """Test that is_redirect returns True for 3xx status with Location."""
-        response = ResponseInfo(status=301, location="https://example.com/new")
+        response = ResponseInfo(status=301, location=faker.uri())
         step = StepMetrics(response=response)
 
         assert step.is_redirect is True
@@ -352,24 +388,24 @@ class TestStepMetrics:
 
         assert step.is_redirect is False
 
-    def test_is_redirect_returns_false_for_2xx(self) -> None:
+    def test_is_redirect_returns_false_for_2xx(self, faker: Faker) -> None:
         """Test that is_redirect returns False for 2xx status."""
-        response = ResponseInfo(status=200, location="https://example.com")
+        response = ResponseInfo(status=200, location=faker.uri())
         step = StepMetrics(response=response)
 
         # Even with Location header, 2xx is not a redirect
         assert step.is_redirect is False
 
-    def test_is_redirect_returns_false_for_4xx(self) -> None:
+    def test_is_redirect_returns_false_for_4xx(self, faker: Faker) -> None:
         """Test that is_redirect returns False for 4xx status."""
-        response = ResponseInfo(status=404, location=None)
+        response = ResponseInfo(status=404, location=faker.uri())
         step = StepMetrics(response=response)
 
         assert step.is_redirect is False
 
-    def test_is_redirect_returns_false_when_status_is_none(self) -> None:
+    def test_is_redirect_returns_false_when_status_is_none(self, faker: Faker) -> None:
         """Test that is_redirect returns False when status is None."""
-        response = ResponseInfo(status=None, location="https://example.com")
+        response = ResponseInfo(status=None, location=faker.uri())
         step = StepMetrics(response=response)
 
         assert step.is_redirect is False
@@ -385,11 +421,11 @@ class TestStepMetrics:
 
         assert step.is_redirect is True
 
-    def test_to_dict_nests_sub_models(self) -> None:
+    def test_to_dict_nests_sub_models(self, faker: Faker) -> None:
         """Test that to_dict() properly nests sub-model dictionaries."""
         timing = TimingMetrics(dns_ms=10.0)
-        network = NetworkInfo(ip="1.2.3.4")
-        response = ResponseInfo(status=200)
+        network = NetworkInfo(ip=faker.ipv4())
+        response = ResponseInfo(status=faker.random_element([200, 201]))
         step = StepMetrics(timing=timing, network=network, response=response)
 
         result = step.to_dict()
@@ -397,6 +433,6 @@ class TestStepMetrics:
         assert isinstance(result["timing"], dict)
         assert result["timing"]["dns_ms"] == 10.0
         assert isinstance(result["network"], dict)
-        assert result["network"]["ip"] == "1.2.3.4"
+        assert result["network"]["ip"] == network.ip
         assert isinstance(result["response"], dict)
-        assert result["response"]["status"] == 200
+        assert result["response"]["status"] == response.status

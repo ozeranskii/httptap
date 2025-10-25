@@ -4,7 +4,7 @@
 
 Before installing httptap, ensure you have:
 
-- **Python 3.13 or higher** (CPython recommended)
+- **Python 3.10 or higher** (CPython recommended)
 - **pip** or **uv** package manager
 - **macOS, Linux, or Windows** operating system
 
@@ -73,7 +73,7 @@ httptap --version
 You should see output similar to:
 
 ```
-httptap 0.1.0
+httptap X.Y.Z
 ```
 
 ## Upgrading

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import socket
 import ssl
+import sys
 from typing import TYPE_CHECKING
 
 import pytest
@@ -13,6 +14,9 @@ from httptap.models import NetworkInfo
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
+
+
+IS_WINDOWS = sys.platform.startswith("win")
 
 
 class TestSocketTLSInspector:
@@ -157,6 +161,67 @@ class TestSocketTLSInspector:
             match=r"TLS inspection failed.*handshake",
         ):
             inspector.inspect("bad-ssl.example.com", 443, 5.0)
+
+    def test_populate_network_info_handles_empty_peer(
+        self,
+        mocker: MockerFixture,
+    ) -> None:
+        inspector = SocketTLSInspector()
+        network_info = NetworkInfo()
+
+        sock = mocker.MagicMock(spec=socket.socket)
+        sock.getpeername.return_value = ()
+
+        inspector._populate_network_info(sock, network_info)
+
+        assert network_info.ip is None
+        assert network_info.ip_family is None
+
+    @pytest.mark.skipif(
+        IS_WINDOWS,
+        reason="UNIX domain sockets are not available on Windows",
+    )
+    def test_populate_network_info_skips_blank_ip_posix(
+        self,
+        mocker: MockerFixture,
+    ) -> None:
+        """Ensure POSIX sockets with blank sockaddr are ignored."""
+        inspector = SocketTLSInspector()
+        network_info = NetworkInfo()
+
+        sock = mocker.MagicMock(spec=socket.socket)
+        sock.family = socket.AF_UNIX
+        sock.getpeername.return_value = ("", 0)
+
+        inspector._populate_network_info(sock, network_info)
+
+        assert network_info.ip is None
+        assert network_info.ip_family is None
+
+    @pytest.mark.skipif(
+        not IS_WINDOWS,
+        reason="Specific to Windows where AF_UNIX is unavailable",
+    )
+    def test_populate_network_info_skips_blank_ip_windows(
+        self,
+        mocker: MockerFixture,
+    ) -> None:
+        """Ensure Windows sockets with blank sockaddr are ignored."""
+        inspector = SocketTLSInspector()
+        network_info = NetworkInfo()
+
+        sock = mocker.MagicMock(spec=socket.socket)
+        sock.family = socket.AF_INET
+        sock.getpeername.return_value = ("", 0)
+
+        inspector._populate_network_info(sock, network_info)
+
+        assert network_info.ip is None
+        assert network_info.ip_family is None
+
+    def test_family_to_label_returns_fallback(self) -> None:
+        label = SocketTLSInspector._family_to_label(9999)
+        assert label == "AF_9999"
 
     def test_inspect_respects_timeout_limit(self, mocker: MockerFixture) -> None:
         """Test that inspector caps timeout at TLS_PROBE_MAX_TIMEOUT_SECONDS."""

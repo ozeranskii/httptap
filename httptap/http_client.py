@@ -53,7 +53,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from ._pkgmeta import package_home_page, package_version
+from ._pkgmeta import get_package_info
 from .constants import (
     CONNECT_PHASE_RATIO,
     DEFAULT_TIMEOUT_SECONDS,
@@ -87,9 +87,8 @@ class SSLInfoProvider(Protocol):
 
 
 def _build_user_agent() -> str:
-    version = package_version()
-    homepage = package_home_page()
-    return f"httptap/{version} (+{homepage})"
+    info = get_package_info()
+    return f"httptap/{info.version} (+{info.homepage})"
 
 
 USER_AGENT = _build_user_agent()

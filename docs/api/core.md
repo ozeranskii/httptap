@@ -186,7 +186,7 @@ from httptap.constants import (
 
 ```python
 from httptap.constants import (
-    DEFAULT_USER_AGENT,    # "httptap/0.1.0"
+    DEFAULT_USER_AGENT,    # "httptap/X.Y.Z"
     MAX_REDIRECTS,         # 10
     MAX_BODY_SIZE          # 10 MB
 )

@@ -6,7 +6,24 @@ masking sensitive data, parsing headers, and URL validation.
 
 import re
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+
+try:  # pragma: no cover - exercised indirectly
+    from datetime import UTC  # type: ignore[attr-defined]
+except ImportError:  # Python < 3.11 # pragma: no cover - exercised indirectly
+    UTC = timezone.utc
+
+__all__ = [
+    "MASK_PATTERN",
+    "SENSITIVE_HEADERS",
+    "UTC",
+    "calculate_days_until",
+    "mask_sensitive_value",
+    "parse_certificate_date",
+    "parse_http_date",
+    "sanitize_headers",
+    "validate_url",
+]
 
 # Headers that should have their values masked for security
 SENSITIVE_HEADERS: set[str] = {
@@ -80,7 +97,7 @@ def parse_http_date(date_str: str) -> datetime | None:
 
     Examples:
         >>> parse_http_date("Mon, 22 Oct 2025 12:00:00 GMT")
-        datetime.datetime(2025, 10, 22, 12, 0, tzinfo=datetime.UTC)
+        datetime.datetime(2025, 10, 22, 12, 0, tzinfo=UTC)
 
     """
     try:
