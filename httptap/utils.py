@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 try:  # pragma: no cover - exercised indirectly
     from datetime import UTC  # type: ignore[attr-defined]
-except ImportError:  # Python < 3.11
+except ImportError:  # Python < 3.11 # pragma: no cover - exercised indirectly
     UTC = timezone.utc
 
 __all__ = [
