@@ -1080,45 +1080,54 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-generate-changelog" class="md-nav__link">
+  <a href="#2-regenerate-lockfile" class="md-nav__link">
     <span class="md-ellipsis">
-      2. Generate Changelog
+      2. Regenerate Lockfile
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-commit-changes" class="md-nav__link">
+  <a href="#3-generate-changelog" class="md-nav__link">
     <span class="md-ellipsis">
-      3. Commit Changes
+      3. Generate Changelog
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-create-tag" class="md-nav__link">
+  <a href="#4-commit-changes" class="md-nav__link">
     <span class="md-ellipsis">
-      4. Create Tag
+      4. Commit Changes
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#5-push" class="md-nav__link">
+  <a href="#5-create-tag" class="md-nav__link">
     <span class="md-ellipsis">
-      5. Push
+      5. Create Tag
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#6-build-and-publish" class="md-nav__link">
+  <a href="#6-push" class="md-nav__link">
     <span class="md-ellipsis">
-      6. Build and Publish
+      6. Push
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-build-and-publish" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Build and Publish
     </span>
   </a>
   
@@ -1568,45 +1577,54 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-generate-changelog" class="md-nav__link">
+  <a href="#2-regenerate-lockfile" class="md-nav__link">
     <span class="md-ellipsis">
-      2. Generate Changelog
+      2. Regenerate Lockfile
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-commit-changes" class="md-nav__link">
+  <a href="#3-generate-changelog" class="md-nav__link">
     <span class="md-ellipsis">
-      3. Commit Changes
+      3. Generate Changelog
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-create-tag" class="md-nav__link">
+  <a href="#4-commit-changes" class="md-nav__link">
     <span class="md-ellipsis">
-      4. Create Tag
+      4. Commit Changes
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#5-push" class="md-nav__link">
+  <a href="#5-create-tag" class="md-nav__link">
     <span class="md-ellipsis">
-      5. Push
+      5. Create Tag
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#6-build-and-publish" class="md-nav__link">
+  <a href="#6-push" class="md-nav__link">
     <span class="md-ellipsis">
-      6. Build and Publish
+      6. Push
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-build-and-publish" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Build and Publish
     </span>
   </a>
   
@@ -1785,24 +1803,30 @@ building, and publishing to PyPI.</p>
    Updates <code>version</code> in <code>pyproject.toml</code></p>
 </li>
 <li>
+<p><strong>Lockfile Refresh</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>lock
+</span></code></pre></div>
+   Regenerates <code>uv.lock</code> so it stays in sync with the new version</p>
+</li>
+<li>
 <p><strong>Changelog Generation</strong>
-   <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>cliff<span class="w"> </span>--tag<span class="w"> </span>v0.2.0<span class="w"> </span>--unreleased<span class="w"> </span>--prepend<span class="w"> </span>CHANGELOG.md
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>cliff<span class="w"> </span>--tag<span class="w"> </span>v0.2.0<span class="w"> </span>--unreleased<span class="w"> </span>--prepend<span class="w"> </span>CHANGELOG.md
 </span></code></pre></div>
    Generates changelog from conventional commits</p>
 </li>
 <li>
 <p><strong>Commit and Tag</strong>
-   <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore: release v0.2.0&quot;</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v0.2.0<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Release v0.2.0&quot;</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>HEAD
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v0.2.0
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore: release v0.2.0&quot;</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v0.2.0<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Release v0.2.0&quot;</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>HEAD
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v0.2.0
 </span></code></pre></div></p>
 </li>
 <li>
 <p><strong>Build</strong>
-   <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>sync<span class="w"> </span>--locked<span class="w"> </span>--group<span class="w"> </span><span class="nb">test</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w">  </span><span class="c1"># Full test suite</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>uv<span class="w"> </span>build<span class="w">  </span><span class="c1"># Create wheel and sdist</span>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>uv<span class="w"> </span>sync<span class="w"> </span>--locked<span class="w"> </span>--group<span class="w"> </span><span class="nb">test</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w">  </span><span class="c1"># Full test suite</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>uv<span class="w"> </span>build<span class="w">  </span><span class="c1"># Create wheel and sdist</span>
 </span></code></pre></div></p>
 </li>
 <li>
@@ -1853,11 +1877,11 @@ building, and publishing to PyPI.</p>
 <h2 id="changelog-generation">Changelog Generation<a class="headerlink" href="#changelog-generation" title="Permanent link">&para;</a></h2>
 <p>Changelogs are automatically generated using <a href="https://git-cliff.org/">git-cliff</a> based on conventional commits.</p>
 <h3 id="commit-format">Commit Format<a class="headerlink" href="#commit-format" title="Permanent link">&para;</a></h3>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>&lt;type&gt;(&lt;scope&gt;): &lt;subject&gt;
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>&lt;body&gt;
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>&lt;footer&gt;
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>&lt;type&gt;(&lt;scope&gt;): &lt;subject&gt;
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>&lt;body&gt;
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>&lt;footer&gt;
 </span></code></pre></div>
 <h3 id="supported-types">Supported Types<a class="headerlink" href="#supported-types" title="Permanent link">&para;</a></h3>
 <table>
@@ -1908,9 +1932,9 @@ building, and publishing to PyPI.</p>
 </table>
 <h3 id="breaking-changes">Breaking Changes<a class="headerlink" href="#breaking-changes" title="Permanent link">&para;</a></h3>
 <p>Mark breaking changes in commit footer:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>feat(api): redesign analyzer interface
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>BREAKING CHANGE: HTTPTapAnalyzer constructor signature changed
+<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>feat(api): redesign analyzer interface
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>BREAKING CHANGE: HTTPTapAnalyzer constructor signature changed
 </span></code></pre></div>
 <h2 id="version-strategy">Version Strategy<a class="headerlink" href="#version-strategy" title="Permanent link">&para;</a></h2>
 <p>httptap follows <a href="https://semver.org/">Semantic Versioning</a>:</p>
@@ -1929,25 +1953,28 @@ building, and publishing to PyPI.</p>
 <h2 id="manual-release-steps">Manual Release Steps<a class="headerlink" href="#manual-release-steps" title="Permanent link">&para;</a></h2>
 <p>If you need to release manually (not recommended):</p>
 <h3 id="1-update-version">1. Update Version<a class="headerlink" href="#1-update-version" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>uv<span class="w"> </span>version<span class="w"> </span><span class="m">0</span>.2.0
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>uv<span class="w"> </span>version<span class="w"> </span><span class="m">0</span>.2.0
 </span></code></pre></div>
-<h3 id="2-generate-changelog">2. Generate Changelog<a class="headerlink" href="#2-generate-changelog" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>cliff<span class="w"> </span>--tag<span class="w"> </span>v0.2.0<span class="w"> </span>--unreleased<span class="w"> </span>--prepend<span class="w"> </span>CHANGELOG.md
+<h3 id="2-regenerate-lockfile">2. Regenerate Lockfile<a class="headerlink" href="#2-regenerate-lockfile" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>uv<span class="w"> </span>lock
 </span></code></pre></div>
-<h3 id="3-commit-changes">3. Commit Changes<a class="headerlink" href="#3-commit-changes" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>git<span class="w"> </span>add<span class="w"> </span>pyproject.toml<span class="w"> </span>CHANGELOG.md
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore: release v0.2.0&quot;</span>
+<h3 id="3-generate-changelog">3. Generate Changelog<a class="headerlink" href="#3-generate-changelog" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>git<span class="w"> </span>cliff<span class="w"> </span>--tag<span class="w"> </span>v0.2.0<span class="w"> </span>--unreleased<span class="w"> </span>--prepend<span class="w"> </span>CHANGELOG.md
 </span></code></pre></div>
-<h3 id="4-create-tag">4. Create Tag<a class="headerlink" href="#4-create-tag" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v0.2.0<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Release v0.2.0&quot;</span>
+<h3 id="4-commit-changes">4. Commit Changes<a class="headerlink" href="#4-commit-changes" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>git<span class="w"> </span>add<span class="w"> </span>pyproject.toml<span class="w"> </span>uv.lock<span class="w"> </span>CHANGELOG.md
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore: release v0.2.0&quot;</span>
 </span></code></pre></div>
-<h3 id="5-push">5. Push<a class="headerlink" href="#5-push" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>main
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v0.2.0
+<h3 id="5-create-tag">5. Create Tag<a class="headerlink" href="#5-create-tag" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v0.2.0<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Release v0.2.0&quot;</span>
 </span></code></pre></div>
-<h3 id="6-build-and-publish">6. Build and Publish<a class="headerlink" href="#6-build-and-publish" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>uv<span class="w"> </span>build
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>uv<span class="w"> </span>publish<span class="w">  </span><span class="c1"># Requires PyPI credentials</span>
+<h3 id="6-push">6. Push<a class="headerlink" href="#6-push" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>main
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v0.2.0
+</span></code></pre></div>
+<h3 id="7-build-and-publish">7. Build and Publish<a class="headerlink" href="#7-build-and-publish" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>uv<span class="w"> </span>build
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>uv<span class="w"> </span>publish<span class="w">  </span><span class="c1"># Requires PyPI credentials</span>
 </span></code></pre></div>
 <h3 id="7-create-github-release">7. Create GitHub Release<a class="headerlink" href="#7-create-github-release" title="Permanent link">&para;</a></h3>
 <p>Use <code>gh</code> CLI or web interface to create release with changelog notes.</p>
