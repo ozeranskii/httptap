@@ -87,3 +87,20 @@ def test_get_package_info_falls_back_for_non_string_lists(
     assert info.author == "Sergei Ozeranskii"
     assert info.homepage == "https://github.com/ozeranskii/httptap"
     assert info.license == "Apache-2.0"
+
+
+def test_get_package_info_returns_defaults_when_package_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        importlib_metadata,
+        "version",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(importlib_metadata.PackageNotFoundError()),
+    )
+
+    info = _pkgmeta.get_package_info()
+
+    assert info.version == "0.0.0"
+    assert info.author == "Sergei Ozeranskii"
+    assert info.homepage == "https://github.com/ozeranskii/httptap"
+    assert info.license == "Apache-2.0"
