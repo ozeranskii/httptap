@@ -2,18 +2,23 @@ from __future__ import annotations
 
 import json
 import signal
-from typing import TYPE_CHECKING, Literal
+from argparse import Namespace
+from typing import TYPE_CHECKING, Literal, cast
 
 import pytest
 from typing_extensions import Self
 
 from httptap.cli import (
+    EXIT_FATAL_ERROR,
     EXIT_NETWORK_ERROR,
     EXIT_SUCCESS,
     EXIT_USAGE_ERROR,
+    _export_results,
     _parse_headers,
+    determine_exit_code,
     main,
     setup_signal_handlers,
+    validate_arguments,
 )
 from httptap.constants import UNIX_SIGNAL_EXIT_OFFSET
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
@@ -22,6 +27,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
     from pathlib import Path
     from types import TracebackType
+
+    from httptap.render import OutputRenderer
 
 
 @pytest.mark.parametrize(
@@ -84,6 +91,14 @@ class RendererStub:
 
     def render_analysis(self, steps: list[StepMetrics], initial_url: str) -> None:
         self.rendered.append((steps, initial_url))
+
+    def export_json(
+        self,
+        _steps: list[StepMetrics],
+        _initial_url: str,
+        _path: str,
+    ) -> None:
+        return None
 
 
 def test_main_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -170,6 +185,48 @@ def _make_step(
         response=response,
         error=error,
     )
+
+
+def test_export_results_handles_oserror(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    class FailingRenderer(RendererStub):
+        def export_json(self, *_args: object, **_kwargs: object) -> None:
+            message = "disk full"
+            raise OSError(message)
+
+    renderer = FailingRenderer()
+    steps = [_make_step()]
+    args = Namespace(url="https://example.test", json="out.json")
+
+    _export_results(cast("OutputRenderer", renderer), steps, args)
+
+    captured = capsys.readouterr()
+    assert "Failed to export JSON" in captured.err
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["invalid", "ftp://example.com"],
+)
+def test_validate_arguments_invalid_url(
+    url: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    args = Namespace(url=url, timeout=5, headers=[], json=None)
+    with pytest.raises(ValueError, match="Invalid URL"):
+        validate_arguments(args)
+    captured = capsys.readouterr()
+    assert "Invalid URL" in captured.err
+
+
+def test_validate_arguments_invalid_timeout(capsys: pytest.CaptureFixture[str]) -> None:
+    args = Namespace(url="https://example.test", timeout=0, headers=[], json=None)
+    with pytest.raises(ValueError, match="Invalid timeout"):
+        validate_arguments(args)
+    captured = capsys.readouterr()
+    assert "Invalid timeout" in captured.err
 
 
 class DummyProgress:
@@ -295,6 +352,40 @@ def test_cli_integration_metrics_only_error_exit(
     assert exit_code == EXIT_NETWORK_ERROR
     assert "Step 1: ERROR - simulated failure" in stdout
     assert stderr == ""
+
+
+def test_main_handles_keyboard_interrupt(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "httptap.cli._execute_analysis",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(KeyboardInterrupt()),
+    )
+    monkeypatch.setattr("sys.argv", ["httptap", "https://example.test"])
+
+    exit_code = main()
+
+    assert exit_code == UNIX_SIGNAL_EXIT_OFFSET + signal.SIGINT
+
+
+def test_main_handles_unexpected_exception(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        "httptap.cli._execute_analysis",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    monkeypatch.setattr("sys.argv", ["httptap", "https://example.test"])
+
+    exit_code = main()
+    stdout, stderr = capsys.readouterr()
+
+    assert exit_code == EXIT_FATAL_ERROR
+    assert "Internal Error" in stderr
+    assert stdout == ""
+
+
+def test_determine_exit_code_empty_steps() -> None:
+    assert determine_exit_code([]) == EXIT_FATAL_ERROR
 
 
 def test_setup_signal_handlers_invokes_exit(monkeypatch: pytest.MonkeyPatch) -> None:

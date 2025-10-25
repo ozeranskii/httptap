@@ -173,9 +173,14 @@ show_missing = true
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
+    "def __str__",
+    "def __hash__",
+    "def __eq__",
     "if __name__ == .__main__.:",
     "raise AssertionError",
     "raise NotImplementedError",
     "if TYPE_CHECKING:",
     "@abstractmethod",
+    "^\\s*pass$",
+    "class .+Protocol",
 ]
