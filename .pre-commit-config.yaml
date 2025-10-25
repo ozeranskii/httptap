@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.1
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.0.1
+    hooks:
+      - id: mypy
+        additional_dependencies: [rich, httpx, dnspython]
+        args: [--strict, --ignore-missing-imports]
+        files: ^httptap/
