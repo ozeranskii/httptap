@@ -77,6 +77,9 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Final version: ${VERSION}"
 
+      - name: Refresh lockfile
+        run: uv lock
+
       - name: Ensure changelog exists
         run: touch ${CHANGELOG_FILE}
 
@@ -101,7 +104,7 @@ jobs:
       - name: Commit release changes
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          git add pyproject.toml ${CHANGELOG_FILE}
+          git add pyproject.toml uv.lock ${CHANGELOG_FILE}
           git commit -m "chore: release v${VERSION}"
 
       - name: Create and push tag
