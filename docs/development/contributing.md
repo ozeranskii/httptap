@@ -12,7 +12,7 @@ participating, you are expected to uphold this code.
 
 ### Prerequisites
 
-- Python 3.13 or higher
+- Python 3.10 or higher (CPython)
 - [uv](https://github.com/astral-sh/uv) package manager
 - Git
 

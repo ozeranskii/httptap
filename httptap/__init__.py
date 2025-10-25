@@ -24,12 +24,7 @@ Modules:
 
 """
 
-from ._pkgmeta import package_author, package_license, package_version
-
-__version__ = package_version()
-__author__ = package_author()
-__license__ = package_license()
-
+from ._pkgmeta import get_package_info
 from .analyzer import HTTPTapAnalyzer, RequestExecutor
 from .exporter import JSONExporter
 from .implementations import (
@@ -48,6 +43,12 @@ from .models import (
 )
 from .render import OutputRenderer
 from .visualizer import WaterfallVisualizer
+
+_package_info = get_package_info()
+
+__version__ = _package_info.version
+__author__ = _package_info.author
+__license__ = _package_info.license
 
 __all__ = [
     "DNSResolutionError",

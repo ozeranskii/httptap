@@ -62,7 +62,7 @@ performance baselines.
 
 ## Requirements
 
-- Python 3.13 (CPython; 3.13+ targeted as primary runtime)
+- Python 3.10-3.14 (CPython)
 - macOS, Linux, or Windows (tested on CPython)
 - No system dependencies beyond standard networking
 - Code must follow the Google Python Style Guide (docstrings, formatting). See

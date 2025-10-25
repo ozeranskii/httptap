@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import signal
-from typing import TYPE_CHECKING, Literal, Self
+from typing import TYPE_CHECKING, Literal
 
 import pytest
+from typing_extensions import Self
 
 from httptap.cli import (
     EXIT_NETWORK_ERROR,

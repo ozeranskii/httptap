@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ssl
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -15,6 +15,7 @@ from httptap.tls_inspector import (
     extract_certificate_info,
     extract_tls_info,
 )
+from httptap.utils import UTC
 
 
 class TestCertificateInfo:

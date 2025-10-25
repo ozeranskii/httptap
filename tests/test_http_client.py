@@ -122,12 +122,19 @@ class TestBuildUserAgent:
     def test_build_user_agent_handles_package_not_found(
         self,
         mocker: pytest_mock.MockerFixture,
+        faker: Faker,
     ) -> None:
         """Test that _build_user_agent handles PackageNotFoundError."""
-        mocker.patch("httptap._pkgmeta.package_version", return_value="0.0.0")
+        from httptap._pkgmeta import PackageInfo
+
         mocker.patch(
-            "httptap._pkgmeta.package_home_page",
-            return_value="https://github.com/ozeranskii/httptap",
+            "httptap._pkgmeta.get_package_info",
+            return_value=PackageInfo(
+                version="0.0.0",
+                author=faker.name(),
+                homepage=faker.url(),
+                license=faker.pystr(min_chars=5, max_chars=12),
+            ),
         )
 
         # Reload module to trigger _build_user_agent with mocked metadata

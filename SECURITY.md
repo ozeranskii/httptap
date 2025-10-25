@@ -66,9 +66,9 @@ Your PoC code here
 [Your suggestion if you have one]
 
 ## Environment
-- Python: 3.13
+- Python: 3.10-3.14
 - OS: macOS/Linux/Windows
-- httptap version: 0.1.0
+- httptap version: X.Y.Z
 
 ## Response Timeline
 
@@ -117,7 +117,7 @@ Always install from trusted sources:
 pip install httptap
 
 # ✅ Good: Install specific version
-pip install httptap==0.1.0
+pip install httptap==X.Y.Z
 
 # ⚠️ Caution: Verify source before installing from git
 pip install git+https://github.com/ozeranskii/httptap.git

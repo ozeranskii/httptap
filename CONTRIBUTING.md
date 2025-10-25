@@ -21,7 +21,7 @@ to uphold this code.
 
 ### Prerequisites
 
-- Python 3.13+ (CPython)
+- Python 3.10+ (CPython)
 - [uv](https://docs.astral.sh/uv/) package manager
 - Git
 
