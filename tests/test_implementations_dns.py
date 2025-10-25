@@ -115,6 +115,16 @@ class TestSystemDNSResolver:
         with pytest.raises(DNSResolutionError, match="No address records"):
             resolver.resolve("empty.example.com", 443, 5.0)
 
+    def test_resolve_none_result_raises_error(self, mocker: MockerFixture) -> None:
+        """Test that None from getaddrinfo raises DNSResolutionError."""
+        resolver = SystemDNSResolver()
+
+        mock_getaddrinfo = mocker.patch("socket.getaddrinfo")
+        mock_getaddrinfo.return_value = None
+
+        with pytest.raises(DNSResolutionError, match="No address records"):
+            resolver.resolve("none.example.com", 443, 5.0)
+
     def test_resolve_missing_ip_raises_error(self, mocker: MockerFixture) -> None:
         """Test that missing IP in sockaddr raises DNSResolutionError."""
         resolver = SystemDNSResolver()
@@ -137,6 +147,10 @@ class TestSystemDNSResolver:
 
         with pytest.raises(DNSResolutionError, match="No address records"):
             resolver.resolve("empty-set.example.com", 443, 5.0)
+
+    def test_extract_sockaddr_returns_empty_tuple(self) -> None:
+        """_extract_sockaddr should return empty tuple when none present."""
+        assert dns._extract_sockaddr(["not-a-tuple", 123]) == ()
 
     def test_normalize_addrinfo_covers_edge_cases(self) -> None:
         """_normalize_addrinfo handles empty and non-int family entries."""

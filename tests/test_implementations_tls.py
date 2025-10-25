@@ -158,6 +158,41 @@ class TestSocketTLSInspector:
         ):
             inspector.inspect("bad-ssl.example.com", 443, 5.0)
 
+    def test_populate_network_info_handles_empty_peer(
+        self,
+        mocker: MockerFixture,
+    ) -> None:
+        inspector = SocketTLSInspector()
+        network_info = NetworkInfo()
+
+        sock = mocker.MagicMock(spec=socket.socket)
+        sock.getpeername.return_value = ()
+
+        inspector._populate_network_info(sock, network_info)
+
+        assert network_info.ip is None
+        assert network_info.ip_family is None
+
+    def test_populate_network_info_skips_blank_ip(
+        self,
+        mocker: MockerFixture,
+    ) -> None:
+        inspector = SocketTLSInspector()
+        network_info = NetworkInfo()
+
+        sock = mocker.MagicMock(spec=socket.socket)
+        sock.family = socket.AF_UNIX
+        sock.getpeername.return_value = ("", 0)
+
+        inspector._populate_network_info(sock, network_info)
+
+        assert network_info.ip is None
+        assert network_info.ip_family is None
+
+    def test_family_to_label_returns_fallback(self) -> None:
+        label = SocketTLSInspector._family_to_label(9999)
+        assert label == "AF_9999"
+
     def test_inspect_respects_timeout_limit(self, mocker: MockerFixture) -> None:
         """Test that inspector caps timeout at TLS_PROBE_MAX_TIMEOUT_SECONDS."""
         inspector = SocketTLSInspector()
