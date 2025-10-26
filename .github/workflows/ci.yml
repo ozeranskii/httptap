@@ -115,22 +115,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Check for pre-commit config changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            precommit-config:
+              - '.pre-commit-config.yaml'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - '.github/workflows/pre-commit.yml'
+
       - name: Set up Python
+        if: steps.changes.outputs.precommit-config == 'true'
         uses: actions/setup-python@v6
         with:
           python-version-file: "pyproject.toml"
 
       - name: Install uv
+        if: steps.changes.outputs.precommit-config == 'true'
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
       - name: Sync only precommit dependencies
+        if: steps.changes.outputs.precommit-config == 'true'
         run: |
           uv sync --group precommit
           uv run pre-commit --version
 
       - name: Validate pre-commit config
+        if: steps.changes.outputs.precommit-config == 'true'
         run: |
           uv run pre-commit validate-config
           uv run pre-commit validate-manifest
