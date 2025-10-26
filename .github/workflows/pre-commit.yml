@@ -1,4 +1,4 @@
-name: Pre-commit config validation
+name: Pre-commit policy validation
 
 on:
   pull_request:
@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - ".pre-commit-config.yaml"
+      - ".yamlfmt"
       - "pyproject.toml"
       - "uv.lock"
       - ".github/workflows/pre-commit.yml"
@@ -15,13 +16,14 @@ on:
       - main
     paths:
       - ".pre-commit-config.yaml"
+      - ".yamlfmt"
       - "pyproject.toml"
       - "uv.lock"
       - ".github/workflows/pre-commit.yml"
 
 jobs:
-  pre-commit-config-check:
-    name: Validate pre-commit config
+  pre-commit-policy-check:
+    name: Validate pre-commit config & hooks
     runs-on: ubuntu-latest
 
     steps:
