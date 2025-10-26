@@ -107,49 +107,6 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
-  pre-commit-config-check:
-    name: Validate pre-commit config
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Check for pre-commit config changes
-        uses: dorny/paths-filter@v3
-        id: changes
-        with:
-          filters: |
-            precommit-config:
-              - '.pre-commit-config.yaml'
-              - 'pyproject.toml'
-              - 'uv.lock'
-              - '.github/workflows/pre-commit.yml'
-
-      - name: Set up Python
-        if: steps.changes.outputs.precommit-config == 'true'
-        uses: actions/setup-python@v6
-        with:
-          python-version-file: "pyproject.toml"
-
-      - name: Install uv
-        if: steps.changes.outputs.precommit-config == 'true'
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      - name: Sync only precommit dependencies
-        if: steps.changes.outputs.precommit-config == 'true'
-        run: |
-          uv sync --group precommit
-          uv run pre-commit --version
-
-      - name: Validate pre-commit config
-        if: steps.changes.outputs.precommit-config == 'true'
-        run: |
-          uv run pre-commit validate-config
-          uv run pre-commit validate-manifest
-
   build:
     name: Build Package
     runs-on: ubuntu-latest
@@ -157,7 +114,6 @@ jobs:
       - lint
       - type-check
       - test
-      - pre-commit-config-check
 
     steps:
       - name: Checkout code
@@ -185,7 +141,6 @@ jobs:
       - lint
       - type-check
       - test
-      - pre-commit-config-check
       - build
     runs-on: ubuntu-latest
 
@@ -195,13 +150,11 @@ jobs:
           echo "lint: $LINT_RESULT"
           echo "type-check: $TYPE_CHECK_RESULT"
           echo "test: $TEST_RESULT"
-          echo "pre-commit-config-check: $PRE_COMMIT_CONFIG_CHECK_RESULT"
           echo "build: $BUILD_RESULT"
 
           if [[ "$LINT_RESULT" != "success" ]] || \
              [[ "$TYPE_CHECK_RESULT" != "success" ]] || \
              [[ "$TEST_RESULT" != "success" ]] || \
-             [[ "$PRE_COMMIT_CONFIG_CHECK_RESULT" != "success" ]] || \
              [[ "$BUILD_RESULT" != "success" ]]; then
             echo "One or more checks failed"
             exit 1
@@ -211,5 +164,4 @@ jobs:
           LINT_RESULT: ${{ needs.lint.result }}
           TYPE_CHECK_RESULT: ${{ needs.type-check.result }}
           TEST_RESULT: ${{ needs.test.result }}
-          PRE_COMMIT_CONFIG_CHECK_RESULT: ${{ needs.pre-commit-config-check.result }}
           BUILD_RESULT: ${{ needs.build.result }}
