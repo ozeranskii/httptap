@@ -21,6 +21,9 @@ on:
       - "uv.lock"
       - ".github/workflows/pre-commit.yml"
 
+permissions:
+  contents: read
+
 jobs:
   pre-commit-policy-check:
     name: Validate pre-commit config & hooks
