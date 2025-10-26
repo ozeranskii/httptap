@@ -1,15 +1,39 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.1
+    rev: v0.14.2
     hooks:
-      - id: ruff
-        args: [--fix]
+      - id: ruff-check
+        args:
+          - --fix
       - id: ruff-format
-
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.0.1
+    rev: v1.18.2
     hooks:
       - id: mypy
-        additional_dependencies: [rich, httpx, dnspython]
-        args: [--strict, --ignore-missing-imports]
+        additional_dependencies:
+          - rich
+          - httpx
+          - dnspython
+        args:
+          - --strict
+          - --ignore-missing-imports
         files: ^httptap/
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+      - id: name-tests-test
+        args:
+          - --pytest-test-first
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.20.0
+    hooks:
+      - id: yamlfmt
+        name: yamlfmt (YAML formatter)
+        files: (^|/).*\.ya?ml$
+        args:
+          - "--conf"
+          - ".yamlfmt"

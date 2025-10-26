@@ -2,9 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -14,31 +16,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pre-commit:
-    name: Pre-commit Validation
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version-file: "pyproject.toml"
-
-      - name: Install pre-commit
-        run: pip install pre-commit
-
-      - name: Validate pre-commit configuration
-        run: pre-commit validate-config
-
-      - name: Install pre-commit hooks
-        run: pre-commit install
-
-      - name: Run pre-commit on all files
-        run: pre-commit run --all-files
-
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
@@ -87,8 +64,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
 
     steps:
       - name: Checkout code
@@ -125,7 +110,10 @@ jobs:
   build:
     name: Build Package
     runs-on: ubuntu-latest
-    needs: [pre-commit, lint, type-check, test]
+    needs:
+      - lint
+      - type-check
+      - test
 
     steps:
       - name: Checkout code
@@ -149,20 +137,22 @@ jobs:
   all-checks-pass:
     name: All Checks Passed
     if: always()
-    needs: [pre-commit, lint, type-check, test, build]
+    needs:
+      - lint
+      - type-check
+      - test
+      - build
     runs-on: ubuntu-latest
 
     steps:
       - name: Check all jobs
         run: |
-          echo "pre-commit: $PRE_COMMIT_RESULT"
           echo "lint: $LINT_RESULT"
           echo "type-check: $TYPE_CHECK_RESULT"
           echo "test: $TEST_RESULT"
           echo "build: $BUILD_RESULT"
 
-          if [[ "$PRE_COMMIT_RESULT" != "success" ]] || \
-             [[ "$LINT_RESULT" != "success" ]] || \
+          if [[ "$LINT_RESULT" != "success" ]] || \
              [[ "$TYPE_CHECK_RESULT" != "success" ]] || \
              [[ "$TEST_RESULT" != "success" ]] || \
              [[ "$BUILD_RESULT" != "success" ]]; then
@@ -171,7 +161,6 @@ jobs:
           fi
           echo "All checks passed successfully!"
         env:
-          PRE_COMMIT_RESULT: ${{ needs.pre-commit.result }}
           LINT_RESULT: ${{ needs.lint.result }}
           TYPE_CHECK_RESULT: ${{ needs.type-check.result }}
           TEST_RESULT: ${{ needs.test.result }}

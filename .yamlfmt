@@ -1,0 +1,6 @@
+formatter:
+  line_ending: lf
+  retain_line_breaks: true
+  force_array_style: block
+  max_line_length: 120
+  trim_trailing_whitespace: true

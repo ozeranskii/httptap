@@ -33,5 +33,3 @@ All notable changes to this project will be documented in this file.
 - Add GitHub templates, contributing guide, and CodeQL ([#10](https://github.com/ozeranskii/httptap/issues/10))
 - Generate full changelog with --unreleased and fallback for notes ([#14](https://github.com/ozeranskii/httptap/issues/14))
 - Provide deploy SSH key to checkout action
-
-

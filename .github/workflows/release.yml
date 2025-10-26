@@ -151,7 +151,9 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     runs-on: ubuntu-latest
-    needs: [ prepare, build ]
+    needs:
+      - prepare
+      - build
     environment:
       name: pypi
       url: https://pypi.org/project/${{ env.PACKAGE_NAME }}/
@@ -171,7 +173,10 @@ jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [ prepare, build, publish-pypi ]
+    needs:
+      - prepare
+      - build
+      - publish-pypi
 
     steps:
       - name: Checkout
@@ -186,7 +191,7 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
+        run: |-
           gh release create ${{ needs.prepare.outputs.tag }} \
             dist/* \
             --repo ${{ github.repository }} \

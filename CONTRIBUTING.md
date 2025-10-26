@@ -45,11 +45,8 @@ This installs httptap in editable mode with all development dependencies.
 3. **Set up pre-commit hooks (recommended)**
 
 ```bash
-# Install pre-commit
-pip install pre-commit
-
 # Install the git hook scripts
-pre-commit install
+uv run pre-commit install
 ```
 
 This will automatically run ruff (linting/formatting) and mypy (type checking) before each commit.
@@ -71,6 +68,8 @@ If you've set up pre-commit hooks (recommended), they will automatically run bef
 
 - **Ruff**: Lints and formats your code
 - **MyPy**: Performs type checking
+- **YAML/TOML**: Validates configuration files
+- **File formatting**: Fixes line endings, removes BOM, ensures files end with newline
 
 **If hooks fail:**
 
@@ -82,14 +81,15 @@ If you've set up pre-commit hooks (recommended), they will automatically run bef
 
 ```bash
 # Run hooks on all files
-pre-commit run --all-files
+uv run pre-commit run --all-files
 
 # Run specific hook
-pre-commit run ruff
-pre-commit run mypy
+uv run pre-commit run ruff-check
+uv run pre-commit run mypy
+uv run pre-commit run check-yaml
 
 # Validate configuration
-pre-commit validate-config
+uv run pre-commit validate-config
 ```
 
 **CI Validation:**
