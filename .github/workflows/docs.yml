@@ -2,7 +2,8 @@ name: Deploy Docs
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
@@ -21,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0  # Fetch all history for git info
+          fetch-depth: 0 # Fetch all history for git info
 
       - name: Set up Python
         uses: actions/setup-python@v6

@@ -1,7 +1,9 @@
 name: 🐌 Performance Issue
 description: Report performance problems or inaccurate timing measurements
 title: "[Performance]: "
-labels: [ "performance", "triage" ]
+labels:
+  - "performance"
+  - "triage"
 body:
   - type: markdown
     attributes:

@@ -1,7 +1,9 @@
 name: 📚 Documentation
 description: Report issues with documentation or suggest improvements
 title: "[Docs]: "
-labels: [ "documentation", "triage" ]
+labels:
+  - "documentation"
+  - "triage"
 body:
   - type: markdown
     attributes:

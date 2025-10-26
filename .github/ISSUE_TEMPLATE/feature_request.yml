@@ -1,7 +1,9 @@
 name: ✨ Feature Request
 description: Suggest a new feature or enhancement for httptap
 title: "[Feature]: "
-labels: [ "enhancement", "triage" ]
+labels:
+  - "enhancement"
+  - "triage"
 body:
   - type: markdown
     attributes:

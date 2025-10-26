@@ -1,7 +1,9 @@
 name: 🐛 Bug Report
 description: Report a bug or unexpected behavior in httptap
 title: "[Bug]: "
-labels: [ "bug", "triage" ]
+labels:
+  - "bug"
+  - "triage"
 body:
   - type: markdown
     attributes:

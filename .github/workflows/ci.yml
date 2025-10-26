@@ -2,9 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -62,8 +64,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
 
     steps:
       - name: Checkout code
@@ -100,7 +110,10 @@ jobs:
   build:
     name: Build Package
     runs-on: ubuntu-latest
-    needs: [ lint, type-check, test ]
+    needs:
+      - lint
+      - type-check
+      - test
 
     steps:
       - name: Checkout code
@@ -124,7 +137,11 @@ jobs:
   all-checks-pass:
     name: All Checks Passed
     if: always()
-    needs: [ lint, type-check, test, build ]
+    needs:
+      - lint
+      - type-check
+      - test
+      - build
     runs-on: ubuntu-latest
 
     steps:

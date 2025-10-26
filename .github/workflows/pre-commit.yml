@@ -1,0 +1,54 @@
+name: Pre-commit policy validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".pre-commit-config.yaml"
+      - ".yamlfmt"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/pre-commit.yml"
+
+  push:
+    branches:
+      - main
+    paths:
+      - ".pre-commit-config.yaml"
+      - ".yamlfmt"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/pre-commit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  pre-commit-policy-check:
+    name: Validate pre-commit config & hooks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync only precommit dependencies
+        run: |
+          uv sync --group precommit
+          uv run pre-commit --version
+
+      - name: Validate pre-commit config
+        run: |-
+          uv run pre-commit validate-config
+          uv run pre-commit validate-manifest

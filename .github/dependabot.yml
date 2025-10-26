@@ -55,4 +55,5 @@ updates:
     ignore:
       # Ignore major version updates for stable dependencies
       - dependency-name: "*"
-        update-types: [ "version-update:semver-major" ]
+        update-types:
+          - "version-update:semver-major"
