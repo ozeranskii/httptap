@@ -127,6 +127,23 @@ Expose raw metrics for scripts:
 httptap --metrics-only https://httpbin.io/get | tee timings.log
 ```
 
+Programmatic users can inject a custom executor for advanced scenarios. The
+default analyzer accepts either a modern `RequestExecutor` implementation or a
+legacy callable wrapped with `CallableRequestExecutor`, so new request flags
+remain backward compatible.
+
+Bypass TLS verification when troubleshooting self-signed endpoints:
+
+```shell
+httptap --ignore-ssl https://self-signed.badssl.com
+```
+
+The flag disables certificate validation and relaxes many handshake
+constraints so that legacy endpoints (expired/self-signed/hostname
+mismatches, weak hashes, older TLS versions) still complete. Some
+algorithms removed from modern OpenSSL builds (for example RC4 or
+3DES) may remain unavailable. Use this mode only on trusted networks.
+
 ---
 
 ## Releasing

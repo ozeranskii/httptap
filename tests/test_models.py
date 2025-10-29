@@ -189,6 +189,7 @@ class TestNetworkInfo:
             tls_cipher=tls_cipher,
             cert_cn=cert_cn,
             cert_days_left=cert_days_left,
+            tls_verified=True,
         )
 
         result = network.to_dict()
@@ -200,6 +201,7 @@ class TestNetworkInfo:
             "tls_cipher": tls_cipher,
             "cert_cn": cert_cn,
             "cert_days_left": cert_days_left,
+            "tls_verified": True,
         }
 
     def test_to_dict_handles_none_values(self, faker: Faker) -> None:

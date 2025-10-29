@@ -91,6 +91,8 @@ def format_network_info(step: StepMetrics) -> str | None:
         else:
             days_style = "green"
         parts.append(f"[{days_style}]Expires: {days}d[/{days_style}]")
+    if step.network.tls_verified is False:
+        parts.append("[bold red]⚠ TLS verification disabled[/bold red]")
 
     return f"  [dim]{' | '.join(parts)}[/dim]" if parts else None
 

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
+import ssl
+from types import SimpleNamespace, TracebackType
 from typing import TYPE_CHECKING
 
 import httpx
 import pytest
+from typing_extensions import Self
 
 from httptap.http_client import make_request
 from httptap.models import NetworkInfo, TimingMetrics
@@ -778,6 +780,94 @@ class TestMakeRequest:
             max_connections=1,
             max_keepalive_connections=0,
         )
+
+    def test_make_request_disable_ssl_verification(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """Test that verify_ssl flag disables TLS verification."""
+        url = "https://self-signed.test"
+        created_clients: list[DummyClient] = []
+
+        class DummyStream:
+            def __enter__(self) -> httpx.Response:
+                return response
+
+            def __exit__(
+                self,
+                _exc_type: type[BaseException] | None,
+                _exc: BaseException | None,
+                _tb: TracebackType | None,
+            ) -> None:
+                return None
+
+        class DummyClient:
+            def __init__(self, *_: object, **kwargs: object) -> None:
+                self.kwargs = kwargs
+                self.headers: dict[str, str] = {}
+                created_clients.append(self)
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(
+                self,
+                _exc_type: type[BaseException] | None,
+                _exc: BaseException | None,
+                _tb: TracebackType | None,
+            ) -> None:
+                return None
+
+            def stream(
+                self,
+                method: str,
+                request_url: str,
+                *,
+                extensions: dict[str, object] | None = None,
+            ) -> DummyStream:
+                assert method == "GET"
+                assert request_url == url
+                assert extensions is not None
+                assert "trace" in extensions
+                return DummyStream()
+
+        request = httpx.Request("GET", url)
+        response = httpx.Response(
+            200,
+            request=request,
+            headers={"content-type": "text/plain"},
+            content=b"ok",
+            extensions={
+                "network_stream": SimpleNamespace(get_extra_info=lambda _name: None),
+            },
+        )
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        timing_input = TimingMetrics(
+            dns_ms=2.0,
+            connect_ms=0.0,
+            tls_ms=0.0,
+            ttfb_ms=10.0,
+            total_ms=12.0,
+        )
+
+        _timing, network, obtained_response = make_request(
+            url,
+            timeout=5.0,
+            verify_ssl=False,
+            dns_resolver=FakeDNSResolver(),
+            timing_collector=FakeTimingCollector(timing_input),
+            force_new_connection=True,
+        )
+
+        assert obtained_response.status == 200
+        assert created_clients
+        verify_arg = created_clients[0].kwargs["verify"]
+        assert isinstance(verify_arg, ssl.SSLContext)
+        assert verify_arg.verify_mode == ssl.CERT_NONE
+        assert verify_arg.check_hostname is False
+        assert network.tls_verified is False
 
     def test_make_request_handles_unexpected_exception(
         self,
