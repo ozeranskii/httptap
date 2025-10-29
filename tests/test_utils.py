@@ -1,3 +1,4 @@
+import ssl
 from datetime import datetime, timezone
 
 import pytest
@@ -6,6 +7,7 @@ from faker import Faker
 from httptap.utils import (
     UTC,
     calculate_days_until,
+    create_ssl_context,
     mask_sensitive_value,
     parse_certificate_date,
     parse_http_date,
@@ -255,6 +257,29 @@ class TestValidateUrl:
     def test_validate_no_scheme(self) -> None:
         """Test that URLs without scheme are invalid."""
         assert validate_url("example.com") is False
+
+
+class TestCreateSSLContext:
+    """Tests for the create_ssl_context helper."""
+
+    def test_create_ssl_context_verification_enabled(self) -> None:
+        """Default mode should enforce certificate validation."""
+
+        ctx = create_ssl_context(verify_ssl=True)
+
+        assert ctx.verify_mode == ssl.CERT_REQUIRED
+        assert ctx.check_hostname is True
+
+    def test_create_ssl_context_verification_disabled(self) -> None:
+        """Legacy mode disables verification and relaxes protocol bounds."""
+
+        ctx = create_ssl_context(verify_ssl=False)
+
+        assert ctx.verify_mode == ssl.CERT_NONE
+        assert ctx.check_hostname is False
+
+        if hasattr(ctx, "minimum_version") and hasattr(ssl, "TLSVersion"):
+            assert ctx.minimum_version <= ssl.TLSVersion.TLSv1
 
     def test_validate_empty_string(self) -> None:
         """Test that empty string is invalid."""
