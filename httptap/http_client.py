@@ -67,7 +67,7 @@ from .implementations.timing import PerfCounterTimingCollector
 from .implementations.tls import SocketTLSInspector, TLSInspectionError
 from .models import NetworkInfo, ResponseInfo, TimingMetrics
 from .tls_inspector import extract_certificate_info
-from .utils import parse_http_date, sanitize_headers
+from .utils import create_ssl_context, parse_http_date, sanitize_headers
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -240,6 +240,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
     *,
     http2: bool = True,
+    verify_ssl: bool = True,
     dns_resolver: DNSResolver | None = None,
     tls_inspector: TLSInspector | None = None,
     timing_collector: TimingCollector | None = None,
@@ -265,6 +266,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             Applies to the entire request including DNS, connection, and transfer.
         http2: Whether to enable HTTP/2 protocol negotiation. Set to False
             to force HTTP/1.1.
+        verify_ssl: Whether to verify TLS certificates during the request.
+            Defaults to True. Set to False when troubleshooting hosts with
+            self-signed or otherwise invalid certificates.
         dns_resolver: Custom DNS resolver implementation.
             Defaults to SystemDNSResolver.
         tls_inspector: Custom TLS inspector implementation.
@@ -327,11 +331,12 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     if dns_resolver is None:
         dns_resolver = SystemDNSResolver()
     if tls_inspector is None:
-        tls_inspector = SocketTLSInspector()
+        tls_inspector = SocketTLSInspector(verify=verify_ssl)
     if timing_collector is None:
         timing_collector = PerfCounterTimingCollector()
 
     network_info = NetworkInfo()
+    network_info.tls_verified = verify_ssl
     response_info = ResponseInfo()
 
     try:
@@ -365,11 +370,13 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             max_keepalive_connections=0 if force_new_connection else 1,
         )
 
+        ssl_context = create_ssl_context(verify_ssl=verify_ssl)
+
         with httpx.Client(
             timeout=timeout,
             http2=http2,
             follow_redirects=False,
-            verify=True,
+            verify=ssl_context,
             limits=limits,
         ) as client:
             client.headers["User-Agent"] = USER_AGENT

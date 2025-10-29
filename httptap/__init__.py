@@ -25,7 +25,7 @@ Modules:
 """
 
 from ._pkgmeta import get_package_info
-from .analyzer import HTTPTapAnalyzer, RequestExecutor
+from .analyzer import HTTPTapAnalyzer
 from .exporter import JSONExporter
 from .implementations import (
     DNSResolutionError,
@@ -42,6 +42,7 @@ from .models import (
     TimingMetrics,
 )
 from .render import OutputRenderer
+from .request_executor import CallableRequestExecutor, RequestExecutor, RequestOptions, RequestOutcome
 from .visualizer import WaterfallVisualizer
 
 _package_info = get_package_info()
@@ -51,6 +52,7 @@ __author__ = _package_info.author
 __license__ = _package_info.license
 
 __all__ = [
+    "CallableRequestExecutor",
     "DNSResolutionError",
     "DNSResolver",
     "Exporter",
@@ -60,6 +62,8 @@ __all__ = [
     "OutputRenderer",
     "PerfCounterTimingCollector",
     "RequestExecutor",
+    "RequestOptions",
+    "RequestOutcome",
     "ResponseInfo",
     "SocketTLSInspector",
     "StepMetrics",

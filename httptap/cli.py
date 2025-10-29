@@ -144,6 +144,11 @@ Exit codes:
         help="Disable HTTP/2 negotiation and force HTTP/1.1 connections.",
     )
     request_group.add_argument(
+        "--ignore-ssl",
+        action="store_true",
+        help="Disable TLS certificate verification (useful for debugging self-signed hosts).",
+    )
+    request_group.add_argument(
         "-H",
         "--header",
         action="append",
@@ -337,6 +342,7 @@ def main() -> int:
             follow_redirects=args.follow,
             timeout=args.timeout,
             http2=not args.no_http2,  # Correct: no_http2=True means http2=False
+            verify_ssl=not args.ignore_ssl,
         )
 
         # Create renderer

@@ -6,12 +6,19 @@ collecting metrics, and managing the overall request flow.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 from urllib.parse import urljoin
 
 from .constants import DEFAULT_TIMEOUT_SECONDS
 from .http_client import HTTPClientError, make_request
-from .models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
+from .models import StepMetrics
+from .request_executor import (
+    CallableRequestExecutor,
+    LegacyExecutorType,
+    RequestExecutor,
+    RequestOptions,
+    RequestOutcome,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -19,50 +26,16 @@ if TYPE_CHECKING:
     from .interfaces import DNSResolver, TimingCollector, TLSInspector
 
 
-class RequestExecutor(Protocol):
-    """Protocol for HTTP request executors.
-
-    Defines the interface for functions that execute HTTP requests and return
-    comprehensive timing, network, and response metrics.
-
-    Implementations should accept optional Protocol dependencies for DNS resolution,
-    TLS inspection, and timing collection to enable dependency injection and testing.
-    """
-
-    def __call__(  # noqa: PLR0913
-        self,
-        url: str,
-        timeout: float,
-        *,
-        http2: bool,
-        dns_resolver: DNSResolver | None = None,
-        tls_inspector: TLSInspector | None = None,
-        timing_collector: TimingCollector | None = None,
-        force_new_connection: bool = True,
-        headers: Mapping[str, str] | None = None,
-    ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
-        """Execute HTTP request and collect metrics.
-
-        Args:
-            url: Target URL to request.
-            timeout: Request timeout in seconds.
-            http2: Whether to enable HTTP/2 support.
-            http2: Whether to enable HTTP/2 support.
-            dns_resolver: Custom DNS resolver implementation. Defaults to built-in.
-            tls_inspector: Custom TLS inspector implementation. Defaults to built-in.
-            timing_collector: Custom timing collector instance. Defaults to built-in.
-            force_new_connection: Force new connection for accurate timing.
-                Defaults to True.
-            headers: Optional HTTP headers to include with the request.
-
-        Returns:
-            Tuple of (timing_metrics, network_info, response_info).
-
-        Raises:
-            HTTPClientError: If request fails.
-
-        """
-        ...
+def _normalise_executor(
+    executor: RequestExecutor | LegacyExecutorType | None,
+) -> RequestExecutor:
+    """Convert optionally legacy executors into RequestExecutor instances."""
+    if executor is None:
+        return CallableRequestExecutor(make_request)
+    if isinstance(executor, RequestExecutor):
+        return executor
+    legacy: LegacyExecutorType = executor
+    return CallableRequestExecutor(legacy)
 
 
 class HTTPTapAnalyzer:
@@ -88,6 +61,7 @@ class HTTPTapAnalyzer:
         "http2",
         "max_redirects",
         "timeout",
+        "verify_ssl",
     )
 
     def __init__(  # noqa: PLR0913
@@ -96,8 +70,9 @@ class HTTPTapAnalyzer:
         follow_redirects: bool = False,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         http2: bool = True,
+        verify_ssl: bool = True,
         max_redirects: int = 10,
-        request_executor: RequestExecutor = make_request,
+        request_executor: RequestExecutor | LegacyExecutorType | None = None,
         dns_resolver: DNSResolver | None = None,
         tls_inspector: TLSInspector | None = None,
         timing_collector_factory: type[TimingCollector] | None = None,
@@ -108,10 +83,12 @@ class HTTPTapAnalyzer:
             follow_redirects: Whether to follow 3xx redirects.
             timeout: Request timeout in seconds.
             http2: Enable HTTP/2 support.
+            verify_ssl: Whether to verify TLS certificates.
             max_redirects: Maximum number of redirects to follow.
-            request_executor: Callable performing the HTTP request and returning
-                timing, network, and response information. Defaults to the
-                built-in httpx implementation.
+            request_executor: Object responsible for performing HTTP requests.
+                Can be an instance implementing RequestExecutor or a legacy
+                callable compatible with CallableRequestExecutor. Defaults to
+                the built-in httpx implementation.
             dns_resolver: Custom DNS resolver implementation. If None, make_request
                 will use its default (SystemDNSResolver).
             tls_inspector: Custom TLS inspector implementation. If None, make_request
@@ -121,18 +98,13 @@ class HTTPTapAnalyzer:
                 Note: This should be a class, not an instance, as a new collector
                 is created for each request.
 
-        Note:
-            The request_executor parameter accepts any callable matching the
-            RequestExecutor protocol signature. The Protocol dependencies
-            (dns_resolver, tls_inspector, timing_collector_factory) are passed
-            through to the request_executor if it supports them.
-
         """
         self.follow_redirects = follow_redirects
         self.timeout = timeout
         self.http2 = http2
+        self.verify_ssl = verify_ssl
         self.max_redirects = max_redirects
-        self._request = request_executor
+        self._request = _normalise_executor(request_executor)
         self._dns_resolver = dns_resolver
         self._tls_inspector = tls_inspector
         self._timing_collector = timing_collector_factory
@@ -240,22 +212,23 @@ class HTTPTapAnalyzer:
             # Create timing collector instance if factory provided
             timing_collector = self._timing_collector() if self._timing_collector else None
 
-            # Make request and collect metrics with injected dependencies
-            timing, network, response = self._request(
-                url,
-                self.timeout,
+            options = RequestOptions(
+                url=url,
+                timeout=self.timeout,
                 http2=self.http2,
+                verify_ssl=self.verify_ssl,
                 dns_resolver=self._dns_resolver,
                 tls_inspector=self._tls_inspector,
                 timing_collector=timing_collector,
                 force_new_connection=True,
                 headers=headers,
             )
+            outcome: RequestOutcome = self._request.execute(options)
 
             # Populate step metrics
-            step.timing = timing
-            step.network = network
-            step.response = response
+            step.timing = outcome.timing
+            step.network = outcome.network
+            step.response = outcome.response
 
         except HTTPClientError as e:
             # Request failed, but we have partial data

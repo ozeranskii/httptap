@@ -91,6 +91,82 @@ steps = analyzer.analyze_url(
 print(f"Total steps in redirect chain: {len(steps)}")
 ```
 
+## Ignoring TLS Verification
+
+When troubleshooting staging environments or hosts with self-signed certificates, you can skip TLS validation:
+
+```shell
+httptap --ignore-ssl https://self-signed.badssl.com
+```
+
+The request still records TLS metadata, but certificate errors are suppressed so you can focus on the protocol flow. Only use this flag in trusted environments because it disables protection against man-in-the-middle attacks.
+The client relaxes many cipher and protocol requirements (weak hashes,
+older TLS versions, small DH groups) so that legacy endpoints are more
+likely to complete the handshake. Extremely deprecated algorithms that
+OpenSSL removes entirely (e.g., RC4, 3DES on some platforms) may still
+fail even in this mode.
+
+## Custom Request Executors
+
+For fully customized behavior you can provide your own request executor.
+Executors receive all parameters packaged inside `RequestOptions`, so new
+flags added by httptap remain backward compatible.
+
+```python
+from httptap import HTTPTapAnalyzer, RequestExecutor, RequestOptions, RequestOutcome
+
+
+class RecordingExecutor(RequestExecutor):
+    def __init__(self) -> None:
+        self.last_options: RequestOptions | None = None
+
+    def execute(self, options: RequestOptions) -> RequestOutcome:
+        self.last_options = options
+        # Call the built-in client (or your preferred HTTP library)
+        from httptap.http_client import make_request
+
+        timing, network, response = make_request(
+            options.url,
+            options.timeout,
+            http2=options.http2,
+            verify_ssl=options.verify_ssl,
+            dns_resolver=options.dns_resolver,
+            tls_inspector=options.tls_inspector,
+            timing_collector=options.timing_collector,
+            force_new_connection=options.force_new_connection,
+            headers=options.headers,
+        )
+        return RequestOutcome(timing=timing, network=network, response=response)
+
+
+executor = RecordingExecutor()
+analyzer = HTTPTapAnalyzer(request_executor=executor)
+analyzer.analyze_url("https://example.com", headers={"X-Debug": "1"})
+print(executor.last_options.headers)  # {'X-Debug': '1'}
+```
+
+If you already have a callable compatible with the legacy signature, wrap
+it with the provided adapter:
+
+```python
+from httptap import CallableRequestExecutor, HTTPTapAnalyzer
+
+
+def legacy_executor(url, timeout, *, http2, headers=None, **kwargs):
+    # Custom request logic here
+    ...
+
+
+adapter = CallableRequestExecutor(legacy_executor)
+analyzer = HTTPTapAnalyzer(request_executor=adapter)
+analyzer.analyze_url("https://legacy.example")
+```
+
+When a wrapped callable is missing support for newly introduced flags (such
+as `verify_ssl`), the adapter logs a `DeprecationWarning` and transparently
+retries without that parameter. This gives you time to update custom
+executors while keeping behavior backward compatible.
+
 ## Custom Visualization
 
 Create your own visualization by implementing the `VisualizerProtocol`.

@@ -1,11 +1,14 @@
 """Utility functions for httptap.
 
 This module provides helper functions for common operations like
-masking sensitive data, parsing headers, and URL validation.
+masking sensitive data, parsing headers, URL validation, and SSL context
+management.
 """
 
 import re
+import ssl
 from collections.abc import Mapping
+from contextlib import suppress
 from datetime import datetime, timezone
 
 try:  # pragma: no cover - exercised indirectly
@@ -18,6 +21,7 @@ __all__ = [
     "SENSITIVE_HEADERS",
     "UTC",
     "calculate_days_until",
+    "create_ssl_context",
     "mask_sensitive_value",
     "parse_certificate_date",
     "parse_http_date",
@@ -146,6 +150,46 @@ def calculate_days_until(target_date: datetime) -> int:
     """
     now = datetime.now(UTC)
     return (target_date - now).days
+
+
+def create_ssl_context(*, verify_ssl: bool) -> ssl.SSLContext:
+    """Return an SSL context honoring the requested verification policy.
+
+    Args:
+        verify_ssl: Whether to enforce certificate validation and modern
+            security defaults.
+
+    Returns:
+        Configured ``ssl.SSLContext`` instance.
+    """
+    if verify_ssl:
+        return ssl.create_default_context()
+
+    # For legacy mode create a mutable context allowing older protocols.
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+
+    # Disable certificate verification and hostname checks
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+
+    # Allow legacy cipher suites / key sizes (e.g., RC4, small DH groups)
+    with suppress(ssl.SSLError):  # pragma: no cover - platform dependent
+        context.set_ciphers("ALL:@SECLEVEL=0")
+
+    # Permit older protocol versions to assist with legacy endpoints
+    if hasattr(context, "minimum_version") and hasattr(ssl, "TLSVersion"):
+        context.minimum_version = getattr(ssl.TLSVersion, "SSLv3", ssl.TLSVersion.MINIMUM_SUPPORTED)
+    if hasattr(context, "maximum_version") and hasattr(ssl, "TLSVersion"):
+        context.maximum_version = ssl.TLSVersion.MAXIMUM_SUPPORTED
+
+    if hasattr(ssl, "OP_NO_SSLv3"):
+        context.options &= ~ssl.OP_NO_SSLv3  # pragma: no cover - platform dependent
+    if hasattr(ssl, "OP_NO_TLSv1"):
+        context.options &= ~ssl.OP_NO_TLSv1
+    if hasattr(ssl, "OP_NO_TLSv1_1"):
+        context.options &= ~ssl.OP_NO_TLSv1_1
+
+    return context
 
 
 def validate_url(url: str) -> bool:
