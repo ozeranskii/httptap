@@ -106,6 +106,20 @@ likely to complete the handshake. Extremely deprecated algorithms that
 OpenSSL removes entirely (e.g., RC4, 3DES on some platforms) may still
 fail even in this mode.
 
+### Using Proxies
+
+Direct requests through an outbound proxy (HTTP, HTTPS, SOCKS5/SOCKS5H):
+
+```shell
+httptap --proxy https://proxy.internal:8443 https://example.com
+```
+
+```shell
+httptap --proxy socks5h://proxy.internal:1080 https://example.com
+```
+
+The Rich output and JSON export include the proxy URI when one is used.
+
 ## Custom Request Executors
 
 For fully customized behavior you can provide your own request executor.

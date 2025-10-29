@@ -103,18 +103,28 @@ class RendererStub:
 
 def test_main_success(monkeypatch: pytest.MonkeyPatch) -> None:
     analyzer = AnalyzerStub()
+    captured_ctor: dict[str, object] = {}
     renderer = RendererStub()
-    monkeypatch.setattr(
-        "httptap.cli.HTTPTapAnalyzer",
-        lambda *_args, **_kwargs: analyzer,
-    )
+
+    def fake_analyzer(*_args: object, **kwargs: object) -> AnalyzerStub:
+        captured_ctor["params"] = kwargs
+        return analyzer
+
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", fake_analyzer)
     monkeypatch.setattr(
         "httptap.cli.OutputRenderer",
         lambda *_args, **_kwargs: renderer,
     )
     monkeypatch.setattr(
         "sys.argv",
-        ["httptap", "https://example.test", "-H", "X: 1"],
+        [
+            "httptap",
+            "https://example.test",
+            "-H",
+            "X: 1",
+            "--proxy",
+            "socks5h://proxy.local:1080",
+        ],
     )
 
     exit_code = main()
@@ -122,6 +132,7 @@ def test_main_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert exit_code == EXIT_SUCCESS
     assert analyzer.calls == [{"X": "1"}]
     assert renderer.rendered[0][1] == "https://example.test"
+    assert captured_ctor["params"]["proxy"] == "socks5h://proxy.local:1080"
 
 
 def test_main_header_error(

@@ -35,6 +35,7 @@ def _build_options(**overrides: object) -> RequestOptions:
         "timing_collector": None,
         "force_new_connection": True,
         "headers": None,
+        "proxy": None,
     }
     base.update(overrides)
     return RequestOptions(**base)  # type: ignore[arg-type]
@@ -60,3 +61,16 @@ def test_callable_executor_reraises_unrelated_typeerror() -> None:
 
     with pytest.raises(TypeError, match="unexpected failure"):
         adapter.execute(_build_options())
+
+
+def test_callable_executor_passes_proxy() -> None:
+    captured: dict[str, object] = {}
+
+    def legacy(_url: str, _timeout: float, **kwargs: object) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
+        captured.update(kwargs)
+        return TimingMetrics(), NetworkInfo(), ResponseInfo(status=200)
+
+    adapter = CallableRequestExecutor(legacy)
+    adapter.execute(_build_options(proxy="socks5://proxy:1080"))
+
+    assert captured["proxy"] == "socks5://proxy:1080"

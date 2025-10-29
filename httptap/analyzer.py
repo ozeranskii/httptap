@@ -6,8 +6,14 @@ collecting metrics, and managing the overall request flow.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin
+
+if TYPE_CHECKING:
+    from httpx._types import ProxyTypes
+else:  # pragma: no cover - typing helper
+    ProxyTypes = object  # type: ignore[assignment]
 
 from .constants import DEFAULT_TIMEOUT_SECONDS
 from .http_client import HTTPClientError, make_request
@@ -54,6 +60,7 @@ class HTTPTapAnalyzer:
 
     __slots__ = (
         "_dns_resolver",
+        "_proxy",
         "_request",
         "_timing_collector",
         "_tls_inspector",
@@ -73,6 +80,7 @@ class HTTPTapAnalyzer:
         verify_ssl: bool = True,
         max_redirects: int = 10,
         request_executor: RequestExecutor | LegacyExecutorType | None = None,
+        proxy: ProxyTypes | None = None,
         dns_resolver: DNSResolver | None = None,
         tls_inspector: TLSInspector | None = None,
         timing_collector_factory: type[TimingCollector] | None = None,
@@ -89,6 +97,8 @@ class HTTPTapAnalyzer:
                 Can be an instance implementing RequestExecutor or a legacy
                 callable compatible with CallableRequestExecutor. Defaults to
                 the built-in httpx implementation.
+            proxy: Optional proxy URL (http/https/socks5/socks5h) applied to all
+                requests in the analysis chain.
             dns_resolver: Custom DNS resolver implementation. If None, make_request
                 will use its default (SystemDNSResolver).
             tls_inspector: Custom TLS inspector implementation. If None, make_request
@@ -108,6 +118,7 @@ class HTTPTapAnalyzer:
         self._dns_resolver = dns_resolver
         self._tls_inspector = tls_inspector
         self._timing_collector = timing_collector_factory
+        self._proxy = proxy
 
     def analyze_url(
         self,
@@ -222,6 +233,7 @@ class HTTPTapAnalyzer:
                 timing_collector=timing_collector,
                 force_new_connection=True,
                 headers=headers,
+                proxy=self._proxy,
             )
             outcome: RequestOutcome = self._request.execute(options)
 
@@ -229,6 +241,8 @@ class HTTPTapAnalyzer:
             step.timing = outcome.timing
             step.network = outcome.network
             step.response = outcome.response
+            if self._proxy:
+                step.proxied_via = str(self._proxy)
 
         except HTTPClientError as e:
             # Request failed, but we have partial data

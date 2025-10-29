@@ -118,7 +118,7 @@ class TestFormatNetworkInfo:
             cert_cn="example.com",
             cert_days_left=60,
         )
-        step = StepMetrics(network=network)
+        step = StepMetrics(network=network, proxied_via="socks5://proxy:1080")
         info = format_network_info(step)
 
         assert info is not None
@@ -127,6 +127,7 @@ class TestFormatNetworkInfo:
         assert "Cipher: TLS_AES_256_GCM_SHA384" in info
         assert "Cert: example.com" in info
         assert "Expires: 60d" in info
+        assert "Proxy: socks5://proxy:1080" in info
 
     def test_format_network_info_with_no_data(self) -> None:
         """Test formatting network info when no data available."""

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 import pytest
@@ -26,6 +27,8 @@ class StubExecutor:
         timeout: float,
         *,
         http2: bool,
+        verify_ssl: bool = True,
+        proxy: Mapping[str, str] | str | None = None,
         dns_resolver: DNSResolver | None = None,
         tls_inspector: TLSInspector | None = None,
         timing_collector: TimingCollector | None = None,
@@ -35,6 +38,8 @@ class StubExecutor:
         del url
         del timeout
         del http2
+        del verify_ssl
+        del proxy
         del dns_resolver
         del tls_inspector
         del timing_collector
@@ -61,6 +66,7 @@ def test_analyze_url_without_redirect() -> None:
     assert len(steps) == 1
     assert steps[0].response.status == 200
     assert executor.calls == [{"X": "1"}]
+    assert steps[0].proxied_via is None
 
 
 def test_analyze_url_with_redirect_following() -> None:
@@ -133,6 +139,7 @@ def test_analyze_url_passes_verify_flag_when_supported() -> None:
     class VerifyAwareExecutor:
         def __init__(self) -> None:
             self.flags: list[bool] = []
+            self.proxies: list[Mapping[str, str] | str | None] = []
 
         def __call__(  # noqa: PLR0913
             self,
@@ -141,6 +148,7 @@ def test_analyze_url_passes_verify_flag_when_supported() -> None:
             *,
             http2: bool,
             verify_ssl: bool = True,
+            proxy: Mapping[str, str] | str | None = None,
             dns_resolver: DNSResolver | None = None,
             tls_inspector: TLSInspector | None = None,
             timing_collector: TimingCollector | None = None,
@@ -156,6 +164,7 @@ def test_analyze_url_passes_verify_flag_when_supported() -> None:
             del force_new_connection
             del headers
             self.flags.append(verify_ssl)
+            self.proxies.append(proxy)
 
             timing = TimingMetrics(total_ms=10.0)
             network = NetworkInfo(ip="198.51.100.1", ip_family="IPv4")
@@ -163,13 +172,20 @@ def test_analyze_url_passes_verify_flag_when_supported() -> None:
             return timing, network, response
 
     executor = VerifyAwareExecutor()
-    analyzer = HTTPTapAnalyzer(request_executor=executor, verify_ssl=False)
+    analyzer = HTTPTapAnalyzer(
+        request_executor=executor,
+        verify_ssl=False,
+        proxy="http://proxy:8080",
+    )
 
     steps = analyzer.analyze_url("https://example.test")
 
     assert len(steps) == 1
     assert steps[0].response.status == 200
     assert executor.flags == [False]
+    assert executor.proxies == ["http://proxy:8080"]
+    assert steps[0].proxied_via == "http://proxy:8080"
+    assert executor.proxies == ["http://proxy:8080"]
 
 
 def test_analyze_url_accepts_object_executor() -> None:
@@ -193,6 +209,7 @@ def test_analyze_url_accepts_object_executor() -> None:
     assert steps[0].response.status == 204
     assert executor.calls
     assert executor.calls[0].verify_ssl is True
+    assert executor.calls[0].proxy is None
 
 
 def test_callable_request_executor_warns_on_missing_verify() -> None:

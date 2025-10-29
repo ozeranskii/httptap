@@ -144,6 +144,15 @@ mismatches, weak hashes, older TLS versions) still complete. Some
 algorithms removed from modern OpenSSL builds (for example RC4 or
 3DES) may remain unavailable. Use this mode only on trusted networks.
 
+Route traffic through an HTTP/SOCKS proxy:
+
+```shell
+httptap --proxy socks5h://proxy.local:1080 https://example.com
+```
+
+The output and JSON export include the proxy URI so you can confirm what
+path was used.
+
 ---
 
 ## Releasing

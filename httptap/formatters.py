@@ -71,26 +71,32 @@ def format_network_info(step: StepMetrics) -> str | None:
     """
     parts = []
 
-    if step.network.ip:
-        ip_text = step.network.ip
-        if step.network.ip_family:
-            ip_text = f"{ip_text} ({step.network.ip_family})"
-        parts.append(f"IP: {ip_text}")
-    if step.network.tls_version:
-        parts.append(f"TLS: {step.network.tls_version}")
-    if step.network.tls_cipher:
-        parts.append(f"Cipher: {step.network.tls_cipher}")
-    if step.network.cert_cn:
-        parts.append(f"Cert: {step.network.cert_cn}")
-    if step.network.cert_days_left is not None:
-        days = step.network.cert_days_left
-        if days < CERT_EXPIRY_CRITICAL_DAYS:
-            days_style = "red"
-        elif days < CERT_EXPIRY_WARNING_DAYS:
-            days_style = "yellow"
-        else:
-            days_style = "green"
-        parts.append(f"[{days_style}]Expires: {days}d[/{days_style}]")
+    ip = step.network.ip
+    if ip:
+        family = step.network.ip_family
+        parts.append(f"IP: {ip} ({family})" if family else f"IP: {ip}")
+
+    if step.proxied_via:
+        parts.append(f"Proxy: {step.proxied_via}")
+
+    for label, value in (
+        ("TLS", step.network.tls_version),
+        ("Cipher", step.network.tls_cipher),
+        ("Cert", step.network.cert_cn),
+    ):
+        if value:
+            parts.append(f"{label}: {value}")
+
+    days_left = step.network.cert_days_left
+    if days_left is not None:
+        days_style = (
+            "red"
+            if days_left < CERT_EXPIRY_CRITICAL_DAYS
+            else "yellow"
+            if days_left < CERT_EXPIRY_WARNING_DAYS
+            else "green"
+        )
+        parts.append(f"[{days_style}]Expires: {days_left}d[/{days_style}]")
     if step.network.tls_verified is False:
         parts.append("[bold red]⚠ TLS verification disabled[/bold red]")
 
