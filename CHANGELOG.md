@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2025-10-29
+
+### Documentation
+
+- Add promo banner and clarify proxy env precedence ([#30](https://github.com/ozeranskii/httptap/issues/30))
+
+### Features
+
+- Add optional TLS verification and pluggable request executor ([#27](https://github.com/ozeranskii/httptap/issues/27))
+- Add proxy support for outbound requests ([#29](https://github.com/ozeranskii/httptap/issues/29))
+
+### Miscellaneous Tasks
+
+- Add pre-commit policy and standardize GitHub workflows ([#23](https://github.com/ozeranskii/httptap/issues/23))
+- Add support for free-threaded Python 3.14t ([#24](https://github.com/ozeranskii/httptap/issues/24))
+
 ## [0.1.1] - 2025-10-25
 
 ### Documentation
