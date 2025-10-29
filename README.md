@@ -58,6 +58,8 @@ performance baselines.
 - **Extensible** – clean Protocol interfaces for DNS, TLS, timing, visualization, and export so you can plug in custom
   behavior.
 
+> 📣 <strong>Exclusive for httptap users:</strong> Save 50% on <a href="https://gitkraken.cello.so/vY8yybnplsZ"><strong>GitKraken Pro</strong></a>. Bundle GitKraken Client, GitLens for VS Code, and powerful CLI tools to accelerate every repo workflow.
+
 ---
 
 ## Requirements
@@ -144,7 +146,7 @@ mismatches, weak hashes, older TLS versions) still complete. Some
 algorithms removed from modern OpenSSL builds (for example RC4 or
 3DES) may remain unavailable. Use this mode only on trusted networks.
 
-Route traffic through an HTTP/SOCKS proxy:
+Route traffic through an HTTP/SOCKS proxy (explicit override takes precedence over env vars `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`):
 
 ```shell
 httptap --proxy socks5h://proxy.local:1080 https://example.com
