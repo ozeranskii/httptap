@@ -14,6 +14,11 @@ from dataclasses import dataclass
 from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+if TYPE_CHECKING:
+    from httpx._types import ProxyTypes
+else:  # pragma: no cover - typing helper
+    ProxyTypes = object  # type: ignore[assignment]
+
 from .models import NetworkInfo, ResponseInfo, TimingMetrics
 
 if TYPE_CHECKING:
@@ -33,6 +38,7 @@ class RequestOptions:
     timing_collector: TimingCollector | None
     force_new_connection: bool
     headers: Mapping[str, str] | None
+    proxy: ProxyTypes | None = None
 
 
 @dataclass(slots=True)
@@ -93,6 +99,8 @@ class CallableRequestExecutor:
         }
         if self._supports_verify:
             kwargs["verify_ssl"] = options.verify_ssl
+        if options.proxy is not None:
+            kwargs["proxy"] = options.proxy
 
         try:
             timing, network, response = self._func(

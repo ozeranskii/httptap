@@ -869,6 +869,51 @@ class TestMakeRequest:
         assert verify_arg.check_hostname is False
         assert network.tls_verified is False
 
+    def test_make_request_uses_proxies(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        url = "https://proxy.test"
+        proxy_url = "socks5://gateway:1080"
+        created_clients: list[DummyClient] = []
+
+        class DummyClient:
+            def __init__(self, *_: object, **kwargs: object) -> None:
+                self.kwargs = kwargs
+                self.headers: dict[str, str] = {}
+                created_clients.append(self)
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(self, *_args: object, **_kwargs: object) -> object:
+                class _Stream:
+                    def __enter__(self) -> httpx.Response:
+                        request = httpx.Request("GET", url)
+                        return httpx.Response(200, request=request)
+
+                    def __exit__(self, *_exc: object) -> None:
+                        return None
+
+                return _Stream()
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        make_request(
+            url,
+            timeout=5.0,
+            proxy=proxy_url,
+            dns_resolver=FakeDNSResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+            force_new_connection=True,
+        )
+
+        assert created_clients
+        assert created_clients[0].kwargs["proxy"] == proxy_url
+
     def test_make_request_handles_unexpected_exception(
         self,
         httpx_mock: pytest_httpx.HTTPXMock,

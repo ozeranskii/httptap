@@ -149,6 +149,11 @@ Exit codes:
         help="Disable TLS certificate verification (useful for debugging self-signed hosts).",
     )
     request_group.add_argument(
+        "--proxy",
+        metavar="URL",
+        help="Route requests through the given proxy (http://, https://, socks5://, socks5h://).",
+    )
+    request_group.add_argument(
         "-H",
         "--header",
         action="append",
@@ -343,6 +348,7 @@ def main() -> int:
             timeout=args.timeout,
             http2=not args.no_http2,  # Correct: no_http2=True means http2=False
             verify_ssl=not args.ignore_ssl,
+            proxy=args.proxy,
         )
 
         # Create renderer

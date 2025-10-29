@@ -72,7 +72,11 @@ from .utils import create_ssl_context, parse_http_date, sanitize_headers
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from httpx._types import ProxyTypes
+
     from .interfaces import DNSResolver, TimingCollector, TLSInspector
+else:  # pragma: no cover - typing helper
+    ProxyTypes = object  # type: ignore[assignment]
 
 
 @runtime_checkable
@@ -241,6 +245,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     *,
     http2: bool = True,
     verify_ssl: bool = True,
+    proxy: ProxyTypes | None = None,
     dns_resolver: DNSResolver | None = None,
     tls_inspector: TLSInspector | None = None,
     timing_collector: TimingCollector | None = None,
@@ -269,6 +274,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         verify_ssl: Whether to verify TLS certificates during the request.
             Defaults to True. Set to False when troubleshooting hosts with
             self-signed or otherwise invalid certificates.
+        proxy: Optional proxy URL or mapping (supports http/https/socks5/socks5h).
         dns_resolver: Custom DNS resolver implementation.
             Defaults to SystemDNSResolver.
         tls_inspector: Custom TLS inspector implementation.
@@ -377,6 +383,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             http2=http2,
             follow_redirects=False,
             verify=ssl_context,
+            proxy=proxy,
             limits=limits,
         ) as client:
             client.headers["User-Agent"] = USER_AGENT

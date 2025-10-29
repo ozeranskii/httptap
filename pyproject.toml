@@ -54,7 +54,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "httpx[http2]>=0.28.1",
+    "httpx[http2,socks]>=0.28.1",
     "rich>=14.2.0",
     "dnspython>=2.8.0",
 ]

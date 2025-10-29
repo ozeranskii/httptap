@@ -216,6 +216,7 @@ class StepMetrics:
         response: HTTP response information.
         error: Error message if request failed.
         note: Additional notes or context.
+        proxied_via: Proxy URL used for this request, if any.
 
     """
 
@@ -226,6 +227,7 @@ class StepMetrics:
     response: ResponseInfo = field(default_factory=ResponseInfo)
     error: str | None = None
     note: str | None = None
+    proxied_via: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert step metrics to dictionary for JSON export.
@@ -242,6 +244,7 @@ class StepMetrics:
             "response": self.response.to_dict(),
             "error": self.error,
             "note": self.note,
+            "proxy": self.proxied_via,
         }
 
     @property
