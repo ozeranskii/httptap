@@ -153,6 +153,15 @@ class TestFormatNetworkInfo:
         assert info is not None
         assert "2001:db8::1 (IPv6)" in info
 
+    def test_format_network_info_tls_verification_warning(self) -> None:
+        """Test that TLS verification warning is rendered when disabled."""
+        network = NetworkInfo(ip="192.0.2.5", tls_verified=False)
+        step = StepMetrics(network=network)
+        info = format_network_info(step)
+
+        assert info is not None
+        assert "⚠ TLS verification disabled" in info
+
     @pytest.mark.parametrize(
         ("days_left", "expected_style"),
         [
