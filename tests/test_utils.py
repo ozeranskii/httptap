@@ -281,6 +281,40 @@ class TestCreateSSLContext:
         if hasattr(ctx, "minimum_version") and hasattr(ssl, "TLSVersion"):
             assert ctx.minimum_version <= ssl.TLSVersion.TLSv1
 
+    def test_create_ssl_context_without_tlsversion(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Function handles environments lacking ssl.TLSVersion."""
+
+        class DummyContext:
+            def __init__(self, protocol: int) -> None:  # noqa: ARG002
+                self.check_hostname = True
+                self.verify_mode = ssl.CERT_REQUIRED
+                self.minimum_version = "original-min"
+                self.maximum_version = "original-max"
+                self.options = 0
+
+            def set_ciphers(self, _value: str) -> None:
+                self.ciphers = _value
+
+        monkeypatch.delattr(ssl, "TLSVersion", raising=False)
+        monkeypatch.setattr(ssl, "SSLContext", DummyContext)
+
+        ctx = create_ssl_context(verify_ssl=False)
+
+        assert ctx.verify_mode == ssl.CERT_NONE
+        assert ctx.minimum_version == "original-min"
+        assert ctx.maximum_version == "original-max"
+
+    def test_create_ssl_context_without_disable_flags(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Function handles environments lacking OP_NO_* constants."""
+
+        monkeypatch.delattr(ssl, "OP_NO_SSLv3", raising=False)
+        monkeypatch.delattr(ssl, "OP_NO_TLSv1", raising=False)
+        monkeypatch.delattr(ssl, "OP_NO_TLSv1_1", raising=False)
+
+        ctx = create_ssl_context(verify_ssl=False)
+
+        assert ctx.verify_mode == ssl.CERT_NONE
+
     def test_validate_empty_string(self) -> None:
         """Test that empty string is invalid."""
         assert validate_url("") is False
