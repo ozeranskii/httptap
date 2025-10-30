@@ -129,6 +129,22 @@ Expose raw metrics for scripts:
 httptap --metrics-only https://httpbin.io/get | tee timings.log
 ```
 
+### Shell autocompletion
+
+Tab completion for flags, values, and file paths is available when you install the optional `argcomplete` extra:
+
+```shell
+uv pip install "httptap[extras]"
+```
+
+Enable completion for your shell:
+
+- **Bash:** add `eval "$(register-python-argcomplete httptap)"` to `~/.bashrc` (or `~/.bash_profile` on macOS).
+- **Zsh:** ensure `bashcompinit` is active (`autoload -U bashcompinit && bashcompinit`) and add the same `eval` line to `~/.zshrc`.
+- **Fish:** run `register-python-argcomplete --shell fish httptap > ~/.config/fish/completions/httptap.fish`.
+
+Once configured, pressing `Tab` after `httptap --` lists available options, and `--json` suggests local file paths.
+
 Programmatic users can inject a custom executor for advanced scenarios. The
 default analyzer accepts either a modern `RequestExecutor` implementation or a
 legacy callable wrapped with `CallableRequestExecutor`, so new request flags

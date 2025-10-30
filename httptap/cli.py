@@ -5,6 +5,7 @@ Follows CLI best practices for error handling, exit codes, and user feedback.
 """
 
 import argparse
+import importlib
 import logging
 import signal
 import sys
@@ -57,6 +58,26 @@ class RichHelpFormatter(
     argparse.RawDescriptionHelpFormatter,
 ):
     """Combined formatter that shows defaults while keeping raw layout."""
+
+
+def _enable_tab_completion(
+    parser: argparse.ArgumentParser,
+    json_argument: argparse.Action,
+) -> None:
+    """Attach argcomplete-powered autocompletion when the dependency is present."""
+    try:
+        argcomplete_module = importlib.import_module("argcomplete")
+        completers_module = importlib.import_module("argcomplete.completers")
+    except ImportError:
+        return
+
+    try:
+        files_completer_factory = completers_module.FilesCompleter
+    except AttributeError:
+        return
+
+    json_argument.completer = files_completer_factory()
+    argcomplete_module.autocomplete(parser)
 
 
 def _parse_headers(values: Sequence[str] | None) -> dict[str, str]:
@@ -173,11 +194,13 @@ Exit codes:
         action="store_true",
         help="Emit key=value metrics without Rich visuals or progress spinners.",
     )
-    output_group.add_argument(
+    json_argument = output_group.add_argument(
         "--json",
         metavar="PATH",
         help="Export the collected metrics, network, and response details to PATH.",
     )
+
+    _enable_tab_completion(parser, json_argument)
 
     return parser
 

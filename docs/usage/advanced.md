@@ -120,6 +120,22 @@ httptap --proxy socks5h://proxy.internal:1080 https://example.com
 
 The Rich output and JSON export include the proxy URI when one is used.
 
+## Shell Autocompletion
+
+Install the optional extra to enable argcomplete-powered tab completion across supported shells:
+
+```shell
+uv pip install "httptap[extras]"
+```
+
+Then follow the steps for your environment:
+
+- **Bash:** add `eval "$(register-python-argcomplete httptap)"` to your profile (for example `~/.bashrc`).
+- **Zsh:** run `autoload -U bashcompinit && bashcompinit` once per shell session, then add the same `eval` line to `~/.zshrc`.
+- **Fish:** generate completions with `register-python-argcomplete --shell fish httptap > ~/.config/fish/completions/httptap.fish`.
+
+With completions enabled, flag names appear after pressing `Tab`, and the `--json` argument offers file path suggestions.
+
 ## Custom Request Executors
 
 For fully customized behavior you can provide your own request executor.

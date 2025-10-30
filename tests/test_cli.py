@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import argparse
 import json
 import signal
 from argparse import Namespace
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Literal, cast
 
 import pytest
 from typing_extensions import Self
 
+from httptap import cli
 from httptap.cli import (
     EXIT_FATAL_ERROR,
     EXIT_NETWORK_ERROR,
@@ -196,6 +199,42 @@ def _make_step(
         response=response,
         error=error,
     )
+
+
+def test_create_parser_without_argcomplete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Parser creation proceeds when argcomplete is unavailable."""
+
+    def fake_import_module(name: str) -> object:
+        raise ImportError(name)
+
+    monkeypatch.setattr(cli.importlib, "import_module", fake_import_module)
+    parser = cli.create_parser()
+
+    json_action = next(action for action in parser._actions if action.dest == "json")
+    assert not hasattr(json_action, "completer")
+
+
+def test_create_parser_with_argcomplete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Parser wires argcomplete completers when the dependency is present."""
+    autocomplete_calls: list[argparse.ArgumentParser] = []
+
+    class ArgcompleteModule:
+        def autocomplete(self, parser: argparse.ArgumentParser) -> None:
+            autocomplete_calls.append(parser)
+
+    def fake_import_module(name: str) -> object:
+        if name == "argcomplete":
+            return ArgcompleteModule()
+        if name == "argcomplete.completers":
+            return SimpleNamespace(FilesCompleter=lambda: "files")
+        raise ImportError(name)
+
+    monkeypatch.setattr(cli.importlib, "import_module", fake_import_module)
+    parser = cli.create_parser()
+    json_action = next(action for action in parser._actions if action.dest == "json")
+
+    assert autocomplete_calls == [parser]
+    assert json_action.completer == "files"
 
 
 def test_export_results_handles_oserror(
