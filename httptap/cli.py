@@ -3,12 +3,14 @@
 This module provides the CLI entry point and argument parsing for the httptap tool.
 Follows CLI best practices for error handling, exit codes, and user feedback.
 """
+# PYTHON_ARGCOMPLETE_OK
 
 import argparse
 import logging
 import signal
 import sys
 from collections.abc import Mapping, Sequence
+from types import ModuleType
 from typing import NoReturn
 
 from rich.console import Console
@@ -50,6 +52,12 @@ logging.basicConfig(
     handlers=[RichHandler(console=console, show_time=False, show_path=False)],
 )
 logger = logging.getLogger(__name__)
+
+try:
+    import argcomplete
+except ImportError:  # pragma: no cover
+    argcomplete = None  # type: ignore[assignment]
+    logger.debug("argcomplete is not installed, skipping autocomplete")
 
 
 class RichHelpFormatter(
@@ -334,6 +342,9 @@ def main() -> int:
     try:
         # Parse arguments
         parser = create_parser()
+        if argcomplete:  # pragma: no cover
+            argcomplete.autocomplete(parser)
+
         args = parser.parse_args()
 
         # Validate arguments

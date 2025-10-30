@@ -59,6 +59,12 @@ dependencies = [
     "dnspython>=2.8.0",
 ]
 
+[project.optional-dependencies]
+extras = [
+    "argcomplete>=3.6.3",
+]
+
+
 [project.scripts]
 httptap = "httptap.cli:main"
 
