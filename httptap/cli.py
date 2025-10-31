@@ -10,7 +10,6 @@ import logging
 import signal
 import sys
 from collections.abc import Mapping, Sequence
-from types import ModuleType
 from typing import NoReturn
 
 from rich.console import Console
