@@ -85,8 +85,40 @@ uv pip install httptap
 ```shell
 git clone https://github.com/ozeranskii/httptap.git
 cd httptap
+uv venv
 uv pip install .
 ```
+---
+
+### Shell completions
+
+To enable shell completions for bash and zsh, install the optional extras and activate the completion helper in your virtual environment:
+
+1. Install the extras:
+
+   ```shell
+   uv pip install "httptap[extras]"
+   ```
+
+2. Activate your virtual environment:
+
+   ```shell
+   source .venv/bin/activate
+   ```
+
+
+3. Run the global activation script for argument completions and then restart your shell:
+
+   ```shell
+   # installs/activates the system-wide argcomplete hook
+   activate-global-python-argcomplete
+   ```
+
+4. Restart your shell. Completions should now work in both bash and zsh.
+
+
+  - Note: The global activation script provides argument completions for bash and zsh only. Other shells are not covered by the script and must be configured separately.
+
 
 ---
 
@@ -156,6 +188,7 @@ The output and JSON export include the proxy URI so you can confirm what
 path was used.
 
 ---
+
 
 ## Releasing
 
