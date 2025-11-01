@@ -10,7 +10,7 @@ import logging
 import signal
 import sys
 from collections.abc import Mapping, Sequence
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -52,11 +52,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-try:
-    import argcomplete
-except ImportError:  # pragma: no cover
-    argcomplete = None  # type: ignore[assignment]
-    logger.debug("argcomplete is not installed, skipping autocomplete")
+if TYPE_CHECKING:
+    import argcomplete  # type: ignore[import-not-found, unused-ignore]
+else:
+    try:
+        import argcomplete  # type: ignore[import-not-found]
+    except ImportError:  # pragma: no cover
+        argcomplete = None  # type: Any
+        logger.debug("argcomplete is not installed, skipping autocomplete")
 
 
 class RichHelpFormatter(
