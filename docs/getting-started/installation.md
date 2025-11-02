@@ -10,6 +10,23 @@ Before installing httptap, ensure you have:
 
 No system dependencies beyond standard networking are required.
 
+## Installing via Homebrew
+
+=== "macOS"
+
+    ```bash
+    brew install httptap
+    ```
+
+=== "Linux"
+
+    ```bash
+    brew install httptap
+    ```
+
+!!! tip "Recommended for macOS/Linux users"
+    Homebrew installation is the simplest method and includes automatic shell completion setup.
+
 ## Installing from PyPI
 
 === "Using uv (recommended)"
@@ -80,6 +97,12 @@ httptap X.Y.Z
 
 To upgrade httptap to the latest version:
 
+=== "Using Homebrew"
+
+    ```bash
+    brew upgrade httptap
+    ```
+
 === "Using uv"
 
     ```bash
@@ -95,6 +118,12 @@ To upgrade httptap to the latest version:
 ## Uninstalling
 
 To remove httptap from your system:
+
+=== "Using Homebrew"
+
+    ```bash
+    brew uninstall httptap
+    ```
 
 === "Using uv"
 
@@ -113,6 +142,87 @@ To remove httptap from your system:
     ```bash
     pipx uninstall httptap
     ```
+
+---
+
+## Shell Completions
+
+httptap supports shell completions for bash and zsh.
+
+### Homebrew Installation
+
+If you installed httptap via Homebrew, **completions are automatically configured**. Simply restart your shell:
+
+```bash
+# Restart your shell
+exec $SHELL
+```
+
+Homebrew automatically places completion scripts in:
+
+- **Bash**: `$(brew --prefix)/etc/bash_completion.d/`
+- **Zsh**: `$(brew --prefix)/share/zsh/site-functions/`
+
+!!! success "No additional setup required"
+    Homebrew handles all completion setup automatically. Just restart your shell and start using Tab completion!
+
+### Python Package Installation
+
+If you installed httptap via `pip`, `uv`, or `pipx`, you need to install the optional `completion` extras:
+
+=== "Using uv"
+
+    ```bash
+    uv pip install "httptap[completion]"
+    ```
+
+=== "Using pip"
+
+    ```bash
+    pip install "httptap[completion]"
+    ```
+
+=== "Using pipx"
+
+    ```bash
+    pipx install "httptap[completion]"
+    ```
+
+#### Activation
+
+1. Activate your virtual environment (if using venv):
+
+    ```bash
+    source .venv/bin/activate
+    ```
+
+2. Run the global activation script:
+
+    ```bash
+    activate-global-python-argcomplete
+    ```
+
+3. Restart your shell.
+
+### Usage
+
+Once installed and activated, you can use `Tab` to autocomplete commands and options:
+
+```bash
+# Complete command options
+httptap --<TAB>
+
+# Complete after typing partial option
+httptap --fol<TAB>
+# Completes to: httptap --follow
+
+# Complete multiple options
+httptap --follow --time<TAB>
+# Completes to: httptap --follow --timeout
+```
+
+!!! note
+    The global activation script provides argument completions for bash and zsh only. Other shells are not covered by the script and must be configured separately.
 
 ---
 

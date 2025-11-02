@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import signal
 from argparse import Namespace
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pytest
 from typing_extensions import Self
@@ -103,7 +103,7 @@ class RendererStub:
 
 def test_main_success(monkeypatch: pytest.MonkeyPatch) -> None:
     analyzer = AnalyzerStub()
-    captured_ctor: dict[str, object] = {}
+    captured_ctor: dict[str, Any] = {}
     renderer = RendererStub()
 
     def fake_analyzer(*_args: object, **kwargs: object) -> AnalyzerStub:

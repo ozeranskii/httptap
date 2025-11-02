@@ -31,13 +31,58 @@ httptap \
 
 #### `--follow`
 
-Follow HTTP redirects and show timing for each step in the chain.
+Follow HTTP redirects and show timing for each step in the chain (max 10 redirects).
 
 ```bash
 httptap --follow https://httpbin.io/redirect/3
 ```
 
 By default, httptap does not follow redirects and will stop at the first redirect response (3xx status code).
+
+#### `--timeout SECONDS`
+
+Abort the request chain if total elapsed time exceeds the specified number of seconds.
+
+```bash
+httptap --timeout 10 https://httpbin.io/delay/2
+```
+
+Default timeout is 20 seconds.
+
+#### `--no-http2`
+
+Disable HTTP/2 negotiation and force HTTP/1.1 connections.
+
+```bash
+httptap --no-http2 https://httpbin.io
+```
+
+By default, HTTP/2 is enabled if the server supports it.
+
+#### `--ignore-ssl`
+
+Disable TLS certificate verification. Useful for debugging self-signed hosts or expired certificates.
+
+```bash
+httptap --ignore-ssl https://self-signed.badssl.com
+```
+
+!!! warning
+    Use this option only on trusted networks. It disables certificate validation and relaxes handshake constraints.
+
+#### `--proxy URL`
+
+Route requests through the specified proxy. Supports HTTP, HTTPS, SOCKS5, and SOCKS5H protocols.
+
+```bash
+# HTTP proxy
+httptap --proxy http://proxy.example.com:8080 https://httpbin.io
+
+# SOCKS5 proxy
+httptap --proxy socks5h://proxy.local:1080 https://example.com
+```
+
+The proxy setting takes precedence over environment variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`).
 
 ### Output Options
 
