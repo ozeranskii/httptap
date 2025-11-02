@@ -59,6 +59,11 @@ dependencies = [
     "dnspython>=2.8.0",
 ]
 
+[project.optional-dependencies]
+completion = [
+    "argcomplete>=3.6.3",
+]
+
 [project.scripts]
 httptap = "httptap.cli:main"
 
@@ -94,6 +99,7 @@ dev = [
 
 typing = [
     "mypy>=1.18.2",
+    "argcomplete>=3.6.3",
 ]
 
 test = [

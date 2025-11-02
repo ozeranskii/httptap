@@ -15,7 +15,7 @@ class SignatureFailsExecutor:
         self.calls: list[dict[str, object]] = []
 
     @property
-    def __signature__(self) -> None:  # type: ignore[override]
+    def __signature__(self) -> None:
         msg = "signature unavailable"
         raise ValueError(msg)
 

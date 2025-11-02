@@ -301,8 +301,8 @@ class TestCreateSSLContext:
         ctx = create_ssl_context(verify_ssl=False)
 
         assert ctx.verify_mode == ssl.CERT_NONE
-        assert ctx.minimum_version == "original-min"
-        assert ctx.maximum_version == "original-max"
+        assert ctx.minimum_version == "original-min"  # type: ignore[comparison-overlap]
+        assert ctx.maximum_version == "original-max"  # type: ignore[comparison-overlap]
 
     def test_create_ssl_context_without_disable_flags(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Function handles environments lacking OP_NO_* constants."""

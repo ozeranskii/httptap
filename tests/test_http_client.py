@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ssl
 from types import SimpleNamespace, TracebackType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import pytest
@@ -875,7 +875,7 @@ class TestMakeRequest:
     ) -> None:
         url = "https://proxy.test"
         proxy_url = "socks5://gateway:1080"
-        created_clients: list[DummyClient] = []
+        created_clients: list[Any] = []
 
         class DummyClient:
             def __init__(self, *_: object, **kwargs: object) -> None:

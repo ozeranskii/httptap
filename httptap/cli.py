@@ -3,13 +3,17 @@
 This module provides the CLI entry point and argument parsing for the httptap tool.
 Follows CLI best practices for error handling, exit codes, and user feedback.
 """
+# PYTHON_ARGCOMPLETE_OK
 
 import argparse
 import logging
 import signal
 import sys
 from collections.abc import Mapping, Sequence
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -50,6 +54,15 @@ logging.basicConfig(
     handlers=[RichHandler(console=console, show_time=False, show_path=False)],
 )
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    argcomplete: ModuleType | None
+else:
+    try:
+        import argcomplete  # type: ignore[import-not-found]
+    except ImportError:  # pragma: no cover
+        argcomplete = None
+        logger.debug("argcomplete is not installed, skipping autocomplete")
 
 
 class RichHelpFormatter(
@@ -120,10 +133,13 @@ Exit codes:
         help="Show the httptap version and exit.",
     )
 
-    parser.add_argument(
+    url_arg = parser.add_argument(
         "url",
         help="Target URL to analyze (must start with http:// or https://).",
     )
+    # Disable file completion for URL argument since we expect URLs, not file paths
+    if argcomplete:  # pragma: no cover
+        url_arg.completer = argcomplete.completers.SuppressCompleter()  # type: ignore[attr-defined]
 
     request_group = parser.add_argument_group("Request options")
     request_group.add_argument(
@@ -329,11 +345,15 @@ def main() -> int:
         Exit code (0=success, 64=bad args, 75=network issue, 70=internal error).
 
     """
-    setup_signal_handlers()
-
     try:
         # Parse arguments
         parser = create_parser()
+        if argcomplete:  # pragma: no cover
+            argcomplete.autocomplete(parser)
+
+        # Setup signal handlers after autocomplete (not needed during tab completion)
+        setup_signal_handlers()
+
         args = parser.parse_args()
 
         # Validate arguments

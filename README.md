@@ -74,10 +74,22 @@ performance baselines.
 
 ## Installation
 
+### Using Homebrew (macOS/Linux)
+
+```shell
+brew install httptap
+```
+
 ### Using `uv`
 
 ```shell
 uv pip install httptap
+```
+
+### Using `pip`
+
+```shell
+pip install httptap
 ```
 
 ### From source
@@ -85,7 +97,71 @@ uv pip install httptap
 ```shell
 git clone https://github.com/ozeranskii/httptap.git
 cd httptap
+uv venv
 uv pip install .
+```
+
+---
+
+### Shell completions
+
+#### Homebrew Installation
+
+If you installed httptap via Homebrew, shell completions are automatically available after installation. Just restart your shell:
+
+```shell
+# Restart your shell or reload configuration
+exec $SHELL
+```
+
+Homebrew automatically installs completions to:
+- Bash: `$(brew --prefix)/etc/bash_completion.d/`
+- Zsh: `$(brew --prefix)/share/zsh/site-functions/`
+
+#### Python Package Installation
+
+If you installed httptap via `pip` or `uv`, you need to install the optional completion extras:
+
+1. Install the completion extras:
+
+   ```shell
+   uv pip install "httptap[completion]"
+   # or
+   pip install "httptap[completion]"
+   ```
+
+2. Activate your virtual environment:
+
+   ```shell
+   source .venv/bin/activate
+   ```
+
+3. Run the global activation script for argument completions:
+
+   ```shell
+   activate-global-python-argcomplete
+   ```
+
+4. Restart your shell. Completions should now work in both bash and zsh.
+
+**Note:** The global activation script provides argument completions for bash and zsh only. Other shells are not covered by the script and must be configured separately.
+
+#### Usage Examples
+
+Once completions are installed, you can use `Tab` to autocomplete commands and options:
+
+```shell
+# Complete command options
+httptap --<TAB>
+# Shows: --follow, --timeout, --no-http2, --ignore-ssl, --proxy, --header, --compact, --metrics-only, --json, --version, --help
+
+# Complete after typing partial option
+httptap --fol<TAB>
+# Completes to: httptap --follow
+
+# Complete multiple options
+httptap --follow --time<TAB>
+# Completes to: httptap --follow --timeout
 ```
 
 ---
@@ -156,6 +232,7 @@ The output and JSON export include the proxy URI so you can confirm what
 path was used.
 
 ---
+
 
 ## Releasing
 
@@ -386,7 +463,7 @@ We welcome bug reports, feature proposals, doc improvements, and creative new vi
 
 ## License
 
-Apache License 2.0 © httptap contributors. See [LICENSE](https://github.com/ozeranskii/httptap/blob/main/LICENSE) for
+Apache License 2.0 © Sergei Ozeranskii. See [LICENSE](https://github.com/ozeranskii/httptap/blob/main/LICENSE) for
 details.
 
 ---
