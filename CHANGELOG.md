@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2025-11-02
+
+### Features
+
+- Add shell completions support and update installation docs ([#33](https://github.com/ozeranskii/httptap/issues/33))
+
 ## [0.2.0] - 2025-10-29
 
 ### Documentation
