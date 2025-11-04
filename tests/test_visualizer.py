@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import sys
 from io import StringIO
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, no_type_check
 
 from rich.console import Console
+from typing_extensions import Self
 
 from httptap.models import StepMetrics, TimingMetrics
 from httptap.visualizer import WaterfallVisualizer
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     import pytest
 
 
@@ -570,6 +573,135 @@ class TestWaterfallVisualizer:
         assert widths[4] >= 1
         # Zero gets zero
         assert widths[3] == 0
+
+    def test_compute_phase_widths_recovers_when_order_cleared(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """list(positives) returning an empty sequence should fall back safely."""
+        console = Console()
+        visualizer = WaterfallVisualizer(console, max_bar_width=20)
+
+        class ClearingList(list[int]):
+            cleared = False
+
+            @no_type_check
+            def sort(self, *args: object, **kwargs: object) -> None:
+                super().sort(*args, **kwargs)
+                self.clear()
+                type(self).cleared = True
+
+        def clearing_list(iterable: list[int]) -> ClearingList:
+            return ClearingList(iterable)
+
+        module_dict = sys.modules["httptap.visualizer"].__dict__
+        monkeypatch.setitem(module_dict, "list", clearing_list)
+        monkeypatch.setattr("httptap.visualizer.math.ceil", lambda value: int(value))
+
+        durations = [12.0, 6.0]
+        widths = visualizer._compute_phase_widths(durations)
+
+        assert ClearingList.cleared is True
+        assert sum(widths) == visualizer.max_bar_width
+
+    def test_compute_phase_widths_slack_branch_uses_cycle(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Slack allocation should iterate with itertools.cycle."""
+        console = Console()
+        visualizer = WaterfallVisualizer(console, max_bar_width=30)
+
+        cycle_calls: list[list[int]] = []
+
+        def fake_cycle(order: list[int]) -> Iterator[int]:
+            cycle_calls.append(list(order))
+
+            def generator() -> Iterator[int]:
+                while True:
+                    yield from order
+
+            return generator()
+
+        monkeypatch.setattr("httptap.visualizer.math.ceil", lambda value: int(value))
+        monkeypatch.setattr("httptap.visualizer.itertools.cycle", fake_cycle)
+
+        durations = [15.0, 5.0]
+        widths = visualizer._compute_phase_widths(durations)
+
+        assert cycle_calls  # slack branch exercised
+        assert sum(widths) == visualizer.max_bar_width
+
+    def test_compute_phase_widths_overflow_branch_trims_counts(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Overflow reduction should trim counts down to fit max width."""
+        console = Console()
+        visualizer = WaterfallVisualizer(console, max_bar_width=6)
+
+        module_dict = sys.modules["httptap.visualizer"].__dict__
+        monkeypatch.setattr("httptap.visualizer.math.ceil", lambda value: int(value) + 2)
+        monkeypatch.setitem(module_dict, "range", lambda _n: [0])
+
+        durations = [20.0, 18.0, 16.0]
+        widths = visualizer._compute_phase_widths(durations)
+
+        assert sum(widths) <= visualizer.max_bar_width
+        assert any(width == 1 for width in widths)
+
+    def test_compute_phase_widths_slack_cycle_can_exhaust(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Slack allocation loop should handle iterators that terminate."""
+        console = Console()
+        visualizer = WaterfallVisualizer(console, max_bar_width=25)
+
+        def empty_cycle(_order: list[int]) -> Iterator[int]:
+            return iter(())
+
+        monkeypatch.setattr("httptap.visualizer.math.ceil", lambda value: int(value))
+        monkeypatch.setattr("httptap.visualizer.itertools.cycle", empty_cycle)
+
+        widths = visualizer._compute_phase_widths([12.0, 6.0])
+
+        assert sum(widths) < visualizer.max_bar_width
+
+    def test_compute_phase_widths_overflow_loop_can_complete(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Overflow trimming loop should tolerate counts that never shrink."""
+        import builtins
+
+        console = Console()
+        visualizer = WaterfallVisualizer(console, max_bar_width=6)
+
+        module_dict = sys.modules["httptap.visualizer"].__dict__
+        orig_sum = builtins.sum
+
+        class NonReducible(int):
+            def __new__(cls, value: int) -> Self:  # pragma: no cover - defensive
+                return int.__new__(cls, value)
+
+            def __gt__(self, _other: object) -> bool:
+                return False
+
+        def fake_sum(values: list[int]) -> int:
+            total = orig_sum(values)
+            for index, val in enumerate(values):
+                values[index] = NonReducible(val)
+            return total
+
+        monkeypatch.setitem(module_dict, "sum", fake_sum)
+        monkeypatch.setitem(module_dict, "range", lambda _n: [0])
+        monkeypatch.setattr("httptap.visualizer.math.ceil", lambda value: int(value) + 2)
+
+        widths = visualizer._compute_phase_widths([25.0, 20.0, 15.0])
+
+        assert all(isinstance(width, NonReducible) for width in widths)
+        assert sum(int(width) for width in widths) > visualizer.max_bar_width
 
     def test_compute_phase_widths_empty_order_fallback(self) -> None:
         """Test _compute_phase_widths handles empty order edge case."""

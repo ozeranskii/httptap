@@ -238,6 +238,34 @@ class TestOutputRenderer:
         # Table should still be created
         assert table is not None
 
+    def test_render_step_skips_empty_network_and_response(self) -> None:
+        """Network/response lines should be omitted when data is unavailable."""
+        console = Console(record=True, width=120)
+        renderer = OutputRenderer(console=console)
+
+        captured: list[StepMetrics] = []
+
+        class VisualizerStub:
+            def render(self, step: StepMetrics) -> None:
+                captured.append(step)
+
+        renderer.visualizer = VisualizerStub()
+
+        step = StepMetrics(
+            url="https://example.test",
+            timing=TimingMetrics(total_ms=25.0),
+            network=NetworkInfo(),
+            response=ResponseInfo(),
+        )
+
+        renderer._render_step(step)
+
+        output = console.export_text()
+        assert "IP:" not in output
+        assert "Status:" not in output
+        assert captured
+        assert captured[0] is step
+
     @pytest.mark.parametrize(
         ("status", "expected_color"),
         [

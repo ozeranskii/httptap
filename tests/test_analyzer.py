@@ -120,6 +120,19 @@ def test_analyze_url_with_redirect_missing_location_header() -> None:
     assert steps[0].response.location is None
 
 
+def test_analyze_url_with_redirect_blank_location_header() -> None:
+    """Test handling of 3xx response with blank Location header."""
+    executor = StubExecutor([(302, "")])  # Redirect with empty location string
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+
+    steps = analyzer.analyze_url("https://example.test/initial")
+
+    # Redirect should not be followed when Location header is blank
+    assert len(steps) == 1
+    assert steps[0].response.status == 302
+    assert steps[0].response.location == ""
+
+
 def test_analyze_url_respects_max_redirects() -> None:
     """Test that analyzer respects max_redirects limit."""
     # Create infinite redirect chain

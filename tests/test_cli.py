@@ -407,6 +407,29 @@ def test_main_handles_unexpected_exception(
     assert stdout == ""
 
 
+def test_main_handles_data_read_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """File read failures for --data should surface as usage errors."""
+
+    def fake_read_request_data(_path: str) -> tuple[bytes | None, dict[str, str]]:
+        message = "missing payload"
+        raise FileNotFoundError(message)
+
+    monkeypatch.setattr("httptap.cli.read_request_data", fake_read_request_data)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["httptap", "--data", "@missing", "https://example.test"],
+    )
+
+    exit_code = main()
+    _stdout, stderr = capsys.readouterr()
+
+    assert exit_code == EXIT_USAGE_ERROR
+    assert "Error reading data" in stderr
+
+
 def test_determine_exit_code_empty_steps() -> None:
     assert determine_exit_code([]) == EXIT_FATAL_ERROR
 
