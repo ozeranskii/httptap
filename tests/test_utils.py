@@ -1,5 +1,6 @@
 import ssl
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 from faker import Faker
@@ -11,6 +12,7 @@ from httptap.utils import (
     mask_sensitive_value,
     parse_certificate_date,
     parse_http_date,
+    read_request_data,
     sanitize_headers,
     validate_url,
 )
@@ -322,3 +324,168 @@ class TestCreateSSLContext:
     def test_validate_relative_url(self) -> None:
         """Test that relative URLs are invalid."""
         assert validate_url("/path/to/resource") is False
+
+
+class TestReadRequestData:
+    """Test suite for read_request_data function."""
+
+    def test_read_request_data_none_input(self) -> None:
+        """Test that None input returns None content and empty headers."""
+        content, headers = read_request_data(None)
+
+        assert content is None
+        assert headers == {}
+
+    def test_read_request_data_empty_string(self) -> None:
+        """Test that empty string returns None content and empty headers."""
+        content, headers = read_request_data("")
+
+        assert content is None
+        assert headers == {}
+
+    def test_read_request_data_inline_json(self) -> None:
+        """Test reading inline JSON data auto-detects Content-Type."""
+        json_data = '{"name": "John", "age": 30}'
+        content, headers = read_request_data(json_data)
+
+        assert content == json_data.encode("utf-8")
+        assert headers == {"Content-Type": "application/json"}
+
+    def test_read_request_data_inline_non_json(self) -> None:
+        """Test reading inline non-JSON data returns no Content-Type."""
+        plain_data = "this is not json"
+        content, headers = read_request_data(plain_data)
+
+        assert content == plain_data.encode("utf-8")
+        assert headers == {}
+
+    def test_read_request_data_from_json_file(self, tmp_path: Path) -> None:
+        """Test reading data from .json file auto-detects Content-Type."""
+        json_file = tmp_path / "data.json"
+        json_content = '{"status": "active"}'
+        json_file.write_text(json_content)
+
+        content, headers = read_request_data(f"@{json_file}")
+
+        assert content == json_content.encode("utf-8")
+        assert headers == {"Content-Type": "application/json"}
+
+    def test_read_request_data_from_xml_file(self, tmp_path: Path) -> None:
+        """Test reading data from .xml file auto-detects Content-Type."""
+        xml_file = tmp_path / "data.xml"
+        xml_content = "<root><item>value</item></root>"
+        xml_file.write_text(xml_content)
+
+        content, headers = read_request_data(f"@{xml_file}")
+
+        assert content == xml_content.encode("utf-8")
+        assert headers == {"Content-Type": "application/xml"}
+
+    def test_read_request_data_from_txt_file(self, tmp_path: Path) -> None:
+        """Test reading data from .txt file auto-detects Content-Type."""
+        txt_file = tmp_path / "data.txt"
+        txt_content = "plain text content"
+        txt_file.write_text(txt_content)
+
+        content, headers = read_request_data(f"@{txt_file}")
+
+        assert content == txt_content.encode("utf-8")
+        assert headers == {"Content-Type": "text/plain"}
+
+    def test_read_request_data_from_text_extension_file(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Test reading data from .text file auto-detects Content-Type."""
+        text_file = tmp_path / "data.text"
+        text_content = "plain text content"
+        text_file.write_text(text_content)
+
+        content, headers = read_request_data(f"@{text_file}")
+
+        assert content == text_content.encode("utf-8")
+        assert headers == {"Content-Type": "text/plain"}
+
+    def test_read_request_data_unknown_extension_with_json_content(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Test file with unknown extension but JSON content detects JSON."""
+        unknown_file = tmp_path / "data.dat"
+        json_content = '{"key": "value"}'
+        unknown_file.write_text(json_content)
+
+        content, headers = read_request_data(f"@{unknown_file}")
+
+        assert content == json_content.encode("utf-8")
+        assert headers == {"Content-Type": "application/json"}
+
+    def test_read_request_data_unknown_extension_non_json(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Test file with unknown extension and non-JSON content."""
+        unknown_file = tmp_path / "data.dat"
+        plain_content = "not json content"
+        unknown_file.write_text(plain_content)
+
+        content, headers = read_request_data(f"@{unknown_file}")
+
+        assert content == plain_content.encode("utf-8")
+        assert headers == {}
+
+    def test_read_request_data_file_not_found(self) -> None:
+        """Test that reading non-existent file raises FileNotFoundError."""
+        with pytest.raises(FileNotFoundError):
+            read_request_data("@nonexistent.json")
+
+    def test_read_request_data_inline_json_array(self) -> None:
+        """Test reading inline JSON array auto-detects Content-Type."""
+        json_data = '[{"id": 1}, {"id": 2}]'
+        content, headers = read_request_data(json_data)
+
+        assert content == json_data.encode("utf-8")
+        assert headers == {"Content-Type": "application/json"}
+
+    def test_read_request_data_inline_json_with_unicode(self) -> None:
+        """Test reading JSON with unicode characters."""
+        json_data = '{"message": "Hello 世界"}'
+        content, headers = read_request_data(json_data)
+
+        assert content == json_data.encode("utf-8")
+        assert headers == {"Content-Type": "application/json"}
+
+    def test_read_request_data_malformed_json(self) -> None:
+        """Test that malformed JSON is treated as plain text."""
+        malformed = '{"invalid": json}'
+        content, headers = read_request_data(malformed)
+
+        assert content == malformed.encode("utf-8")
+        assert headers == {}
+
+    def test_read_request_data_binary_file(self, tmp_path: Path) -> None:
+        """Test reading binary file with unknown extension."""
+        binary_file = tmp_path / "data.bin"
+        binary_content = b"\x00\x01\x02\x03\xff\xfe"
+        binary_file.write_bytes(binary_content)
+
+        content, headers = read_request_data(f"@{binary_file}")
+
+        assert content == binary_content
+        assert headers == {}
+
+    def test_read_request_data_json_file_extension_priority(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Test that file extension takes priority over content inspection."""
+        json_file = tmp_path / "data.json"
+        # Write non-JSON content to .json file
+        json_file.write_text("not valid json")
+
+        content, headers = read_request_data(f"@{json_file}")
+
+        # Extension should take priority, so Content-Type is application/json
+        # even though content is not valid JSON
+        assert content == b"not valid json"
+        assert headers == {"Content-Type": "application/json"}

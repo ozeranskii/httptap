@@ -45,3 +45,85 @@ def test_exporter_writes_expected_payload(tmp_path: PathType) -> None:
 
     output_text = console.export_text()
     assert "Exported analysis" in output_text
+
+
+def test_exporter_includes_request_metadata(tmp_path: PathType) -> None:
+    """Test that request metadata is included in JSON export."""
+    console = Console(record=True)
+    exporter = JSONExporter(console)
+
+    step = StepMetrics(
+        url="https://httpbin.test/post",
+        step_number=1,
+        request_method="POST",
+        request_headers={"Content-Type": "application/json", "Authorization": "Bear****oken"},
+        request_body_bytes=42,
+        timing=TimingMetrics(total_ms=150.0),
+        network=NetworkInfo(ip="192.0.2.1"),
+        response=ResponseInfo(status=200, bytes=256),
+    )
+
+    output_path = tmp_path / "report.json"
+    exporter.export([step], "https://httpbin.test/post", str(output_path))
+
+    data = json.loads(output_path.read_text())
+    assert "request" in data["steps"][0]
+    assert data["steps"][0]["request"]["method"] == "POST"
+    assert data["steps"][0]["request"]["headers"]["Content-Type"] == "application/json"
+    assert data["steps"][0]["request"]["headers"]["Authorization"] == "Bear****oken"
+    assert data["steps"][0]["request"]["body_bytes"] == 42
+
+
+def test_exporter_includes_all_http_methods(tmp_path: PathType) -> None:
+    """Test that all HTTP methods are correctly exported."""
+    console = Console(record=True)
+    exporter = JSONExporter(console)
+
+    methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+    steps = []
+
+    for idx, method in enumerate(methods, 1):
+        step = StepMetrics(
+            url=f"https://httpbin.test/{method.lower()}",
+            step_number=idx,
+            request_method=method,
+            request_body_bytes=0 if method in ("GET", "HEAD", "OPTIONS") else 24,
+            timing=TimingMetrics(total_ms=100.0),
+            network=NetworkInfo(ip="192.0.2.1"),
+            response=ResponseInfo(status=200, bytes=128),
+        )
+        steps.append(step)
+
+    output_path = tmp_path / "methods.json"
+    exporter.export(steps, "https://httpbin.test/", str(output_path))
+
+    data = json.loads(output_path.read_text())
+    assert len(data["steps"]) == 7
+
+    for idx, method in enumerate(methods):
+        assert data["steps"][idx]["request"]["method"] == method
+
+
+def test_exporter_with_empty_request_headers(tmp_path: PathType) -> None:
+    """Test that empty request headers are handled correctly."""
+    console = Console(record=True)
+    exporter = JSONExporter(console)
+
+    step = StepMetrics(
+        url="https://httpbin.test/get",
+        step_number=1,
+        request_method="GET",
+        request_headers={},
+        request_body_bytes=0,
+        timing=TimingMetrics(total_ms=100.0),
+        network=NetworkInfo(ip="192.0.2.1"),
+        response=ResponseInfo(status=200, bytes=128),
+    )
+
+    output_path = tmp_path / "empty_headers.json"
+    exporter.export([step], "https://httpbin.test/get", str(output_path))
+
+    data = json.loads(output_path.read_text())
+    assert data["steps"][0]["request"]["headers"] == {}
+    assert data["steps"][0]["request"]["method"] == "GET"
+    assert data["steps"][0]["request"]["body_bytes"] == 0
