@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2025-11-04
+
+### Features
+
+- Add support for request bodies and multiple HTTP methods ([#36](https://github.com/ozeranskii/httptap/issues/36))
+
 ## [0.2.1] - 2025-11-02
 
 ### Features
