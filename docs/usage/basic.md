@@ -14,6 +14,53 @@ httptap [OPTIONS] URL
 
 ### Request Options
 
+#### `--method METHOD`
+
+Specify the HTTP method to use. Supported methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS.
+
+```bash
+httptap --method POST https://httpbin.io/post
+```
+
+**Default behavior:**
+- Without `--data`: defaults to GET
+- With `--data` but no `--method`: auto-switches to POST (similar to curl)
+- With explicit `--method`: respects the specified method
+
+#### `-d, --data DATA`
+
+Send request body data. Can be inline string or file reference using `@filename` syntax.
+
+**Inline JSON data:**
+```bash
+httptap --data '{"name": "John", "email": "john@example.com"}' https://httpbin.io/post
+```
+
+**Load from file:**
+```bash
+httptap --data @payload.json https://httpbin.io/post
+```
+
+**Auto-detection:**
+- Content-Type is automatically detected (JSON, XML, plain text)
+- File extension is checked first (.json, .xml, .txt)
+- Falls back to JSON validation
+
+**Examples with different methods:**
+```bash
+# POST (auto-detected when --data is present)
+httptap --data '{"key": "value"}' https://httpbin.io/post
+
+# PUT
+httptap --method PUT --data '{"status": "updated"}' https://httpbin.io/put
+
+# PATCH
+httptap --method PATCH --data '{"field": "modified"}' https://httpbin.io/patch
+
+# Explicit GET with body (uncommon, triggers warning)
+httptap --method GET --data 'query-data' https://httpbin.io/get
+```
+
 #### `-H, --header`
 
 Add custom HTTP headers to the request. Can be used multiple times.
@@ -76,10 +123,10 @@ Route requests through the specified proxy. Supports HTTP, HTTPS, SOCKS5, and SO
 
 ```bash
 # HTTP proxy
-httptap --proxy http://proxy.example.com:8080 https://httpbin.io
+httptap --proxy http://proxy.local:8080 https://httpbin.io/get
 
 # SOCKS5 proxy
-httptap --proxy socks5h://proxy.local:1080 https://example.com
+httptap --proxy socks5h://proxy.local:1080 https://httpbin.io/get
 ```
 
 The proxy setting takes precedence over environment variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`).
@@ -139,10 +186,47 @@ httptap --version
 
 ## HTTP Methods
 
-Currently, httptap issues **GET requests only**. This keeps the interface simple and avoids exposing sensitive request
-data in output.
+httptap supports all standard HTTP methods:
 
-If you need to profile POST/PUT workloads, you can use the Python API to wrap httptap and override the request executor.
+- **GET** - Retrieve resource (default when no `--data` is provided)
+- **POST** - Create/submit resource (auto-selected when `--data` is provided)
+- **PUT** - Replace resource
+- **PATCH** - Partially update resource
+- **DELETE** - Remove resource
+- **HEAD** - Get headers only
+- **OPTIONS** - Query allowed methods
+
+### Method Selection Logic
+
+1. **Explicit method:** `--method` always takes precedence
+2. **Auto-POST:** When `--data` is present without `--method`, defaults to POST
+3. **Default GET:** Without `--data` or `--method`, uses GET
+
+### Examples by Use Case
+
+**API Testing:**
+```bash
+# Create resource
+httptap --data '{"title": "New Post"}' https://httpbin.io/post
+
+# Update resource
+httptap --method PUT --data '{"title": "Updated"}' https://httpbin.io/put
+
+# Partial update
+httptap --method PATCH --data '{"status": "published"}' https://httpbin.io/patch
+
+# Delete resource
+httptap --method DELETE https://httpbin.io/delete
+```
+
+**Health Checks:**
+```bash
+# Quick check (headers only)
+httptap --method HEAD https://httpbin.io/status/200
+
+# Full response
+httptap https://httpbin.io/status/200
+```
 
 ## Request Flow
 

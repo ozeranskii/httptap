@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 else:  # pragma: no cover - typing helper
     ProxyTypes = object  # type: ignore[assignment]
 
-from .constants import DEFAULT_TIMEOUT_SECONDS
+from .constants import DEFAULT_TIMEOUT_SECONDS, HTTPMethod
 from .http_client import HTTPClientError, make_request
 from .models import StepMetrics
 from .request_executor import (
@@ -25,6 +25,7 @@ from .request_executor import (
     RequestOptions,
     RequestOutcome,
 )
+from .utils import sanitize_headers
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -124,6 +125,8 @@ class HTTPTapAnalyzer:
         self,
         url: str,
         *,
+        method: HTTPMethod = HTTPMethod.GET,
+        content: bytes | None = None,
         headers: Mapping[str, str] | None = None,
     ) -> list[StepMetrics]:
         """Analyze URL with optional redirect following.
@@ -134,6 +137,8 @@ class HTTPTapAnalyzer:
 
         Args:
             url: Initial URL to analyze. Must be valid HTTP/HTTPS URL.
+            method: HTTP method to use (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS).
+            content: Optional request body as bytes.
             headers: Optional mapping of request headers applied to every step.
 
         Returns:
@@ -166,6 +171,8 @@ class HTTPTapAnalyzer:
             step = self._analyze_single_request(
                 current_url,
                 step_number,
+                method=method,
+                content=content,
                 headers=headers,
             )
             steps.append(step)
@@ -199,6 +206,8 @@ class HTTPTapAnalyzer:
         url: str,
         step_number: int,
         *,
+        method: HTTPMethod = HTTPMethod.GET,
+        content: bytes | None = None,
         headers: Mapping[str, str] | None = None,
     ) -> StepMetrics:
         """Analyze a single HTTP request.
@@ -206,6 +215,8 @@ class HTTPTapAnalyzer:
         Args:
             url: URL to request.
             step_number: Step number in redirect chain (1-indexed).
+            method: HTTP method to use.
+            content: Optional request body as bytes.
             headers: Optional request headers for this step.
 
         Returns:
@@ -219,6 +230,11 @@ class HTTPTapAnalyzer:
         """
         step = StepMetrics(url=url, step_number=step_number)
 
+        # Populate request metadata
+        step.request_method = method.value
+        step.request_headers = sanitize_headers(headers) if headers else {}
+        step.request_body_bytes = len(content) if content else 0
+
         try:
             # Create timing collector instance if factory provided
             timing_collector = self._timing_collector() if self._timing_collector else None
@@ -226,6 +242,8 @@ class HTTPTapAnalyzer:
             options = RequestOptions(
                 url=url,
                 timeout=self.timeout,
+                method=method,
+                content=content,
                 http2=self.http2,
                 verify_ssl=self.verify_ssl,
                 dns_resolver=self._dns_resolver,

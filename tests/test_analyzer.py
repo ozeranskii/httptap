@@ -26,7 +26,9 @@ class StubExecutor:
         url: str,
         timeout: float,
         *,
-        http2: bool,
+        method: str = "GET",
+        content: bytes | None = None,
+        http2: bool = True,
         verify_ssl: bool = True,
         proxy: Mapping[str, str] | str | None = None,
         dns_resolver: DNSResolver | None = None,
@@ -37,6 +39,8 @@ class StubExecutor:
     ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
         del url
         del timeout
+        del method
+        del content
         del http2
         del verify_ssl
         del proxy
@@ -116,6 +120,19 @@ def test_analyze_url_with_redirect_missing_location_header() -> None:
     assert steps[0].response.location is None
 
 
+def test_analyze_url_with_redirect_blank_location_header() -> None:
+    """Test handling of 3xx response with blank Location header."""
+    executor = StubExecutor([(302, "")])  # Redirect with empty location string
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+
+    steps = analyzer.analyze_url("https://example.test/initial")
+
+    # Redirect should not be followed when Location header is blank
+    assert len(steps) == 1
+    assert steps[0].response.status == 302
+    assert steps[0].response.location == ""
+
+
 def test_analyze_url_respects_max_redirects() -> None:
     """Test that analyzer respects max_redirects limit."""
     # Create infinite redirect chain
@@ -146,7 +163,9 @@ def test_analyze_url_passes_verify_flag_when_supported() -> None:
             url: str,
             timeout: float,
             *,
-            http2: bool,
+            method: str = "GET",
+            content: bytes | None = None,
+            http2: bool = True,
             verify_ssl: bool = True,
             proxy: Mapping[str, str] | str | None = None,
             dns_resolver: DNSResolver | None = None,
@@ -157,6 +176,8 @@ def test_analyze_url_passes_verify_flag_when_supported() -> None:
         ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
             del url
             del timeout
+            del method
+            del content
             del http2
             del dns_resolver
             del tls_inspector
@@ -222,7 +243,9 @@ def test_callable_request_executor_warns_on_missing_verify() -> None:
             url: str,
             timeout: float,
             *,
-            http2: bool,
+            method: str = "GET",
+            content: bytes | None = None,
+            http2: bool = True,
             verify_ssl: bool = True,
             dns_resolver: DNSResolver | None = None,
             tls_inspector: TLSInspector | None = None,
@@ -236,6 +259,8 @@ def test_callable_request_executor_warns_on_missing_verify() -> None:
                 raise TypeError(msg)
             del url
             del timeout
+            del method
+            del content
             del http2
             del verify_ssl
             del dns_resolver
@@ -287,3 +312,143 @@ def test_analyze_url_handles_unexpected_exception() -> None:
     assert steps[0].has_error
     assert "Unexpected failure" in (steps[0].error or "")
     assert "Unexpected error" in (steps[0].note or "")
+
+
+def test_analyze_url_with_post_method() -> None:
+    """Test POST request with method parameter."""
+    from httptap.constants import HTTPMethod
+
+    executor = StubExecutor([(200, None)])
+    analyzer = HTTPTapAnalyzer(request_executor=executor)
+
+    steps = analyzer.analyze_url(
+        "https://httpbin.test/post",
+        method=HTTPMethod.POST,
+        content=b'{"key": "value"}',
+    )
+
+    assert len(steps) == 1
+    assert steps[0].request_method == "POST"
+    assert steps[0].request_body_bytes == 16
+    assert steps[0].response.status == 200
+
+
+def test_analyze_url_with_put_method() -> None:
+    """Test PUT request with method parameter."""
+    from httptap.constants import HTTPMethod
+
+    executor = StubExecutor([(200, None)])
+    analyzer = HTTPTapAnalyzer(request_executor=executor)
+
+    steps = analyzer.analyze_url(
+        "https://httpbin.test/put",
+        method=HTTPMethod.PUT,
+        content=b'{"status": "updated"}',
+    )
+
+    assert len(steps) == 1
+    assert steps[0].request_method == "PUT"
+    assert steps[0].request_body_bytes == 21
+
+
+def test_analyze_url_with_patch_method() -> None:
+    """Test PATCH request with method parameter."""
+    from httptap.constants import HTTPMethod
+
+    executor = StubExecutor([(200, None)])
+    analyzer = HTTPTapAnalyzer(request_executor=executor)
+
+    steps = analyzer.analyze_url(
+        "https://httpbin.test/patch",
+        method=HTTPMethod.PATCH,
+        content=b'{"field": "value"}',
+    )
+
+    assert len(steps) == 1
+    assert steps[0].request_method == "PATCH"
+    assert steps[0].request_body_bytes == 18
+
+
+def test_analyze_url_with_delete_method() -> None:
+    """Test DELETE request with method parameter."""
+    from httptap.constants import HTTPMethod
+
+    executor = StubExecutor([(204, None)])
+    analyzer = HTTPTapAnalyzer(request_executor=executor)
+
+    steps = analyzer.analyze_url(
+        "https://httpbin.test/delete",
+        method=HTTPMethod.DELETE,
+    )
+
+    assert len(steps) == 1
+    assert steps[0].request_method == "DELETE"
+    assert steps[0].request_body_bytes == 0
+
+
+def test_analyze_url_with_head_method() -> None:
+    """Test HEAD request with method parameter."""
+    from httptap.constants import HTTPMethod
+
+    executor = StubExecutor([(200, None)])
+    analyzer = HTTPTapAnalyzer(request_executor=executor)
+
+    steps = analyzer.analyze_url(
+        "https://httpbin.test/get",
+        method=HTTPMethod.HEAD,
+    )
+
+    assert len(steps) == 1
+    assert steps[0].request_method == "HEAD"
+
+
+def test_analyze_url_with_options_method() -> None:
+    """Test OPTIONS request with method parameter."""
+    from httptap.constants import HTTPMethod
+
+    executor = StubExecutor([(200, None)])
+    analyzer = HTTPTapAnalyzer(request_executor=executor)
+
+    steps = analyzer.analyze_url(
+        "https://httpbin.test/",
+        method=HTTPMethod.OPTIONS,
+    )
+
+    assert len(steps) == 1
+    assert steps[0].request_method == "OPTIONS"
+
+
+def test_analyze_url_sanitizes_request_headers() -> None:
+    """Test that request headers are sanitized in step metrics."""
+    from httptap.constants import HTTPMethod
+
+    executor = StubExecutor([(200, None)])
+    analyzer = HTTPTapAnalyzer(request_executor=executor)
+
+    steps = analyzer.analyze_url(
+        "https://httpbin.test/post",
+        method=HTTPMethod.POST,
+        headers={
+            "Authorization": "Bearer secret-token-12345",
+            "Content-Type": "application/json",
+        },
+    )
+
+    assert len(steps) == 1
+    assert "Authorization" in steps[0].request_headers
+    assert "secret" not in steps[0].request_headers["Authorization"]
+    assert "****" in steps[0].request_headers["Authorization"]
+    assert steps[0].request_headers["Content-Type"] == "application/json"
+
+
+def test_analyze_url_with_get_method_default() -> None:
+    """Test that GET is the default method when not specified."""
+    executor = StubExecutor([(200, None)])
+    analyzer = HTTPTapAnalyzer(request_executor=executor)
+
+    steps = analyzer.analyze_url("https://httpbin.test/get")
+
+    assert len(steps) == 1
+    assert steps[0].request_method == "GET"
+    assert steps[0].request_body_bytes == 0
+    assert steps[0].request_headers == {}

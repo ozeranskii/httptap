@@ -111,11 +111,11 @@ fail even in this mode.
 Direct requests through an outbound proxy (HTTP, HTTPS, SOCKS5/SOCKS5H):
 
 ```shell
-httptap --proxy https://proxy.internal:8443 https://example.com
+httptap --proxy https://proxy.internal:8443 https://httpbin.io/get
 ```
 
 ```shell
-httptap --proxy socks5h://proxy.internal:1080 https://example.com
+httptap --proxy socks5h://proxy.internal:1080 https://httpbin.io/get
 ```
 
 The Rich output and JSON export include the proxy URI when one is used.
@@ -155,7 +155,7 @@ class RecordingExecutor(RequestExecutor):
 
 executor = RecordingExecutor()
 analyzer = HTTPTapAnalyzer(request_executor=executor)
-analyzer.analyze_url("https://example.com", headers={"X-Debug": "1"})
+analyzer.analyze_url("https://httpbin.io/get", headers={"X-Debug": "1"})
 print(executor.last_options.headers)  # {'X-Debug': '1'}
 ```
 

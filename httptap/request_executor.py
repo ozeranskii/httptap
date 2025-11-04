@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 else:  # pragma: no cover - typing helper
     ProxyTypes = object  # type: ignore[assignment]
 
+from .constants import HTTPMethod
 from .models import NetworkInfo, ResponseInfo, TimingMetrics
 
 if TYPE_CHECKING:
@@ -31,13 +32,15 @@ class RequestOptions:
 
     url: str
     timeout: float
-    http2: bool
-    verify_ssl: bool
-    dns_resolver: DNSResolver | None
-    tls_inspector: TLSInspector | None
-    timing_collector: TimingCollector | None
-    force_new_connection: bool
-    headers: Mapping[str, str] | None
+    method: HTTPMethod = HTTPMethod.GET
+    content: bytes | None = None
+    http2: bool = True
+    verify_ssl: bool = True
+    dns_resolver: DNSResolver | None = None
+    tls_inspector: TLSInspector | None = None
+    timing_collector: TimingCollector | None = None
+    force_new_connection: bool = True
+    headers: Mapping[str, str] | None = None
     proxy: ProxyTypes | None = None
 
 
@@ -90,6 +93,8 @@ class CallableRequestExecutor:
     def execute(self, options: RequestOptions) -> RequestOutcome:
         """Execute wrapped callable using normalized request options."""
         kwargs: dict[str, object] = {
+            "method": options.method,
+            "content": options.content,
             "http2": options.http2,
             "dns_resolver": options.dns_resolver,
             "tls_inspector": options.tls_inspector,

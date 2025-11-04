@@ -217,6 +217,9 @@ class StepMetrics:
         error: Error message if request failed.
         note: Additional notes or context.
         proxied_via: Proxy URL used for this request, if any.
+        request_method: HTTP method used (GET, POST, PUT, etc.).
+        request_headers: Request headers (sanitized).
+        request_body_bytes: Size of request body in bytes.
 
     """
 
@@ -228,6 +231,9 @@ class StepMetrics:
     error: str | None = None
     note: str | None = None
     proxied_via: str | None = None
+    request_method: str | None = None
+    request_headers: dict[str, str] = field(default_factory=dict)
+    request_body_bytes: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert step metrics to dictionary for JSON export.
@@ -239,6 +245,11 @@ class StepMetrics:
         return {
             "url": self.url,
             "step_number": self.step_number,
+            "request": {
+                "method": self.request_method,
+                "headers": self.request_headers,
+                "body_bytes": self.request_body_bytes,
+            },
             "timing": self.timing.to_dict(),
             "network": self.network.to_dict(),
             "response": self.response.to_dict(),

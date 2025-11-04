@@ -5,11 +5,13 @@ masking sensitive data, parsing headers, URL validation, and SSL context
 management.
 """
 
+import json
 import re
 import ssl
 from collections.abc import Mapping
 from contextlib import suppress
 from datetime import datetime, timezone
+from pathlib import Path
 
 try:  # pragma: no cover - exercised indirectly
     from datetime import UTC  # type: ignore[attr-defined]
@@ -25,6 +27,7 @@ __all__ = [
     "mask_sensitive_value",
     "parse_certificate_date",
     "parse_http_date",
+    "read_request_data",
     "sanitize_headers",
     "validate_url",
 ]
@@ -190,6 +193,89 @@ def create_ssl_context(*, verify_ssl: bool) -> ssl.SSLContext:
         context.options &= ~ssl.OP_NO_TLSv1_1
 
     return context
+
+
+CONTENT_TYPE_BY_EXTENSION = {
+    ".json": "application/json",
+    ".xml": "application/xml",
+    ".txt": "text/plain",
+    ".text": "text/plain",
+}
+
+
+def _load_data_from_source(data_arg: str) -> tuple[bytes, Path | None]:
+    """Load data from inline string or file reference."""
+    if data_arg.startswith("@"):
+        filepath = Path(data_arg[1:])
+        return filepath.read_bytes(), filepath
+    return data_arg.encode("utf-8"), None
+
+
+def _detect_content_type_from_extension(source: Path) -> str | None:
+    """Detect Content-Type based on file extension."""
+    return CONTENT_TYPE_BY_EXTENSION.get(source.suffix)
+
+
+def _is_json_data(data: bytes) -> bool:
+    """Check if data is valid JSON."""
+    try:
+        json.loads(data)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return False
+    else:
+        return True
+
+
+def _detect_content_type(data: bytes, source: Path | None) -> str | None:
+    """Detect Content-Type using multiple strategies."""
+    if source and (content_type := _detect_content_type_from_extension(source)):
+        return content_type
+
+    if _is_json_data(data):
+        return "application/json"
+
+    return None
+
+
+def read_request_data(data_arg: str | None) -> tuple[bytes | None, dict[str, str]]:
+    """Read request body data and auto-detect Content-Type.
+
+    Supports inline data or reading from file using @filename syntax.
+    Automatically detects JSON content and sets appropriate Content-Type.
+
+    Args:
+        data_arg: Request body data string, or @filename to read from file, or None.
+
+    Returns:
+        Tuple of (content_bytes, headers_to_add) where headers_to_add contains
+        Content-Type if it could be auto-detected.
+
+    Raises:
+        FileNotFoundError: If @filename is specified but file doesn't exist.
+        OSError: If file cannot be read.
+
+    Examples:
+        >>> content, headers = read_request_data('{"name": "John"}')
+        >>> content
+        b'{"name": "John"}'
+        >>> headers
+        {'Content-Type': 'application/json'}
+
+        >>> content, headers = read_request_data(None)
+        >>> content is None
+        True
+        >>> headers
+        {}
+
+    """
+    if not data_arg:
+        return None, {}
+
+    data, source = _load_data_from_source(data_arg)
+    content_type = _detect_content_type(data, source)
+
+    headers = {"Content-Type": content_type} if content_type else {}
+    return data, headers
 
 
 def validate_url(url: str) -> bool:

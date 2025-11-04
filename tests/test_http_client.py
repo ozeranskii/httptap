@@ -475,6 +475,20 @@ class TestPopulateTLSFromStream:
         assert network_info.tls_cipher is None
 
 
+def test_extract_ssl_object_handles_non_callable_getter() -> None:
+    """Non-callable network stream extras should be ignored safely."""
+    from httptap.http_client import _extract_ssl_object
+
+    response = httpx.Response(200)
+
+    class NonCallableStream:
+        get_extra_info = None
+
+    response.extensions["network_stream"] = NonCallableStream()
+
+    assert _extract_ssl_object(response) is None
+
+
 class TestTraceCollector:
     """Test suite for TraceCollector class."""
 
@@ -823,10 +837,12 @@ class TestMakeRequest:
                 method: str,
                 request_url: str,
                 *,
+                content: bytes | None = None,
                 extensions: dict[str, object] | None = None,
             ) -> DummyStream:
                 assert method == "GET"
                 assert request_url == url
+                assert content is None
                 assert extensions is not None
                 assert "trace" in extensions
                 return DummyStream()

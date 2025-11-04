@@ -51,6 +51,8 @@ performance baselines.
 
 - **Phase-by-phase timing** – precise measurements built from httpcore trace hooks (with sane fallbacks when metal-level
   data is unavailable).
+- **All HTTP methods** – GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS with request body support.
+- **Request body support** – send JSON, XML, or any data inline or from file with automatic Content-Type detection.
 - **IPv4/IPv6 aware** – the resolver and TLS inspector report both the address and its family.
 - **TLS insights** – certificate CN, expiry countdown, cipher suite, and protocol version are captured automatically.
 - **Multiple output modes** – rich waterfall view, compact single-line summaries, or `--metrics-only` for scripting.
@@ -168,15 +170,57 @@ httptap --follow --time<TAB>
 
 ## Quick Start
 
-Currently `httptap` issues a `GET` request and streams the entire response body. Other HTTP methods and payloads are not
-supported yet; this keeps the interface simple and avoids exposing sensitive request data in output. If you need to
-profile `POST`/`PUT` workloads, you can wrap `httptap` and override the request executor to plug in custom behavior.
+### Basic GET Request
 
 Run a single request and display a rich waterfall:
 
 ```shell
-httptap https://httpbin.io
+httptap https://httpbin.io/get
 ```
+
+### POST Request with Data
+
+Send JSON data (auto-detects Content-Type):
+
+```shell
+httptap https://httpbin.io/post --data '{"name": "John", "email": "john@example.com"}'
+```
+
+**Note:** When `--data` is provided without `--method`, httptap automatically switches to POST (similar to curl).
+
+Load data from file:
+
+```shell
+httptap https://httpbin.io/post --data @payload.json
+```
+
+Explicitly specify method (bypasses auto-POST):
+
+```shell
+httptap https://httpbin.io/post --method POST --data '{"status": "active"}'
+```
+
+### Other HTTP Methods
+
+PUT request:
+
+```shell
+httptap https://httpbin.io/put --method PUT --data '{"key": "value"}'
+```
+
+PATCH request:
+
+```shell
+httptap https://httpbin.io/patch --method PATCH --data '{"field": "updated"}'
+```
+
+DELETE request:
+
+```shell
+httptap https://httpbin.io/delete --method DELETE
+```
+
+### Custom Headers
 
 Add custom headers (repeat `-H` for multiple values):
 
@@ -187,11 +231,15 @@ httptap \
   https://httpbin.io/bearer
 ```
 
+### Redirects and JSON Export
+
 Follow redirect chains and dump metrics to JSON:
 
 ```shell
 httptap --follow --json out/report.json https://httpbin.io/redirect/2
 ```
+
+### Output Modes
 
 Collect compact (single-line) timings suitable for logs:
 
@@ -204,6 +252,8 @@ Expose raw metrics for scripts:
 ```shell
 httptap --metrics-only https://httpbin.io/get | tee timings.log
 ```
+
+### Advanced Usage
 
 Programmatic users can inject a custom executor for advanced scenarios. The
 default analyzer accepts either a modern `RequestExecutor` implementation or a
@@ -225,7 +275,7 @@ algorithms removed from modern OpenSSL builds (for example RC4 or
 Route traffic through an HTTP/SOCKS proxy (explicit override takes precedence over env vars `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`):
 
 ```shell
-httptap --proxy socks5h://proxy.local:1080 https://example.com
+httptap --proxy socks5h://proxy.local:1080 https://httpbin.io/get
 ```
 
 The output and JSON export include the proxy URI so you can confirm what
@@ -276,6 +326,11 @@ The redirect summary includes a total row:
     {
       "url": "https://httpbin.io/redirect/2",
       "step_number": 1,
+      "request": {
+        "method": "GET",
+        "headers": {},
+        "body_bytes": 0
+      },
       "timing": {
         "dns_ms": 8.947208058089018,
         "connect_ms": 96.97712492197752,
@@ -292,7 +347,8 @@ The redirect summary includes a total row:
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143
+        "cert_days_left": 143,
+        "tls_verified": true
       },
       "response": {
         "status": 302,
@@ -310,11 +366,17 @@ The redirect summary includes a total row:
         }
       },
       "error": null,
-      "note": null
+      "note": null,
+      "proxy": null
     },
     {
       "url": "https://httpbin.io/relative-redirect/1",
       "step_number": 2,
+      "request": {
+        "method": "GET",
+        "headers": {},
+        "body_bytes": 0
+      },
       "timing": {
         "dns_ms": 2.6895420160144567,
         "connect_ms": 97.51500003039837,
@@ -331,7 +393,8 @@ The redirect summary includes a total row:
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143
+        "cert_days_left": 143,
+        "tls_verified": true
       },
       "response": {
         "status": 302,
@@ -349,11 +412,17 @@ The redirect summary includes a total row:
         }
       },
       "error": null,
-      "note": null
+      "note": null,
+      "proxy": null
     },
     {
       "url": "https://httpbin.io/get",
       "step_number": 3,
+      "request": {
+        "method": "GET",
+        "headers": {},
+        "body_bytes": 0
+      },
       "timing": {
         "dns_ms": 2.643457963131368,
         "connect_ms": 97.36416593659669,
@@ -370,7 +439,8 @@ The redirect summary includes a total row:
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143
+        "cert_days_left": 143,
+        "tls_verified": true
       },
       "response": {
         "status": 200,
@@ -388,7 +458,8 @@ The redirect summary includes a total row:
         }
       },
       "error": null,
-      "note": null
+      "note": null,
+      "proxy": null
     }
   ],
   "summary": {
