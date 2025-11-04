@@ -823,10 +823,12 @@ class TestMakeRequest:
                 method: str,
                 request_url: str,
                 *,
+                content: bytes | None = None,
                 extensions: dict[str, object] | None = None,
             ) -> DummyStream:
                 assert method == "GET"
                 assert request_url == url
+                assert content is None
                 assert extensions is not None
                 assert "trace" in extensions
                 return DummyStream()

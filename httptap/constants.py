@@ -3,7 +3,26 @@
 from __future__ import annotations
 
 import os
+from enum import Enum, unique
 from http import HTTPStatus
+
+
+@unique
+class HTTPMethod(str, Enum):
+    """HTTP methods supported by httptap.
+
+    Inherits from str to enable direct comparison with strings
+    and argparse integration without custom type conversion.
+    """
+
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    PATCH = "PATCH"
+    DELETE = "DELETE"
+    HEAD = "HEAD"
+    OPTIONS = "OPTIONS"
+
 
 MS_IN_SECOND = 1000.0
 DEFAULT_TIMEOUT_SECONDS = 20.0

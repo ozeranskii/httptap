@@ -76,8 +76,12 @@ class AnalyzerStub:
         self,
         url: str,
         *,
+        method: str = "GET",
+        content: bytes | None = None,
         headers: Mapping[str, str] | None = None,
     ) -> list[StepMetrics]:
+        del method
+        del content
         self.calls.append(headers)
         timing = TimingMetrics(total_ms=10.0)
         network = NetworkInfo(ip="203.0.113.1")
@@ -279,8 +283,12 @@ def test_cli_integration_full_run(
             self,
             url: str,
             *,
+            method: str = "GET",
+            content: bytes | None = None,
             headers: Mapping[str, str] | None = None,
         ) -> list[StepMetrics]:
+            del method
+            del content
             analyzer_calls.append(headers)
             assert url == "https://example.test"
             return steps
@@ -336,8 +344,12 @@ def test_cli_integration_metrics_only_error_exit(
             self,
             url: str,
             *,
+            method: str = "GET",
+            content: bytes | None = None,
             headers: Mapping[str, str] | None = None,
         ) -> list[StepMetrics]:
+            del method
+            del content
             assert headers == {}
             assert url == "https://example.test"
             return [error_step]
@@ -420,3 +432,111 @@ def test_setup_signal_handlers_invokes_exit(monkeypatch: pytest.MonkeyPatch) -> 
 
     assert excinfo.value.code == UNIX_SIGNAL_EXIT_OFFSET + signal.SIGINT
     assert any("Interrupted by user" in msg for msg in captured)
+
+
+def test_auto_post_when_data_provided_without_explicit_method(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test that --data auto-switches to POST when --method is not specified."""
+    from httptap.constants import HTTPMethod
+
+    captured_method: list[HTTPMethod] = []
+
+    class FakeAnalyzer:
+        def analyze_url(
+            self,
+            url: str,
+            *,
+            method: HTTPMethod = HTTPMethod.GET,
+            content: bytes | None = None,
+            headers: Mapping[str, str] | None = None,
+        ) -> list[StepMetrics]:
+            del url, content, headers
+            captured_method.append(method)
+            return [_make_step()]
+
+    def build_analyzer(*_args: object, **_kwargs: object) -> FakeAnalyzer:
+        return FakeAnalyzer()
+
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", build_analyzer)
+    monkeypatch.setattr("httptap.cli.Progress", DummyProgress)
+
+    def noop_signal(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr("httptap.cli.signal.signal", noop_signal)
+
+    # Create test data file
+    data_file = tmp_path / "data.json"
+    data_file.write_text('{"test": "data"}')
+
+    # Run without --method (should auto-switch to POST)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["httptap", "https://example.test", "--data", f"@{data_file}"],
+    )
+
+    exit_code = main()
+    assert exit_code == EXIT_SUCCESS
+    assert len(captured_method) == 1
+    assert captured_method[0] == HTTPMethod.POST
+
+    # Verify INFO log about auto-switch
+    captured_output = capsys.readouterr()
+    # Note: logger.info goes to stderr, not stdout
+
+
+def test_no_auto_post_when_method_explicitly_specified(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test that explicit --method GET with --data respects user choice and warns."""
+    from httptap.constants import HTTPMethod
+
+    captured_method: list[HTTPMethod] = []
+
+    class FakeAnalyzer:
+        def analyze_url(
+            self,
+            url: str,
+            *,
+            method: HTTPMethod = HTTPMethod.GET,
+            content: bytes | None = None,
+            headers: Mapping[str, str] | None = None,
+        ) -> list[StepMetrics]:
+            del url, content, headers
+            captured_method.append(method)
+            return [_make_step()]
+
+    def build_analyzer(*_args: object, **_kwargs: object) -> FakeAnalyzer:
+        return FakeAnalyzer()
+
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", build_analyzer)
+    monkeypatch.setattr("httptap.cli.Progress", DummyProgress)
+
+    def noop_signal(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr("httptap.cli.signal.signal", noop_signal)
+
+    # Create test data file
+    data_file = tmp_path / "data.json"
+    data_file.write_text('{"test": "data"}')
+
+    # Run with explicit --method GET (should NOT auto-switch, should warn)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["httptap", "https://example.test", "--method", "GET", "--data", f"@{data_file}"],
+    )
+
+    exit_code = main()
+    assert exit_code == EXIT_SUCCESS
+    assert len(captured_method) == 1
+    assert captured_method[0] == HTTPMethod.GET  # Should respect explicit GET
+
+    # Verify WARNING log about uncommon usage
+    captured_output = capsys.readouterr()
+    # Note: logger.warning goes to stderr, not stdout

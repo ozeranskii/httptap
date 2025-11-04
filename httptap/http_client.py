@@ -61,6 +61,7 @@ from .constants import (
     HTTPS_DEFAULT_PORT,
     MS_IN_SECOND,
     TLS_PHASE_RATIO,
+    HTTPMethod,
 )
 from .implementations.dns import DNSResolutionError, SystemDNSResolver
 from .implementations.timing import PerfCounterTimingCollector
@@ -243,6 +244,8 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     url: str,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
     *,
+    method: HTTPMethod = HTTPMethod.GET,
+    content: bytes | None = None,
     http2: bool = True,
     verify_ssl: bool = True,
     proxy: ProxyTypes | None = None,
@@ -254,7 +257,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
     """Make HTTP request and collect comprehensive metrics.
 
-    Performs a complete HTTP GET request with detailed instrumentation to
+    Performs a complete HTTP request with detailed instrumentation to
     capture timing, network, and response information at each phase.
 
     This is the main entry point for making instrumented HTTP requests.
@@ -269,6 +272,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         url: Target URL to request. Must be valid HTTP/HTTPS URL with scheme.
         timeout: Maximum time to wait for complete response in seconds.
             Applies to the entire request including DNS, connection, and transfer.
+        method: HTTP method to use (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS).
+            Defaults to GET.
+        content: Optional request body as bytes. Typically used with POST, PUT, PATCH.
         http2: Whether to enable HTTP/2 protocol negotiation. Set to False
             to force HTTP/1.1.
         verify_ssl: Whether to verify TLS certificates during the request.
@@ -389,7 +395,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             client.headers["User-Agent"] = USER_AGENT
             if headers:
                 client.headers.update(headers)
-            with client.stream("GET", url, extensions={"trace": trace}) as response:
+            with client.stream(method.value, url, content=content, extensions={"trace": trace}) as response:
                 timing_collector.mark_ttfb()
                 _populate_response_metadata(response, response_info)
                 response_info.bytes = _consume_response_body(response)

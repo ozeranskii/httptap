@@ -38,6 +38,8 @@ performance baselines.
 
 - **Phase-by-phase timing** – precise measurements built from httpcore trace hooks (with sane fallbacks when metal-level
   data is unavailable)
+- **All HTTP methods** – GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS with request body support
+- **Request body support** – send JSON, XML, or any data inline or from file with automatic Content-Type detection
 - **IPv4/IPv6 aware** – the resolver and TLS inspector report both the address and its family
 - **TLS insights** – certificate CN, expiry countdown, cipher suite, and protocol version are captured automatically
 - **Multiple output modes** – rich waterfall view, compact single-line summaries, or `--metrics-only` for scripting
@@ -45,10 +47,16 @@ performance baselines.
 - **Extensible** – clean Protocol interfaces for DNS, TLS, timing, visualization, and export so you can plug in custom
   behavior
 
-## Quick Example
+## Quick Examples
 
+**GET request:**
 ```bash
-httptap https://httpbin.io
+httptap https://httpbin.io/get
+```
+
+**POST with JSON data:**
+```bash
+httptap --data '{"name": "John"}' https://httpbin.io/post
 ```
 
 ![Sample Output](assets/sample-output.png)

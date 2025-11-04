@@ -26,7 +26,9 @@ class StubExecutor:
         url: str,
         timeout: float,
         *,
-        http2: bool,
+        method: str = "GET",
+        content: bytes | None = None,
+        http2: bool = True,
         verify_ssl: bool = True,
         proxy: Mapping[str, str] | str | None = None,
         dns_resolver: DNSResolver | None = None,
@@ -37,6 +39,8 @@ class StubExecutor:
     ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
         del url
         del timeout
+        del method
+        del content
         del http2
         del verify_ssl
         del proxy
@@ -146,7 +150,9 @@ def test_analyze_url_passes_verify_flag_when_supported() -> None:
             url: str,
             timeout: float,
             *,
-            http2: bool,
+            method: str = "GET",
+            content: bytes | None = None,
+            http2: bool = True,
             verify_ssl: bool = True,
             proxy: Mapping[str, str] | str | None = None,
             dns_resolver: DNSResolver | None = None,
@@ -157,6 +163,8 @@ def test_analyze_url_passes_verify_flag_when_supported() -> None:
         ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
             del url
             del timeout
+            del method
+            del content
             del http2
             del dns_resolver
             del tls_inspector
@@ -222,7 +230,9 @@ def test_callable_request_executor_warns_on_missing_verify() -> None:
             url: str,
             timeout: float,
             *,
-            http2: bool,
+            method: str = "GET",
+            content: bytes | None = None,
+            http2: bool = True,
             verify_ssl: bool = True,
             dns_resolver: DNSResolver | None = None,
             tls_inspector: TLSInspector | None = None,
@@ -236,6 +246,8 @@ def test_callable_request_executor_warns_on_missing_verify() -> None:
                 raise TypeError(msg)
             del url
             del timeout
+            del method
+            del content
             del http2
             del verify_ssl
             del dns_resolver

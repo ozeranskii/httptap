@@ -18,6 +18,48 @@ This will output a detailed timing breakdown showing:
 - Time to first byte (TTFB)
 - Response body transfer time
 
+## Making POST Requests
+
+Send JSON data to an API:
+
+```bash
+httptap --data '{"name": "John Doe", "email": "john@example.com"}' https://httpbin.io/post
+```
+
+!!! tip "Auto-POST behavior"
+    When `--data` is provided without `--method`, httptap automatically switches to POST (similar to curl).
+
+Load data from a file:
+
+```bash
+echo '{"title": "New Post", "content": "Hello World"}' > post-data.json
+httptap --data @post-data.json https://httpbin.io/post
+```
+
+## Using Other HTTP Methods
+
+httptap supports all standard HTTP methods:
+
+**PUT request:**
+```bash
+httptap --method PUT --data '{"status": "updated"}' https://httpbin.io/put
+```
+
+**PATCH request:**
+```bash
+httptap --method PATCH --data '{"field": "value"}' https://httpbin.io/patch
+```
+
+**DELETE request:**
+```bash
+httptap --method DELETE https://httpbin.io/delete
+```
+
+**HEAD request (headers only):**
+```bash
+httptap --method HEAD https://httpbin.io/get
+```
+
 ## Adding Custom Headers
 
 Add custom HTTP headers using the `-H` flag:
@@ -89,6 +131,24 @@ The JSON file will contain:
 - Full redirect chain (if `--follow` is used)
 
 ## Common Use Cases
+
+### API Testing
+
+Test a complete REST API workflow:
+
+```bash
+# Create a resource
+httptap --data '{"title": "Test Post"}' https://httpbin.io/post
+
+# Update the resource
+httptap --method PUT --data '{"title": "Updated Post"}' https://httpbin.io/put
+
+# Partial update
+httptap --method PATCH --data '{"published": true}' https://httpbin.io/patch
+
+# Delete the resource
+httptap --method DELETE https://httpbin.io/delete
+```
 
 ### Check API Latency
 

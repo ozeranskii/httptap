@@ -30,10 +30,11 @@ from .constants import (
     EXIT_CODE_TEMPFAIL,
     EXIT_CODE_USAGE,
     UNIX_SIGNAL_EXIT_OFFSET,
+    HTTPMethod,
 )
 from .models import StepMetrics
 from .render import OutputRenderer
-from .utils import validate_url
+from .utils import read_request_data, validate_url
 
 # Exit codes (aligned with sysexits.h conventions)
 # Fall back to canonical numeric equivalents when running on platforms
@@ -109,14 +110,20 @@ def create_parser() -> argparse.ArgumentParser:
         formatter_class=RichHelpFormatter,
         epilog=f"""
 Examples:
-  - Basic timing waterfall:
-      httptap https://example.com
+  - Basic timing waterfall (GET request):
+      httptap https://httpbin.io/get
+  - POST request with JSON data:
+      httptap https://httpbin.io/post --method POST --data '{{"key": "value"}}'
+  - POST with data from file:
+      httptap https://httpbin.io/post --data @payload.json
+  - PUT request with custom headers:
+      httptap https://httpbin.io/put --method PUT --data '{{"status": "active"}}' -H "Authorization: Bearer token"
   - Follow redirect chains (up to 10 hops):
-      httptap --follow http://example.com
+      httptap --follow https://httpbin.io/redirect/3
   - Compact view with shorter timeout:
-      httptap --compact --timeout 10 https://api.example.com
+      httptap --compact --timeout 10 https://httpbin.io/delay/2
   - Metrics-only output and JSON export:
-      httptap --metrics-only --json out/report.json https://example.com
+      httptap --metrics-only --json out/report.json https://httpbin.io/get
 
 Exit codes:
   {EXIT_SUCCESS:>3} (EX_OK)       : Success
@@ -142,6 +149,20 @@ Exit codes:
         url_arg.completer = argcomplete.completers.SuppressCompleter()  # type: ignore[attr-defined]
 
     request_group = parser.add_argument_group("Request options")
+    request_group.add_argument(
+        "--method",
+        type=HTTPMethod,
+        default=None,
+        choices=list(HTTPMethod),
+        metavar="METHOD",
+        help="HTTP method to use (defaults to POST if --data is provided, otherwise GET).",
+    )
+    request_group.add_argument(
+        "-d",
+        "--data",
+        metavar="DATA",
+        help="Request body data (use @filename to read from file).",
+    )
     request_group.add_argument(
         "--follow",
         action="store_true",
@@ -219,11 +240,13 @@ def setup_signal_handlers() -> None:
 def _execute_analysis(
     analyzer: HTTPTapAnalyzer,
     args: argparse.Namespace,
+    method: HTTPMethod,
+    content: bytes | None,
     headers: Mapping[str, str],
 ) -> list[StepMetrics]:
     """Execute HTTP analysis with optional progress reporting."""
     if args.metrics_only:
-        return analyzer.analyze_url(args.url, headers=headers)
+        return analyzer.analyze_url(args.url, method=method, content=content, headers=headers)
 
     with Progress(
         SpinnerColumn(),
@@ -232,7 +255,7 @@ def _execute_analysis(
         transient=True,
     ) as progress:
         task = progress.add_task("analyze", url=args.url, total=None)
-        steps = analyzer.analyze_url(args.url, headers=headers)
+        steps = analyzer.analyze_url(args.url, method=method, content=content, headers=headers)
         progress.update(task, completed=True)
         return steps
 
@@ -362,6 +385,33 @@ def main() -> int:
         except ValueError:
             return EXIT_USAGE_ERROR
 
+        # Process request data if provided
+        try:
+            content, auto_headers = read_request_data(args.data)
+        except (FileNotFoundError, OSError) as e:
+            console.print(f"[red]Error reading data: {e}[/red]")
+            return EXIT_USAGE_ERROR
+
+        # Determine HTTP method with smart defaults
+        method = args.method if args.method is not None else HTTPMethod.GET
+        method_was_explicit = args.method is not None
+
+        # Auto-switch to POST only if method was not explicitly specified
+        if content and method == HTTPMethod.GET and not method_was_explicit:
+            method = HTTPMethod.POST
+            logger.info("Auto-switching from GET to POST due to request body")
+
+        # Warn if user explicitly requested GET/HEAD with body (uncommon but allowed)
+        if content and method in (HTTPMethod.GET, HTTPMethod.HEAD) and method_was_explicit:
+            logger.warning(
+                "%s requests with body are uncommon but allowed. Consider using POST, PUT, or PATCH.",
+                method.value,
+            )
+
+        headers_dict = dict(auto_headers)
+        if args.headers:
+            headers_dict.update(args.headers)
+
         # Create analyzer
         analyzer = HTTPTapAnalyzer(
             follow_redirects=args.follow,
@@ -377,8 +427,7 @@ def main() -> int:
             metrics_only=args.metrics_only,
         )
 
-        # Perform analysis
-        steps = _execute_analysis(analyzer, args, args.headers)
+        steps = _execute_analysis(analyzer, args, method, content, headers_dict)
 
         # Render output
         renderer.render_analysis(steps, args.url)
