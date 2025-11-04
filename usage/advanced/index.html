@@ -1507,9 +1507,9 @@ OpenSSL removes entirely (e.g., RC4, 3DES on some platforms) may still
 fail even in this mode.</p>
 <h3 id="using-proxies">Using Proxies<a class="headerlink" href="#using-proxies" title="Permanent link">&para;</a></h3>
 <p>Direct requests through an outbound proxy (HTTP, HTTPS, SOCKS5/SOCKS5H):</p>
-<div class="language-shell highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>httptap<span class="w"> </span>--proxy<span class="w"> </span>https://proxy.internal:8443<span class="w"> </span>https://example.com
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>httptap<span class="w"> </span>--proxy<span class="w"> </span>https://proxy.internal:8443<span class="w"> </span>https://httpbin.io/get
 </span></code></pre></div>
-<div class="language-shell highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>httptap<span class="w"> </span>--proxy<span class="w"> </span>socks5h://proxy.internal:1080<span class="w"> </span>https://example.com
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>httptap<span class="w"> </span>--proxy<span class="w"> </span>socks5h://proxy.internal:1080<span class="w"> </span>https://httpbin.io/get
 </span></code></pre></div>
 <p>The Rich output and JSON export include the proxy URI when one is used.</p>
 <h2 id="custom-request-executors">Custom Request Executors<a class="headerlink" href="#custom-request-executors" title="Permanent link">&para;</a></h2>
@@ -1544,7 +1544,7 @@ flags added by httptap remain backward compatible.</p>
 </span><span id="__span-8-26"><a id="__codelineno-8-26" name="__codelineno-8-26" href="#__codelineno-8-26"></a>
 </span><span id="__span-8-27"><a id="__codelineno-8-27" name="__codelineno-8-27" href="#__codelineno-8-27"></a><span class="n">executor</span> <span class="o">=</span> <span class="n">RecordingExecutor</span><span class="p">()</span>
 </span><span id="__span-8-28"><a id="__codelineno-8-28" name="__codelineno-8-28" href="#__codelineno-8-28"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">HTTPTapAnalyzer</span><span class="p">(</span><span class="n">request_executor</span><span class="o">=</span><span class="n">executor</span><span class="p">)</span>
-</span><span id="__span-8-29"><a id="__codelineno-8-29" name="__codelineno-8-29" href="#__codelineno-8-29"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">analyze_url</span><span class="p">(</span><span class="s2">&quot;https://example.com&quot;</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;X-Debug&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">})</span>
+</span><span id="__span-8-29"><a id="__codelineno-8-29" name="__codelineno-8-29" href="#__codelineno-8-29"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">analyze_url</span><span class="p">(</span><span class="s2">&quot;https://httpbin.io/get&quot;</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;X-Debug&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">})</span>
 </span><span id="__span-8-30"><a id="__codelineno-8-30" name="__codelineno-8-30" href="#__codelineno-8-30"></a><span class="nb">print</span><span class="p">(</span><span class="n">executor</span><span class="o">.</span><span class="n">last_options</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>  <span class="c1"># {&#39;X-Debug&#39;: &#39;1&#39;}</span>
 </span></code></pre></div>
 <p>If you already have a callable compatible with the legacy signature, wrap

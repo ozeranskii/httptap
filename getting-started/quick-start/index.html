@@ -538,6 +538,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#making-post-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Making POST Requests
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-other-http-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Other HTTP Methods
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#adding-custom-headers" class="md-nav__link">
     <span class="md-ellipsis">
       Adding Custom Headers
@@ -591,6 +609,15 @@
   
     <nav class="md-nav" aria-label="Common Use Cases">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#api-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      API Testing
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#check-api-latency" class="md-nav__link">
@@ -1132,6 +1159,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#making-post-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Making POST Requests
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-other-http-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Other HTTP Methods
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#adding-custom-headers" class="md-nav__link">
     <span class="md-ellipsis">
       Adding Custom Headers
@@ -1185,6 +1230,15 @@
   
     <nav class="md-nav" aria-label="Common Use Cases">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#api-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      API Testing
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#check-api-latency" class="md-nav__link">
@@ -1269,38 +1323,64 @@
 <li>Time to first byte (TTFB)</li>
 <li>Response body transfer time</li>
 </ul>
+<h2 id="making-post-requests">Making POST Requests<a class="headerlink" href="#making-post-requests" title="Permanent link">&para;</a></h2>
+<p>Send JSON data to an API:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>httptap<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;name&quot;: &quot;John Doe&quot;, &quot;email&quot;: &quot;john@example.com&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/post
+</span></code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Auto-POST behavior</p>
+<p>When <code>--data</code> is provided without <code>--method</code>, httptap automatically switches to POST (similar to curl).</p>
+</div>
+<p>Load data from a file:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;{&quot;title&quot;: &quot;New Post&quot;, &quot;content&quot;: &quot;Hello World&quot;}&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>post-data.json
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>httptap<span class="w"> </span>--data<span class="w"> </span>@post-data.json<span class="w"> </span>https://httpbin.io/post
+</span></code></pre></div>
+<h2 id="using-other-http-methods">Using Other HTTP Methods<a class="headerlink" href="#using-other-http-methods" title="Permanent link">&para;</a></h2>
+<p>httptap supports all standard HTTP methods:</p>
+<p><strong>PUT request:</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>httptap<span class="w"> </span>--method<span class="w"> </span>PUT<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;status&quot;: &quot;updated&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/put
+</span></code></pre></div></p>
+<p><strong>PATCH request:</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>httptap<span class="w"> </span>--method<span class="w"> </span>PATCH<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;field&quot;: &quot;value&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/patch
+</span></code></pre></div></p>
+<p><strong>DELETE request:</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>httptap<span class="w"> </span>--method<span class="w"> </span>DELETE<span class="w"> </span>https://httpbin.io/delete
+</span></code></pre></div></p>
+<p><strong>HEAD request (headers only):</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>httptap<span class="w"> </span>--method<span class="w"> </span>HEAD<span class="w"> </span>https://httpbin.io/get
+</span></code></pre></div></p>
 <h2 id="adding-custom-headers">Adding Custom Headers<a class="headerlink" href="#adding-custom-headers" title="Permanent link">&para;</a></h2>
 <p>Add custom HTTP headers using the <code>-H</code> flag:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>httptap<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Accept: application/json&quot;</span><span class="w"> </span>https://httpbin.io/json
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>httptap<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Accept: application/json&quot;</span><span class="w"> </span>https://httpbin.io/json
 </span></code></pre></div>
 <p>Multiple headers can be added by repeating the flag:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>httptap<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Accept: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>https://httpbin.io/bearer
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>httptap<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Accept: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span>https://httpbin.io/bearer
 </span></code></pre></div>
 <h2 id="following-redirects">Following Redirects<a class="headerlink" href="#following-redirects" title="Permanent link">&para;</a></h2>
 <p>By default, httptap does not follow redirects. To follow redirect chains:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/3
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/3
 </span></code></pre></div>
 <p>This will show timing information for each step in the redirect chain.</p>
 <h2 id="compact-output">Compact Output<a class="headerlink" href="#compact-output" title="Permanent link">&para;</a></h2>
 <p>For single-line output suitable for logging:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>httptap<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>httptap<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io
 </span></code></pre></div>
 <p>Output example:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Step 1: dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms status=200 bytes=389
+<div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>Step 1: dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms status=200 bytes=389
 </span></code></pre></div>
 <h2 id="metrics-only-mode">Metrics-Only Mode<a class="headerlink" href="#metrics-only-mode" title="Permanent link">&para;</a></h2>
 <p>Get raw metrics without formatting, perfect for scripts:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>httptap<span class="w"> </span>--metrics-only<span class="w"> </span>https://httpbin.io
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>httptap<span class="w"> </span>--metrics-only<span class="w"> </span>https://httpbin.io
 </span></code></pre></div>
 <p>Output example:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=389 ip=44.211.11.205 family=IPv4 tls_version=TLSv1.2
+<div class="language-text highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=389 ip=44.211.11.205 family=IPv4 tls_version=TLSv1.2
 </span></code></pre></div>
 <h2 id="json-export">JSON Export<a class="headerlink" href="#json-export" title="Permanent link">&para;</a></h2>
 <p>Export full request data to JSON for later analysis:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>httptap<span class="w"> </span>--json<span class="w"> </span>output.json<span class="w"> </span>https://httpbin.io
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>httptap<span class="w"> </span>--json<span class="w"> </span>output.json<span class="w"> </span>https://httpbin.io
 </span></code></pre></div>
 <p>The JSON file will contain:</p>
 <ul>
@@ -1310,57 +1390,71 @@
 <li>Full redirect chain (if <code>--follow</code> is used)</li>
 </ul>
 <h2 id="common-use-cases">Common Use Cases<a class="headerlink" href="#common-use-cases" title="Permanent link">&para;</a></h2>
+<h3 id="api-testing">API Testing<a class="headerlink" href="#api-testing" title="Permanent link">&para;</a></h3>
+<p>Test a complete REST API workflow:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Create a resource</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>httptap<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;title&quot;: &quot;Test Post&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/post
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1"># Update the resource</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>httptap<span class="w"> </span>--method<span class="w"> </span>PUT<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;title&quot;: &quot;Updated Post&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/put
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="c1"># Partial update</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>httptap<span class="w"> </span>--method<span class="w"> </span>PATCH<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;published&quot;: true}&#39;</span><span class="w"> </span>https://httpbin.io/patch
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="c1"># Delete the resource</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>httptap<span class="w"> </span>--method<span class="w"> </span>DELETE<span class="w"> </span>https://httpbin.io/delete
+</span></code></pre></div>
 <h3 id="check-api-latency">Check API Latency<a class="headerlink" href="#check-api-latency" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>httptap<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io/status/200
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>httptap<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io/status/200
 </span></code></pre></div>
 <h3 id="debug-slow-responses">Debug Slow Responses<a class="headerlink" href="#debug-slow-responses" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>httptap<span class="w"> </span>https://httpbin.io/delay/3
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>httptap<span class="w"> </span>https://httpbin.io/delay/3
 </span></code></pre></div>
 <p>The waterfall view will help identify which phase is causing the delay (DNS, connection, TLS, or server processing).</p>
 <h3 id="verify-tls-configuration">Verify TLS Configuration<a class="headerlink" href="#verify-tls-configuration" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>httptap<span class="w"> </span>https://httpbin.io
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>httptap<span class="w"> </span>https://httpbin.io
 </span></code></pre></div>
 <p>Check the TLS version, cipher suite, and certificate expiration in the output.</p>
 <h3 id="performance-benchmarking">Performance Benchmarking<a class="headerlink" href="#performance-benchmarking" title="Permanent link">&para;</a></h3>
 <p>Establish performance baselines and track changes over time:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Collect 10 samples and calculate statistics</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">{</span><span class="m">1</span>..10<span class="o">}</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span>httptap<span class="w"> </span>--metrics-only<span class="w"> </span>https://httpbin.io/delay/1
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="k">done</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;/total=/ {</span>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="s1">  # Extract total value</span>
-</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="s1">  for (i = 1; i &lt;= NF; i++) {</span>
-</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="s1">    if ($i ~ /^total=/) {</span>
-</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="s1">      sub(/^total=/, &quot;&quot;, $i)</span>
-</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="s1">      sum += $i</span>
-</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="s1">      values[++count] = $i</span>
-</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="s1">      break</span>
-</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="s1">    }</span>
-</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="s1">  }</span>
-</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="s1">}</span>
-</span><span id="__span-12-15"><a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="s1">END {</span>
-</span><span id="__span-12-16"><a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="s1">  if (count &gt; 0) {</span>
-</span><span id="__span-12-17"><a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a><span class="s1">    avg = sum / count</span>
-</span><span id="__span-12-18"><a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a><span class="s1">    printf &quot;Average: %.1f ms\n&quot;, avg</span>
-</span><span id="__span-12-19"><a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a><span class="s1">    printf &quot;Samples: %d\n&quot;, count</span>
-</span><span id="__span-12-20"><a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a>
-</span><span id="__span-12-21"><a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a><span class="s1">    # Calculate min/max</span>
-</span><span id="__span-12-22"><a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a><span class="s1">    min = values[1]; max = values[1]</span>
-</span><span id="__span-12-23"><a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a><span class="s1">    for (i = 1; i &lt;= count; i++) {</span>
-</span><span id="__span-12-24"><a id="__codelineno-12-24" name="__codelineno-12-24" href="#__codelineno-12-24"></a><span class="s1">      if (values[i] &lt; min) min = values[i]</span>
-</span><span id="__span-12-25"><a id="__codelineno-12-25" name="__codelineno-12-25" href="#__codelineno-12-25"></a><span class="s1">      if (values[i] &gt; max) max = values[i]</span>
-</span><span id="__span-12-26"><a id="__codelineno-12-26" name="__codelineno-12-26" href="#__codelineno-12-26"></a><span class="s1">    }</span>
-</span><span id="__span-12-27"><a id="__codelineno-12-27" name="__codelineno-12-27" href="#__codelineno-12-27"></a><span class="s1">    printf &quot;Min: %.1f ms\n&quot;, min</span>
-</span><span id="__span-12-28"><a id="__codelineno-12-28" name="__codelineno-12-28" href="#__codelineno-12-28"></a><span class="s1">    printf &quot;Max: %.1f ms\n&quot;, max</span>
-</span><span id="__span-12-29"><a id="__codelineno-12-29" name="__codelineno-12-29" href="#__codelineno-12-29"></a><span class="s1">    printf &quot;Range: %.1f ms\n&quot;, (max - min)</span>
-</span><span id="__span-12-30"><a id="__codelineno-12-30" name="__codelineno-12-30" href="#__codelineno-12-30"></a><span class="s1">  }</span>
-</span><span id="__span-12-31"><a id="__codelineno-12-31" name="__codelineno-12-31" href="#__codelineno-12-31"></a><span class="s1">}&#39;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Collect 10 samples and calculate statistics</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">{</span><span class="m">1</span>..10<span class="o">}</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span>httptap<span class="w"> </span>--metrics-only<span class="w"> </span>https://httpbin.io/delay/1
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="k">done</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;/total=/ {</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="s1">  # Extract total value</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="s1">  for (i = 1; i &lt;= NF; i++) {</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="s1">    if ($i ~ /^total=/) {</span>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="s1">      sub(/^total=/, &quot;&quot;, $i)</span>
+</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="s1">      sum += $i</span>
+</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="s1">      values[++count] = $i</span>
+</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="s1">      break</span>
+</span><span id="__span-19-12"><a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a><span class="s1">    }</span>
+</span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="s1">  }</span>
+</span><span id="__span-19-14"><a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a><span class="s1">}</span>
+</span><span id="__span-19-15"><a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a><span class="s1">END {</span>
+</span><span id="__span-19-16"><a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a><span class="s1">  if (count &gt; 0) {</span>
+</span><span id="__span-19-17"><a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a><span class="s1">    avg = sum / count</span>
+</span><span id="__span-19-18"><a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a><span class="s1">    printf &quot;Average: %.1f ms\n&quot;, avg</span>
+</span><span id="__span-19-19"><a id="__codelineno-19-19" name="__codelineno-19-19" href="#__codelineno-19-19"></a><span class="s1">    printf &quot;Samples: %d\n&quot;, count</span>
+</span><span id="__span-19-20"><a id="__codelineno-19-20" name="__codelineno-19-20" href="#__codelineno-19-20"></a>
+</span><span id="__span-19-21"><a id="__codelineno-19-21" name="__codelineno-19-21" href="#__codelineno-19-21"></a><span class="s1">    # Calculate min/max</span>
+</span><span id="__span-19-22"><a id="__codelineno-19-22" name="__codelineno-19-22" href="#__codelineno-19-22"></a><span class="s1">    min = values[1]; max = values[1]</span>
+</span><span id="__span-19-23"><a id="__codelineno-19-23" name="__codelineno-19-23" href="#__codelineno-19-23"></a><span class="s1">    for (i = 1; i &lt;= count; i++) {</span>
+</span><span id="__span-19-24"><a id="__codelineno-19-24" name="__codelineno-19-24" href="#__codelineno-19-24"></a><span class="s1">      if (values[i] &lt; min) min = values[i]</span>
+</span><span id="__span-19-25"><a id="__codelineno-19-25" name="__codelineno-19-25" href="#__codelineno-19-25"></a><span class="s1">      if (values[i] &gt; max) max = values[i]</span>
+</span><span id="__span-19-26"><a id="__codelineno-19-26" name="__codelineno-19-26" href="#__codelineno-19-26"></a><span class="s1">    }</span>
+</span><span id="__span-19-27"><a id="__codelineno-19-27" name="__codelineno-19-27" href="#__codelineno-19-27"></a><span class="s1">    printf &quot;Min: %.1f ms\n&quot;, min</span>
+</span><span id="__span-19-28"><a id="__codelineno-19-28" name="__codelineno-19-28" href="#__codelineno-19-28"></a><span class="s1">    printf &quot;Max: %.1f ms\n&quot;, max</span>
+</span><span id="__span-19-29"><a id="__codelineno-19-29" name="__codelineno-19-29" href="#__codelineno-19-29"></a><span class="s1">    printf &quot;Range: %.1f ms\n&quot;, (max - min)</span>
+</span><span id="__span-19-30"><a id="__codelineno-19-30" name="__codelineno-19-30" href="#__codelineno-19-30"></a><span class="s1">  }</span>
+</span><span id="__span-19-31"><a id="__codelineno-19-31" name="__codelineno-19-31" href="#__codelineno-19-31"></a><span class="s1">}&#39;</span>
 </span></code></pre></div>
 <p>Example output:
-<div class="language-text highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>Average: 1490.0 ms
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>Samples: 10
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>Min: 1445.4 ms
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>Max: 1532.4 ms
-</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>Range: 87.0 ms
+<div class="language-text highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>Average: 1490.0 ms
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>Samples: 10
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>Min: 1445.4 ms
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>Max: 1532.4 ms
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>Range: 87.0 ms
 </span></code></pre></div></p>
 <p>This helps identify performance variability and establish reliable baselines for regression testing.</p>
 <hr />

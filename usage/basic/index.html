@@ -642,6 +642,24 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#-method-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      --method METHOD
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#-d-data-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      -d, --data DATA
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#-h-header" class="md-nav__link">
     <span class="md-ellipsis">
       -H, --header
@@ -762,6 +780,30 @@
       HTTP Methods
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="HTTP Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#method-selection-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      Method Selection Logic
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples-by-use-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples by Use Case
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1329,6 +1371,24 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#-method-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      --method METHOD
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#-d-data-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      -d, --data DATA
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#-h-header" class="md-nav__link">
     <span class="md-ellipsis">
       -H, --header
@@ -1449,6 +1509,30 @@
       HTTP Methods
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="HTTP Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#method-selection-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      Method Selection Logic
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples-by-use-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples by Use Case
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1599,33 +1683,66 @@
 </span></code></pre></div>
 <h2 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h2>
 <h3 id="request-options">Request Options<a class="headerlink" href="#request-options" title="Permanent link">&para;</a></h3>
+<h4 id="-method-method"><code>--method METHOD</code><a class="headerlink" href="#-method-method" title="Permanent link">&para;</a></h4>
+<p>Specify the HTTP method to use. Supported methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>httptap<span class="w"> </span>--method<span class="w"> </span>POST<span class="w"> </span>https://httpbin.io/post
+</span></code></pre></div>
+<p><strong>Default behavior:</strong>
+- Without <code>--data</code>: defaults to GET
+- With <code>--data</code> but no <code>--method</code>: auto-switches to POST (similar to curl)
+- With explicit <code>--method</code>: respects the specified method</p>
+<h4 id="-d-data-data"><code>-d, --data DATA</code><a class="headerlink" href="#-d-data-data" title="Permanent link">&para;</a></h4>
+<p>Send request body data. Can be inline string or file reference using <code>@filename</code> syntax.</p>
+<p><strong>Inline JSON data:</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>httptap<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;name&quot;: &quot;John&quot;, &quot;email&quot;: &quot;john@example.com&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/post
+</span></code></pre></div></p>
+<p><strong>Load from file:</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>httptap<span class="w"> </span>--data<span class="w"> </span>@payload.json<span class="w"> </span>https://httpbin.io/post
+</span></code></pre></div></p>
+<p><strong>Auto-detection:</strong>
+- Content-Type is automatically detected (JSON, XML, plain text)
+- File extension is checked first (.json, .xml, .txt)
+- Falls back to JSON validation</p>
+<p><strong>Examples with different methods:</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># POST (auto-detected when --data is present)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>httptap<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;key&quot;: &quot;value&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/post
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># PUT</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>httptap<span class="w"> </span>--method<span class="w"> </span>PUT<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;status&quot;: &quot;updated&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/put
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># PATCH</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>httptap<span class="w"> </span>--method<span class="w"> </span>PATCH<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;field&quot;: &quot;modified&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/patch
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># Explicit GET with body (uncommon, triggers warning)</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>httptap<span class="w"> </span>--method<span class="w"> </span>GET<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;query-data&#39;</span><span class="w"> </span>https://httpbin.io/get
+</span></code></pre></div></p>
 <h4 id="-h-header"><code>-H, --header</code><a class="headerlink" href="#-h-header" title="Permanent link">&para;</a></h4>
 <p>Add custom HTTP headers to the request. Can be used multiple times.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>httptap<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Accept: application/json&quot;</span><span class="w"> </span>https://httpbin.io
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>httptap<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Accept: application/json&quot;</span><span class="w"> </span>https://httpbin.io
 </span></code></pre></div>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>httptap<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;User-Agent: MyApp/1.0&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer token123&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>https://httpbin.io/bearer
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>httptap<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;User-Agent: MyApp/1.0&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer token123&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>https://httpbin.io/bearer
 </span></code></pre></div>
 <h4 id="-follow"><code>--follow</code><a class="headerlink" href="#-follow" title="Permanent link">&para;</a></h4>
 <p>Follow HTTP redirects and show timing for each step in the chain (max 10 redirects).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/3
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/3
 </span></code></pre></div>
 <p>By default, httptap does not follow redirects and will stop at the first redirect response (3xx status code).</p>
 <h4 id="-timeout-seconds"><code>--timeout SECONDS</code><a class="headerlink" href="#-timeout-seconds" title="Permanent link">&para;</a></h4>
 <p>Abort the request chain if total elapsed time exceeds the specified number of seconds.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>httptap<span class="w"> </span>--timeout<span class="w"> </span><span class="m">10</span><span class="w"> </span>https://httpbin.io/delay/2
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>httptap<span class="w"> </span>--timeout<span class="w"> </span><span class="m">10</span><span class="w"> </span>https://httpbin.io/delay/2
 </span></code></pre></div>
 <p>Default timeout is 20 seconds.</p>
 <h4 id="-no-http2"><code>--no-http2</code><a class="headerlink" href="#-no-http2" title="Permanent link">&para;</a></h4>
 <p>Disable HTTP/2 negotiation and force HTTP/1.1 connections.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>httptap<span class="w"> </span>--no-http2<span class="w"> </span>https://httpbin.io
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>httptap<span class="w"> </span>--no-http2<span class="w"> </span>https://httpbin.io
 </span></code></pre></div>
 <p>By default, HTTP/2 is enabled if the server supports it.</p>
 <h4 id="-ignore-ssl"><code>--ignore-ssl</code><a class="headerlink" href="#-ignore-ssl" title="Permanent link">&para;</a></h4>
 <p>Disable TLS certificate verification. Useful for debugging self-signed hosts or expired certificates.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>httptap<span class="w"> </span>--ignore-ssl<span class="w"> </span>https://self-signed.badssl.com
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>httptap<span class="w"> </span>--ignore-ssl<span class="w"> </span>https://self-signed.badssl.com
 </span></code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -1633,31 +1750,31 @@
 </div>
 <h4 id="-proxy-url"><code>--proxy URL</code><a class="headerlink" href="#-proxy-url" title="Permanent link">&para;</a></h4>
 <p>Route requests through the specified proxy. Supports HTTP, HTTPS, SOCKS5, and SOCKS5H protocols.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># HTTP proxy</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>httptap<span class="w"> </span>--proxy<span class="w"> </span>http://proxy.example.com:8080<span class="w"> </span>https://httpbin.io
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># SOCKS5 proxy</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>httptap<span class="w"> </span>--proxy<span class="w"> </span>socks5h://proxy.local:1080<span class="w"> </span>https://example.com
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># HTTP proxy</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>httptap<span class="w"> </span>--proxy<span class="w"> </span>http://proxy.local:8080<span class="w"> </span>https://httpbin.io/get
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># SOCKS5 proxy</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>httptap<span class="w"> </span>--proxy<span class="w"> </span>socks5h://proxy.local:1080<span class="w"> </span>https://httpbin.io/get
 </span></code></pre></div>
 <p>The proxy setting takes precedence over environment variables (<code>HTTP_PROXY</code>, <code>HTTPS_PROXY</code>, <code>NO_PROXY</code>).</p>
 <h3 id="output-options">Output Options<a class="headerlink" href="#output-options" title="Permanent link">&para;</a></h3>
 <h4 id="-compact"><code>--compact</code><a class="headerlink" href="#-compact" title="Permanent link">&para;</a></h4>
 <p>Display results in a compact single-line format, suitable for logging.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>httptap<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>httptap<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io
 </span></code></pre></div>
 <p>Output:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>Step 1: dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms status=200 bytes=389
+<div class="language-text highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>Step 1: dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms status=200 bytes=389
 </span></code></pre></div>
 <h4 id="-metrics-only"><code>--metrics-only</code><a class="headerlink" href="#-metrics-only" title="Permanent link">&para;</a></h4>
 <p>Output raw metrics without formatting, ideal for scripting and automation.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>httptap<span class="w"> </span>--metrics-only<span class="w"> </span>https://httpbin.io
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>httptap<span class="w"> </span>--metrics-only<span class="w"> </span>https://httpbin.io
 </span></code></pre></div>
 <p>Output:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=389 ip=44.211.11.205 family=IPv4 tls_version=TLSv1.2
+<div class="language-text highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=389 ip=44.211.11.205 family=IPv4 tls_version=TLSv1.2
 </span></code></pre></div>
 <h4 id="-json-path"><code>--json PATH</code><a class="headerlink" href="#-json-path" title="Permanent link">&para;</a></h4>
 <p>Export full request data to a JSON file.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>httptap<span class="w"> </span>--json<span class="w"> </span>report.json<span class="w"> </span>https://httpbin.io
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>httptap<span class="w"> </span>--json<span class="w"> </span>report.json<span class="w"> </span>https://httpbin.io
 </span></code></pre></div>
 <p>The JSON file contains:</p>
 <ul>
@@ -1668,12 +1785,46 @@
 </ul>
 <h4 id="-version"><code>--version</code><a class="headerlink" href="#-version" title="Permanent link">&para;</a></h4>
 <p>Display the httptap version and Python runtime information.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>httptap<span class="w"> </span>--version
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>httptap<span class="w"> </span>--version
 </span></code></pre></div>
 <h2 id="http-methods">HTTP Methods<a class="headerlink" href="#http-methods" title="Permanent link">&para;</a></h2>
-<p>Currently, httptap issues <strong>GET requests only</strong>. This keeps the interface simple and avoids exposing sensitive request
-data in output.</p>
-<p>If you need to profile POST/PUT workloads, you can use the Python API to wrap httptap and override the request executor.</p>
+<p>httptap supports all standard HTTP methods:</p>
+<ul>
+<li><strong>GET</strong> - Retrieve resource (default when no <code>--data</code> is provided)</li>
+<li><strong>POST</strong> - Create/submit resource (auto-selected when <code>--data</code> is provided)</li>
+<li><strong>PUT</strong> - Replace resource</li>
+<li><strong>PATCH</strong> - Partially update resource</li>
+<li><strong>DELETE</strong> - Remove resource</li>
+<li><strong>HEAD</strong> - Get headers only</li>
+<li><strong>OPTIONS</strong> - Query allowed methods</li>
+</ul>
+<h3 id="method-selection-logic">Method Selection Logic<a class="headerlink" href="#method-selection-logic" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Explicit method:</strong> <code>--method</code> always takes precedence</li>
+<li><strong>Auto-POST:</strong> When <code>--data</code> is present without <code>--method</code>, defaults to POST</li>
+<li><strong>Default GET:</strong> Without <code>--data</code> or <code>--method</code>, uses GET</li>
+</ol>
+<h3 id="examples-by-use-case">Examples by Use Case<a class="headerlink" href="#examples-by-use-case" title="Permanent link">&para;</a></h3>
+<p><strong>API Testing:</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Create resource</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>httptap<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;title&quot;: &quot;New Post&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/post
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># Update resource</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>httptap<span class="w"> </span>--method<span class="w"> </span>PUT<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;title&quot;: &quot;Updated&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/put
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="c1"># Partial update</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>httptap<span class="w"> </span>--method<span class="w"> </span>PATCH<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;status&quot;: &quot;published&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/patch
+</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>
+</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="c1"># Delete resource</span>
+</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>httptap<span class="w"> </span>--method<span class="w"> </span>DELETE<span class="w"> </span>https://httpbin.io/delete
+</span></code></pre></div></p>
+<p><strong>Health Checks:</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Quick check (headers only)</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>httptap<span class="w"> </span>--method<span class="w"> </span>HEAD<span class="w"> </span>https://httpbin.io/status/200
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="c1"># Full response</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>httptap<span class="w"> </span>https://httpbin.io/status/200
+</span></code></pre></div></p>
 <h2 id="request-flow">Request Flow<a class="headerlink" href="#request-flow" title="Permanent link">&para;</a></h2>
 <p>Every httptap request follows these phases:</p>
 <ol>
@@ -1711,22 +1862,22 @@ data in output.</p>
 </ul>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <h3 id="basic-health-check">Basic Health Check<a class="headerlink" href="#basic-health-check" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>httptap<span class="w"> </span>https://httpbin.io/status/200
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>httptap<span class="w"> </span>https://httpbin.io/status/200
 </span></code></pre></div>
 <h3 id="api-request-with-authentication">API Request with Authentication<a class="headerlink" href="#api-request-with-authentication" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>httptap<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="si">${</span><span class="nv">API_TOKEN</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Accept: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span>https://httpbin.io/bearer
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>httptap<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="si">${</span><span class="nv">API_TOKEN</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Accept: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">  </span>https://httpbin.io/bearer
 </span></code></pre></div>
 <h3 id="follow-redirect-chain">Follow Redirect Chain<a class="headerlink" href="#follow-redirect-chain" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/3
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/3
 </span></code></pre></div>
 <h3 id="export-for-analysis">Export for Analysis<a class="headerlink" href="#export-for-analysis" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>httptap<span class="w"> </span>--json<span class="w"> </span>analysis.json<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/2
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>httptap<span class="w"> </span>--json<span class="w"> </span>analysis.json<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/2
 </span></code></pre></div>
 <h3 id="log-to-file">Log to File<a class="headerlink" href="#log-to-file" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>httptap<span class="w"> </span>--metrics-only<span class="w"> </span>https://httpbin.io/delay/1<span class="w"> </span>&gt;&gt;<span class="w"> </span>api-latency.log
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>httptap<span class="w"> </span>--metrics-only<span class="w"> </span>https://httpbin.io/delay/1<span class="w"> </span>&gt;&gt;<span class="w"> </span>api-latency.log
 </span></code></pre></div>
 <hr />
 <h2 id="whats-next">What's Next?<a class="headerlink" href="#whats-next" title="Permanent link">&para;</a></h2>

@@ -367,9 +367,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#quick-example" class="md-nav__link">
+  <a href="#quick-examples" class="md-nav__link">
     <span class="md-ellipsis">
-      Quick Example
+      Quick Examples
     </span>
   </a>
   
@@ -1051,9 +1051,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#quick-example" class="md-nav__link">
+  <a href="#quick-examples" class="md-nav__link">
     <span class="md-ellipsis">
-      Quick Example
+      Quick Examples
     </span>
   </a>
   
@@ -1205,6 +1205,8 @@ performance baselines.</p>
 <ul>
 <li><strong>Phase-by-phase timing</strong> – precise measurements built from httpcore trace hooks (with sane fallbacks when metal-level
   data is unavailable)</li>
+<li><strong>All HTTP methods</strong> – GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS with request body support</li>
+<li><strong>Request body support</strong> – send JSON, XML, or any data inline or from file with automatic Content-Type detection</li>
 <li><strong>IPv4/IPv6 aware</strong> – the resolver and TLS inspector report both the address and its family</li>
 <li><strong>TLS insights</strong> – certificate CN, expiry countdown, cipher suite, and protocol version are captured automatically</li>
 <li><strong>Multiple output modes</strong> – rich waterfall view, compact single-line summaries, or <code>--metrics-only</code> for scripting</li>
@@ -1212,9 +1214,13 @@ performance baselines.</p>
 <li><strong>Extensible</strong> – clean Protocol interfaces for DNS, TLS, timing, visualization, and export so you can plug in custom
   behavior</li>
 </ul>
-<h2 id="quick-example">Quick Example<a class="headerlink" href="#quick-example" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>httptap<span class="w"> </span>https://httpbin.io
-</span></code></pre></div>
+<h2 id="quick-examples">Quick Examples<a class="headerlink" href="#quick-examples" title="Permanent link">&para;</a></h2>
+<p><strong>GET request:</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>httptap<span class="w"> </span>https://httpbin.io/get
+</span></code></pre></div></p>
+<p><strong>POST with JSON data:</strong>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>httptap<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;name&quot;: &quot;John&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/post
+</span></code></pre></div></p>
 <p><img alt="Sample Output" src="assets/sample-output.png" /></p>
 <h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
 <h3 id="rich-waterfall-visualization">Rich Waterfall Visualization<a class="headerlink" href="#rich-waterfall-visualization" title="Permanent link">&para;</a></h3>
