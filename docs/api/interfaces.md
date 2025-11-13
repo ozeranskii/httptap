@@ -227,6 +227,7 @@ class CustomTimingProvider:
         network = NetworkInfo(
             ip="",
             ip_family="",
+            http_version="",
             tls_version="",
             tls_cipher="",
             cert_cn="",
@@ -379,6 +380,7 @@ class YAMLExporter:
                 "network": {
                     "ip": step.network.ip,
                     "family": step.network.ip_family,
+                    "http_version": step.network.http_version,
                     "tls_version": step.network.tls_version
                 }
             }

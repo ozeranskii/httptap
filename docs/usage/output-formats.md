@@ -124,6 +124,7 @@ httptap --json output.json https://httpbin.io
       "network": {
         "ip": "44.211.11.205",
         "ip_family": "IPv4",
+        "http_version": "HTTP/2.0",
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",

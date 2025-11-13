@@ -69,6 +69,7 @@ step.timing.is_estimated  # Whether timing is estimated
 ```python
 step.network.ip             # IP address
 step.network.ip_family      # IPv4 or IPv6
+step.network.http_version   # HTTP protocol (HTTP/1.1, HTTP/2.0, ...)
 step.network.tls_version    # TLS protocol version
 step.network.tls_cipher     # Cipher suite
 step.network.cert_cn        # Certificate common name

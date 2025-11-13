@@ -113,6 +113,7 @@ Contains network-level details about the connection.
 class NetworkInfo:
     ip: str                    # IP address
     ip_family: str             # "IPv4" or "IPv6"
+    http_version: str          # HTTP protocol version
     tls_version: str           # TLS protocol version
     tls_cipher: str            # Cipher suite name
     cert_cn: str               # Certificate common name
@@ -228,6 +229,7 @@ for step in steps:
     print(f"  TTFB: {step.timing.ttfb_ms:.2f}ms")
     print(f"  Total: {step.timing.total_ms:.2f}ms")
     print(f"  IP: {step.network.ip} ({step.network.ip_family})")
+    print(f"  HTTP: {step.network.http_version}")
     print(f"  TLS: {step.network.tls_version}")
     print(f"  Certificate: {step.network.cert_cn} "
           f"(expires in {step.network.cert_days_left} days)")
