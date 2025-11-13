@@ -642,9 +642,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#-method-method" class="md-nav__link">
+  <a href="#-x-request-method-method" class="md-nav__link">
     <span class="md-ellipsis">
-      --method METHOD
+      -X, --request, --method METHOD
     </span>
   </a>
   
@@ -669,45 +669,45 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#-follow" class="md-nav__link">
+  <a href="#-l-location-follow" class="md-nav__link">
     <span class="md-ellipsis">
-      --follow
+      -L, --location, --follow
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#-timeout-seconds" class="md-nav__link">
+  <a href="#-m-max-time-timeout-seconds" class="md-nav__link">
     <span class="md-ellipsis">
-      --timeout SECONDS
+      -m, --max-time, --timeout SECONDS
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#-no-http2" class="md-nav__link">
+  <a href="#-no-http2-http11" class="md-nav__link">
     <span class="md-ellipsis">
-      --no-http2
+      --no-http2 / --http1.1
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#-ignore-ssl" class="md-nav__link">
+  <a href="#-k-insecure-ignore-ssl" class="md-nav__link">
     <span class="md-ellipsis">
-      --ignore-ssl
+      -k, --insecure, --ignore-ssl
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#-proxy-url" class="md-nav__link">
+  <a href="#-x-proxy-url" class="md-nav__link">
     <span class="md-ellipsis">
-      --proxy URL
+      -x, --proxy URL
     </span>
   </a>
   
@@ -1371,9 +1371,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#-method-method" class="md-nav__link">
+  <a href="#-x-request-method-method" class="md-nav__link">
     <span class="md-ellipsis">
-      --method METHOD
+      -X, --request, --method METHOD
     </span>
   </a>
   
@@ -1398,45 +1398,45 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#-follow" class="md-nav__link">
+  <a href="#-l-location-follow" class="md-nav__link">
     <span class="md-ellipsis">
-      --follow
+      -L, --location, --follow
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#-timeout-seconds" class="md-nav__link">
+  <a href="#-m-max-time-timeout-seconds" class="md-nav__link">
     <span class="md-ellipsis">
-      --timeout SECONDS
+      -m, --max-time, --timeout SECONDS
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#-no-http2" class="md-nav__link">
+  <a href="#-no-http2-http11" class="md-nav__link">
     <span class="md-ellipsis">
-      --no-http2
+      --no-http2 / --http1.1
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#-ignore-ssl" class="md-nav__link">
+  <a href="#-k-insecure-ignore-ssl" class="md-nav__link">
     <span class="md-ellipsis">
-      --ignore-ssl
+      -k, --insecure, --ignore-ssl
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#-proxy-url" class="md-nav__link">
+  <a href="#-x-proxy-url" class="md-nav__link">
     <span class="md-ellipsis">
-      --proxy URL
+      -x, --proxy URL
     </span>
   </a>
   
@@ -1682,9 +1682,13 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>httptap<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>URL
 </span></code></pre></div>
 <h2 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>Curl compatibility:</strong> Common curl flags are accepted as aliases. Swap <code>curl</code> for <code>httptap</code> and keep using familiar options like <code>-X/--request</code>, <code>-L/--location</code>, <code>-m/--max-time</code>, <code>-k/--insecure</code>, <code>-x</code>, and <code>--http1.1</code>. This is not a full curl clone—stick to the overlapping flags listed here.</p>
+</blockquote>
 <h3 id="request-options">Request Options<a class="headerlink" href="#request-options" title="Permanent link">&para;</a></h3>
-<h4 id="-method-method"><code>--method METHOD</code><a class="headerlink" href="#-method-method" title="Permanent link">&para;</a></h4>
+<h4 id="-x-request-method-method"><code>-X, --request, --method METHOD</code><a class="headerlink" href="#-x-request-method-method" title="Permanent link">&para;</a></h4>
 <p>Specify the HTTP method to use. Supported methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS.</p>
+<p><em>Curl-compatible aliases:</em> <code>-X</code>, <code>--request</code>.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>httptap<span class="w"> </span>--method<span class="w"> </span>POST<span class="w"> </span>https://httpbin.io/post
 </span></code></pre></div>
 <p><strong>Default behavior:</strong>
@@ -1725,22 +1729,25 @@
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer token123&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>https://httpbin.io/bearer
 </span></code></pre></div>
-<h4 id="-follow"><code>--follow</code><a class="headerlink" href="#-follow" title="Permanent link">&para;</a></h4>
+<h4 id="-l-location-follow"><code>-L, --location, --follow</code><a class="headerlink" href="#-l-location-follow" title="Permanent link">&para;</a></h4>
 <p>Follow HTTP redirects and show timing for each step in the chain (max 10 redirects).</p>
+<p><em>Curl-compatible aliases:</em> <code>-L</code>, <code>--location</code>.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/3
 </span></code></pre></div>
 <p>By default, httptap does not follow redirects and will stop at the first redirect response (3xx status code).</p>
-<h4 id="-timeout-seconds"><code>--timeout SECONDS</code><a class="headerlink" href="#-timeout-seconds" title="Permanent link">&para;</a></h4>
+<h4 id="-m-max-time-timeout-seconds"><code>-m, --max-time, --timeout SECONDS</code><a class="headerlink" href="#-m-max-time-timeout-seconds" title="Permanent link">&para;</a></h4>
 <p>Abort the request chain if total elapsed time exceeds the specified number of seconds.</p>
+<p><em>Curl-compatible aliases:</em> <code>-m</code>, <code>--max-time</code>.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>httptap<span class="w"> </span>--timeout<span class="w"> </span><span class="m">10</span><span class="w"> </span>https://httpbin.io/delay/2
 </span></code></pre></div>
 <p>Default timeout is 20 seconds.</p>
-<h4 id="-no-http2"><code>--no-http2</code><a class="headerlink" href="#-no-http2" title="Permanent link">&para;</a></h4>
+<h4 id="-no-http2-http11"><code>--no-http2</code> / <code>--http1.1</code><a class="headerlink" href="#-no-http2-http11" title="Permanent link">&para;</a></h4>
 <p>Disable HTTP/2 negotiation and force HTTP/1.1 connections.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>httptap<span class="w"> </span>--no-http2<span class="w"> </span>https://httpbin.io
 </span></code></pre></div>
 <p>By default, HTTP/2 is enabled if the server supports it.</p>
-<h4 id="-ignore-ssl"><code>--ignore-ssl</code><a class="headerlink" href="#-ignore-ssl" title="Permanent link">&para;</a></h4>
+<p><em>Curl-compatible alias:</em> <code>--http1.1</code>.</p>
+<h4 id="-k-insecure-ignore-ssl"><code>-k, --insecure, --ignore-ssl</code><a class="headerlink" href="#-k-insecure-ignore-ssl" title="Permanent link">&para;</a></h4>
 <p>Disable TLS certificate verification. Useful for debugging self-signed hosts or expired certificates.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>httptap<span class="w"> </span>--ignore-ssl<span class="w"> </span>https://self-signed.badssl.com
 </span></code></pre></div>
@@ -1748,8 +1755,10 @@
 <p class="admonition-title">Warning</p>
 <p>Use this option only on trusted networks. It disables certificate validation and relaxes handshake constraints.</p>
 </div>
-<h4 id="-proxy-url"><code>--proxy URL</code><a class="headerlink" href="#-proxy-url" title="Permanent link">&para;</a></h4>
+<p><em>Curl-compatible aliases:</em> <code>-k</code>, <code>--insecure</code>.</p>
+<h4 id="-x-proxy-url"><code>-x, --proxy URL</code><a class="headerlink" href="#-x-proxy-url" title="Permanent link">&para;</a></h4>
 <p>Route requests through the specified proxy. Supports HTTP, HTTPS, SOCKS5, and SOCKS5H protocols.</p>
+<p><em>Curl-compatible alias:</em> <code>-x</code>.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># HTTP proxy</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>httptap<span class="w"> </span>--proxy<span class="w"> </span>http://proxy.local:8080<span class="w"> </span>https://httpbin.io/get
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>

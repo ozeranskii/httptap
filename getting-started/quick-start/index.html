@@ -1331,6 +1331,10 @@
 <p class="admonition-title">Auto-POST behavior</p>
 <p>When <code>--data</code> is provided without <code>--method</code>, httptap automatically switches to POST (similar to curl).</p>
 </div>
+<div class="admonition tip">
+<p class="admonition-title">Curl-compatible flags</p>
+<p>The most common curl flags work unchanged. Use <code>-X/--request</code> for the HTTP method, <code>-L/--location</code> to follow redirects, <code>-m/--max-time</code> for timeouts, <code>-k/--insecure</code> to disable certificate verification, <code>-x</code> for proxies, and <code>--http1.1</code> to force HTTP/1.1 (equivalent to <code>--no-http2</code>). Not every curl option is supported, so stick to these shared flags when swapping commands.</p>
+</div>
 <p>Load data from a file:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;{&quot;title&quot;: &quot;New Post&quot;, &quot;content&quot;: &quot;Hello World&quot;}&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>post-data.json
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>httptap<span class="w"> </span>--data<span class="w"> </span>@post-data.json<span class="w"> </span>https://httpbin.io/post
