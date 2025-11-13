@@ -15,12 +15,13 @@ from httptap.cli import (
     EXIT_USAGE_ERROR,
     _export_results,
     _parse_headers,
+    create_parser,
     determine_exit_code,
     main,
     setup_signal_handlers,
     validate_arguments,
 )
-from httptap.constants import UNIX_SIGNAL_EXIT_OFFSET
+from httptap.constants import UNIX_SIGNAL_EXIT_OFFSET, HTTPMethod
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
 
 if TYPE_CHECKING:
@@ -66,6 +67,31 @@ def test_parse_headers_invalid(raw: list[str]) -> None:
         match=r"(header format|Header name cannot be empty)",
     ):
         _parse_headers(raw)
+
+
+def test_curl_flag_aliases_are_supported() -> None:
+    parser = create_parser()
+    args = parser.parse_args(
+        [
+            "-X",
+            "POST",
+            "-L",
+            "-m",
+            "5",
+            "-k",
+            "-x",
+            "http://proxy.local:8080",
+            "--http1.1",
+            "https://example.test",
+        ],
+    )
+
+    assert args.method == HTTPMethod.POST
+    assert args.follow is True
+    assert args.timeout == 5
+    assert args.ignore_ssl is True
+    assert args.proxy == "http://proxy.local:8080"
+    assert args.no_http2 is True
 
 
 class AnalyzerStub:

@@ -188,6 +188,8 @@ httptap https://httpbin.io/post --data '{"name": "John", "email": "john@example.
 
 **Note:** When `--data` is provided without `--method`, httptap automatically switches to POST (similar to curl).
 
+**Curl-compatible flags:** httptap accepts the most common curl syntax, so you can often replace `curl` with `httptap` directly. Aliases include `-X/--request` for `--method`, `-L/--location` for `--follow`, `-m/--max-time` for `--timeout`, `-k/--insecure` for `--ignore-ssl`, `-x` for `--proxy`, and `--http1.1` for `--no-http2`. (Not every curl option is supported—stick to these shared flags when swapping commands.)
+
 Load data from file:
 
 ```shell

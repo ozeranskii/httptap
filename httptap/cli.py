@@ -150,12 +150,15 @@ Exit codes:
 
     request_group = parser.add_argument_group("Request options")
     request_group.add_argument(
+        "-X",
+        "--request",
         "--method",
+        dest="method",
         type=HTTPMethod,
         default=None,
         choices=list(HTTPMethod),
         metavar="METHOD",
-        help="HTTP method to use (defaults to POST if --data is provided, otherwise GET).",
+        help="HTTP method to use. Defaults to POST if --data is provided, otherwise GET.",
     )
     request_group.add_argument(
         "-d",
@@ -164,12 +167,18 @@ Exit codes:
         help="Request body data (use @filename to read from file).",
     )
     request_group.add_argument(
+        "-L",
+        "--location",
         "--follow",
+        dest="follow",
         action="store_true",
         help="Follow redirects until a non-3xx response is reached (max 10).",
     )
     request_group.add_argument(
+        "-m",
+        "--max-time",
         "--timeout",
+        dest="timeout",
         type=float,
         default=DEFAULT_TIMEOUT_SECONDS,
         metavar="SECONDS",
@@ -177,15 +186,21 @@ Exit codes:
     )
     request_group.add_argument(
         "--no-http2",
+        "--http1.1",
+        dest="no_http2",
         action="store_true",
         help="Disable HTTP/2 negotiation and force HTTP/1.1 connections.",
     )
     request_group.add_argument(
+        "-k",
+        "--insecure",
         "--ignore-ssl",
+        dest="ignore_ssl",
         action="store_true",
         help="Disable TLS certificate verification (useful for debugging self-signed hosts).",
     )
     request_group.add_argument(
+        "-x",
         "--proxy",
         metavar="URL",
         help="Route requests through the given proxy (http://, https://, socks5://, socks5h://).",

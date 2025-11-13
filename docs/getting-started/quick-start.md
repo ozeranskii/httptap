@@ -29,6 +29,9 @@ httptap --data '{"name": "John Doe", "email": "john@example.com"}' https://httpb
 !!! tip "Auto-POST behavior"
     When `--data` is provided without `--method`, httptap automatically switches to POST (similar to curl).
 
+!!! tip "Curl-compatible flags"
+    The most common curl flags work unchanged. Use `-X/--request` for the HTTP method, `-L/--location` to follow redirects, `-m/--max-time` for timeouts, `-k/--insecure` to disable certificate verification, `-x` for proxies, and `--http1.1` to force HTTP/1.1 (equivalent to `--no-http2`). Not every curl option is supported, so stick to these shared flags when swapping commands.
+
 Load data from a file:
 
 ```bash
