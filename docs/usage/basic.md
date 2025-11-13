@@ -12,11 +12,15 @@ httptap [OPTIONS] URL
 
 ## Options
 
+> **Curl compatibility:** Common curl flags are accepted as aliases. Swap `curl` for `httptap` and keep using familiar options like `-X/--request`, `-L/--location`, `-m/--max-time`, `-k/--insecure`, `-x`, and `--http1.1`. This is not a full curl clone—stick to the overlapping flags listed here.
+
 ### Request Options
 
-#### `--method METHOD`
+#### `-X, --request, --method METHOD`
 
 Specify the HTTP method to use. Supported methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS.
+
+*Curl-compatible aliases:* `-X`, `--request`.
 
 ```bash
 httptap --method POST https://httpbin.io/post
@@ -76,9 +80,11 @@ httptap \
   https://httpbin.io/bearer
 ```
 
-#### `--follow`
+#### `-L, --location, --follow`
 
 Follow HTTP redirects and show timing for each step in the chain (max 10 redirects).
+
+*Curl-compatible aliases:* `-L`, `--location`.
 
 ```bash
 httptap --follow https://httpbin.io/redirect/3
@@ -86,9 +92,11 @@ httptap --follow https://httpbin.io/redirect/3
 
 By default, httptap does not follow redirects and will stop at the first redirect response (3xx status code).
 
-#### `--timeout SECONDS`
+#### `-m, --max-time, --timeout SECONDS`
 
 Abort the request chain if total elapsed time exceeds the specified number of seconds.
+
+*Curl-compatible aliases:* `-m`, `--max-time`.
 
 ```bash
 httptap --timeout 10 https://httpbin.io/delay/2
@@ -96,7 +104,7 @@ httptap --timeout 10 https://httpbin.io/delay/2
 
 Default timeout is 20 seconds.
 
-#### `--no-http2`
+#### `--no-http2` / `--http1.1`
 
 Disable HTTP/2 negotiation and force HTTP/1.1 connections.
 
@@ -106,7 +114,9 @@ httptap --no-http2 https://httpbin.io
 
 By default, HTTP/2 is enabled if the server supports it.
 
-#### `--ignore-ssl`
+*Curl-compatible alias:* `--http1.1`.
+
+#### `-k, --insecure, --ignore-ssl`
 
 Disable TLS certificate verification. Useful for debugging self-signed hosts or expired certificates.
 
@@ -117,9 +127,13 @@ httptap --ignore-ssl https://self-signed.badssl.com
 !!! warning
     Use this option only on trusted networks. It disables certificate validation and relaxes handshake constraints.
 
-#### `--proxy URL`
+*Curl-compatible aliases:* `-k`, `--insecure`.
+
+#### `-x, --proxy URL`
 
 Route requests through the specified proxy. Supports HTTP, HTTPS, SOCKS5, and SOCKS5H protocols.
+
+*Curl-compatible alias:* `-x`.
 
 ```bash
 # HTTP proxy
