@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2025-11-13
+
+### Features
+
+- Surface normalized HTTP version in network info ([#41](https://github.com/ozeranskii/httptap/issues/41))
+- Add curl-compatible flag aliases for request options ([#42](https://github.com/ozeranskii/httptap/issues/42))
+
 ## [0.3.0] - 2025-11-04
 
 ### Features
