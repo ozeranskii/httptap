@@ -344,6 +344,7 @@ The redirect summary includes a total row:
       "network": {
         "ip": "44.211.11.205",
         "ip_family": "IPv4",
+        "http_version": "HTTP/2.0",
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
@@ -390,6 +391,7 @@ The redirect summary includes a total row:
       "network": {
         "ip": "44.211.11.205",
         "ip_family": "IPv4",
+        "http_version": "HTTP/2.0",
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
@@ -436,6 +438,7 @@ The redirect summary includes a total row:
       "network": {
         "ip": "52.70.33.41",
         "ip_family": "IPv4",
+        "http_version": "HTTP/2.0",
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",

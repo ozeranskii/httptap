@@ -952,3 +952,32 @@ class TestMakeRequest:
                 timing_collector=FakeTimingCollector(TimingMetrics()),
                 force_new_connection=False,
             )
+
+
+class TestNormalizeHttpVersion:
+    """Unit tests for _normalize_http_version helper."""
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("HTTP/1.1", "HTTP/1.1"),
+            ("HTTP/2", "HTTP/2.0"),
+            ("h2", "HTTP/2.0"),
+            ("H3", "HTTP/3.0"),
+            ("HTTP/3.1", "HTTP/3.1"),
+        ],
+    )
+    def test_normalizes_known_tokens(self, raw: str, expected: str) -> None:
+        from httptap.http_client import _normalize_http_version
+
+        assert _normalize_http_version(raw) == expected
+
+    def test_returns_none_when_missing(self) -> None:
+        from httptap.http_client import _normalize_http_version
+
+        assert _normalize_http_version(None) is None
+
+    def test_leaves_unknown_strings_untouched(self) -> None:
+        from httptap.http_client import _normalize_http_version
+
+        assert _normalize_http_version("spdy/3") == "spdy/3"
