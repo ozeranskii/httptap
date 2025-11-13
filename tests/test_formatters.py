@@ -113,6 +113,7 @@ class TestFormatNetworkInfo:
         network = NetworkInfo(
             ip="192.0.2.1",
             ip_family="IPv4",
+            http_version="HTTP/2.0",
             tls_version="TLSv1.3",
             tls_cipher="TLS_AES_256_GCM_SHA384",
             cert_cn="example.com",
@@ -123,6 +124,7 @@ class TestFormatNetworkInfo:
 
         assert info is not None
         assert "192.0.2.1 (IPv4)" in info
+        assert "HTTP: HTTP/2.0" in info
         assert "TLS: TLSv1.3" in info
         assert "Cipher: TLS_AES_256_GCM_SHA384" in info
         assert "Cert: example.com" in info
@@ -162,6 +164,21 @@ class TestFormatNetworkInfo:
 
         assert info is not None
         assert "⚠ TLS verification disabled" in info
+
+    def test_format_network_info_orders_http_before_tls(self) -> None:
+        """Ensure HTTP version is reported ahead of TLS details."""
+        network = NetworkInfo(
+            ip="192.0.2.5",
+            http_version="HTTP/1.1",
+            tls_version="TLSv1.2",
+        )
+        step = StepMetrics(network=network)
+        info = format_network_info(step)
+
+        assert info is not None
+        http_index = info.index("HTTP: HTTP/1.1")
+        tls_index = info.index("TLS: TLSv1.2")
+        assert http_index < tls_index
 
     @pytest.mark.parametrize(
         ("days_left", "expected_style"),

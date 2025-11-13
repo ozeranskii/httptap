@@ -143,6 +143,7 @@ class TestNetworkInfo:
 
         assert network.ip is None
         assert network.ip_family is None
+        assert network.http_version is None
         assert network.tls_version is None
         assert network.tls_cipher is None
         assert network.cert_cn is None
@@ -152,6 +153,7 @@ class TestNetworkInfo:
         """Test initializing NetworkInfo with specific values."""
         ip = faker.ipv4()
         ip_family = "IPv4"
+        http_version = "HTTP/1.1"
         tls_version = faker.random_element(["TLSv1.2", "TLSv1.3"])
         tls_cipher = faker.pystr(min_chars=12, max_chars=32)
         cert_cn = faker.domain_name()
@@ -160,6 +162,7 @@ class TestNetworkInfo:
         network = NetworkInfo(
             ip=ip,
             ip_family=ip_family,
+            http_version=http_version,
             tls_version=tls_version,
             tls_cipher=tls_cipher,
             cert_cn=cert_cn,
@@ -168,6 +171,7 @@ class TestNetworkInfo:
 
         assert network.ip == ip
         assert network.ip_family == ip_family
+        assert network.http_version == http_version
         assert network.tls_version == tls_version
         assert network.tls_cipher == tls_cipher
         assert network.cert_cn == cert_cn
@@ -177,6 +181,7 @@ class TestNetworkInfo:
         """Test that to_dict() includes all network fields."""
         ip = faker.ipv6()
         ip_family = "IPv6"
+        http_version = "HTTP/2.0"
         tls_version = faker.random_element(["TLSv1.2", "TLSv1.3"])
         tls_cipher = faker.pystr(min_chars=12, max_chars=32)
         cert_cn = faker.domain_name()
@@ -185,6 +190,7 @@ class TestNetworkInfo:
         network = NetworkInfo(
             ip=ip,
             ip_family=ip_family,
+            http_version=http_version,
             tls_version=tls_version,
             tls_cipher=tls_cipher,
             cert_cn=cert_cn,
@@ -197,6 +203,7 @@ class TestNetworkInfo:
         assert result == {
             "ip": ip,
             "ip_family": ip_family,
+            "http_version": http_version,
             "tls_version": tls_version,
             "tls_cipher": tls_cipher,
             "cert_cn": cert_cn,
@@ -212,6 +219,7 @@ class TestNetworkInfo:
         result = network.to_dict()
 
         assert result["ip"] == ip
+        assert result["http_version"] is None
         assert result["tls_version"] is None
         assert result["cert_cn"] is None
 

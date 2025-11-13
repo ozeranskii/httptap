@@ -126,6 +126,7 @@ class NetworkInfo:
     Attributes:
         ip: Resolved IP address.
         ip_family: Address family label (e.g., 'IPv4' or 'IPv6').
+        http_version: HTTP protocol version negotiated (e.g., 'HTTP/2.0').
         tls_version: TLS protocol version (e.g., 'TLSv1.3').
         tls_cipher: TLS cipher suite used.
         cert_cn: Certificate Common Name.
@@ -136,6 +137,7 @@ class NetworkInfo:
 
     ip: str | None = None
     ip_family: str | None = None
+    http_version: str | None = None
     tls_version: str | None = None
     tls_cipher: str | None = None
     cert_cn: str | None = None
@@ -152,6 +154,7 @@ class NetworkInfo:
         return {
             "ip": self.ip,
             "ip_family": self.ip_family,
+            "http_version": self.http_version,
             "tls_version": self.tls_version,
             "tls_cipher": self.tls_cipher,
             "cert_cn": self.cert_cn,

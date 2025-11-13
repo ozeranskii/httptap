@@ -76,6 +76,10 @@ def format_network_info(step: StepMetrics) -> str | None:
         family = step.network.ip_family
         parts.append(f"IP: {ip} ({family})" if family else f"IP: {ip}")
 
+    http_version = step.network.http_version
+    if http_version:
+        parts.append(f"HTTP: {http_version}")
+
     if step.proxied_via:
         parts.append(f"Proxy: {step.proxied_via}")
 

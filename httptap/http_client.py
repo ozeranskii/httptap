@@ -400,6 +400,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                 _populate_response_metadata(response, response_info)
                 response_info.bytes = _consume_response_body(response)
                 _populate_tls_from_stream(response, network_info)
+                network_info.http_version = network_info.http_version or _normalize_http_version(response.http_version)
 
         timing_collector.mark_request_end()
 
@@ -465,6 +466,25 @@ def _populate_tls_from_stream(
     if cert_info:
         network_info.cert_cn = network_info.cert_cn or cert_info.common_name
         network_info.cert_days_left = network_info.cert_days_left or cert_info.days_until_expiry
+
+
+def _normalize_http_version(version: str | None) -> str | None:
+    """Return a consistent HTTP/x.y string, adding .0 when missing."""
+    if not version:
+        return None
+
+    normalized = version.upper()
+    if normalized in {"H2", "H3"}:
+        normalized = f"HTTP/{normalized[1:]}"
+
+    if not normalized.startswith("HTTP/"):
+        return version
+
+    proto = normalized.split("/", 1)[1]
+    if "." not in proto:
+        proto = f"{proto}.0"
+
+    return f"HTTP/{proto}"
 
 
 def _extract_ssl_object(
