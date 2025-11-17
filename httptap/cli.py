@@ -10,6 +10,7 @@ import logging
 import signal
 import sys
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
 
 if TYPE_CHECKING:
@@ -66,6 +67,23 @@ else:
         logger.debug("argcomplete is not installed, skipping autocomplete")
 
 
+class RichArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser with Rich error formatting."""
+
+    def error(self, message: str) -> NoReturn:
+        """Override error to provide Rich formatted error messages."""
+        console.print(
+            Panel(
+                f"[red]{message}[/red]",
+                title="[bold red]❌ Argument Error[/bold red]",
+                border_style="red",
+                padding=(1, 2),
+            )
+        )
+        self.print_usage(sys.stderr)
+        sys.exit(EXIT_USAGE_ERROR)
+
+
 class RichHelpFormatter(
     argparse.ArgumentDefaultsHelpFormatter,
     argparse.RawDescriptionHelpFormatter,
@@ -97,14 +115,14 @@ def _parse_headers(values: Sequence[str] | None) -> dict[str, str]:
     return headers
 
 
-def create_parser() -> argparse.ArgumentParser:
+def create_parser() -> RichArgumentParser:
     """Create and configure argument parser.
 
     Returns:
-        Configured ArgumentParser instance.
+        Configured RichArgumentParser instance.
 
     """
-    parser = argparse.ArgumentParser(
+    parser = RichArgumentParser(
         prog="httptap",
         description="HTTP request visualizer (DNS → TCP → TLS → HTTP)",
         formatter_class=RichHelpFormatter,
@@ -191,13 +209,23 @@ Exit codes:
         action="store_true",
         help="Disable HTTP/2 negotiation and force HTTP/1.1 connections.",
     )
-    request_group.add_argument(
+
+    # SSL/TLS options (mutually exclusive)
+    ssl_group = request_group.add_mutually_exclusive_group()
+    ssl_group.add_argument(
         "-k",
         "--insecure",
         "--ignore-ssl",
         dest="ignore_ssl",
         action="store_true",
         help="Disable TLS certificate verification (useful for debugging self-signed hosts).",
+    )
+    ssl_group.add_argument(
+        "--cacert",
+        "--ca-bundle",
+        dest="ca_bundle",
+        metavar="FILE",
+        help="Path to custom CA certificate bundle (PEM format). Use for internal APIs with custom CAs.",
     )
     request_group.add_argument(
         "-x",
@@ -292,17 +320,16 @@ def _export_results(
         )
 
 
-def validate_arguments(args: argparse.Namespace) -> None:
+def validate_arguments(args: argparse.Namespace) -> bool:
     """Validate command-line arguments with Rich formatting.
 
     Args:
         args: Parsed arguments.
 
-    Raises:
-        ValueError: If arguments are invalid.
+    Returns:
+        False if validation fails (error already printed), True if valid.
 
     """
-    # Validate URL
     if not validate_url(args.url):
         error_text = Text()
         error_text.append("Invalid URL: ", style="bold red")
@@ -312,17 +339,16 @@ def validate_arguments(args: argparse.Namespace) -> None:
         error_text.append(" or ", style="red")
         error_text.append("https://", style="cyan")
 
-        panel = Panel(
-            error_text,
-            title="[bold red]❌ Validation Error[/bold red]",
-            border_style="red",
-            padding=(1, 2),
+        console.print(
+            Panel(
+                error_text,
+                title="[bold red]❌ Validation Error[/bold red]",
+                border_style="red",
+                padding=(1, 2),
+            )
         )
-        console.print(panel)
-        msg = "Invalid URL"
-        raise ValueError(msg)
+        return False
 
-    # Validate timeout
     if args.timeout <= 0:
         error_text = Text()
         error_text.append("Invalid timeout: ", style="bold red")
@@ -330,27 +356,46 @@ def validate_arguments(args: argparse.Namespace) -> None:
         error_text.append(" seconds\n\n", style="red")
         error_text.append("Timeout must be a positive number", style="red")
 
-        panel = Panel(
-            error_text,
-            title="[bold red]❌ Validation Error[/bold red]",
-            border_style="red",
-            padding=(1, 2),
+        console.print(
+            Panel(
+                error_text,
+                title="[bold red]❌ Validation Error[/bold red]",
+                border_style="red",
+                padding=(1, 2),
+            )
         )
-        console.print(panel)
-        msg = f"Invalid timeout: {args.timeout}"
-        raise ValueError(msg)
+        return False
 
-    # Validate headers
     try:
         args.headers = _parse_headers(getattr(args, "headers", None))
     except ValueError as exc:
-        error_panel = Panel(
-            str(exc),
-            title="[bold red]❌ Header Error[/bold red]",
-            border_style="red",
+        console.print(
+            Panel(
+                str(exc),
+                title="[bold red]❌ Header Error[/bold red]",
+                border_style="red",
+            )
         )
-        console.print(error_panel)
-        raise ValueError(str(exc)) from exc
+        return False
+
+    if args.ca_bundle is not None:
+        ca_bundle_str = str(args.ca_bundle).strip()
+        if not ca_bundle_str:
+            console.print(
+                Panel(
+                    (
+                        "[red]CA bundle path cannot be empty. "
+                        "Provide a PEM file path when using --cacert/--ca-bundle.[/red]"
+                    ),
+                    title="[bold red]❌ Validation Error[/bold red]",
+                    border_style="red",
+                    padding=(1, 2),
+                )
+            )
+            return False
+        args.ca_bundle = str(Path(ca_bundle_str).expanduser().absolute())
+
+    return True
 
 
 def determine_exit_code(steps: list[StepMetrics]) -> int:
@@ -384,39 +429,28 @@ def main() -> int:
 
     """
     try:
-        # Parse arguments
         parser = create_parser()
         if argcomplete:  # pragma: no cover
             argcomplete.autocomplete(parser)
 
-        # Setup signal handlers after autocomplete (not needed during tab completion)
         setup_signal_handlers()
-
         args = parser.parse_args()
 
-        # Validate arguments
-        try:
-            validate_arguments(args)
-        except ValueError:
+        if not validate_arguments(args):
             return EXIT_USAGE_ERROR
 
-        # Process request data if provided
         try:
             content, auto_headers = read_request_data(args.data)
         except (FileNotFoundError, OSError) as e:
             console.print(f"[red]Error reading data: {e}[/red]")
             return EXIT_USAGE_ERROR
-
-        # Determine HTTP method with smart defaults
         method = args.method if args.method is not None else HTTPMethod.GET
         method_was_explicit = args.method is not None
 
-        # Auto-switch to POST only if method was not explicitly specified
         if content and method == HTTPMethod.GET and not method_was_explicit:
             method = HTTPMethod.POST
             logger.info("Auto-switching from GET to POST due to request body")
 
-        # Warn if user explicitly requested GET/HEAD with body (uncommon but allowed)
         if content and method in (HTTPMethod.GET, HTTPMethod.HEAD) and method_was_explicit:
             logger.warning(
                 "%s requests with body are uncommon but allowed. Consider using POST, PUT, or PATCH.",
@@ -427,30 +461,24 @@ def main() -> int:
         if args.headers:
             headers_dict.update(args.headers)
 
-        # Create analyzer
         analyzer = HTTPTapAnalyzer(
             follow_redirects=args.follow,
             timeout=args.timeout,
-            http2=not args.no_http2,  # Correct: no_http2=True means http2=False
+            http2=not args.no_http2,
             verify_ssl=not args.ignore_ssl,
+            ca_bundle_path=args.ca_bundle,
             proxy=args.proxy,
         )
 
-        # Create renderer
         renderer = OutputRenderer(
             compact=args.compact,
             metrics_only=args.metrics_only,
         )
 
         steps = _execute_analysis(analyzer, args, method, content, headers_dict)
-
-        # Render output
         renderer.render_analysis(steps, args.url)
-
-        # Export JSON if requested
         _export_results(renderer, steps, args)
 
-        # Determine exit code
         return determine_exit_code(steps)
 
     except KeyboardInterrupt:

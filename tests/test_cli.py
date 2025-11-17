@@ -256,18 +256,112 @@ def test_validate_arguments_invalid_url(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     args = Namespace(url=url, timeout=5, headers=[], json=None)
-    with pytest.raises(ValueError, match="Invalid URL"):
-        validate_arguments(args)
+    result = validate_arguments(args)
+    assert result is False
     captured = capsys.readouterr()
     assert "Invalid URL" in captured.err
 
 
 def test_validate_arguments_invalid_timeout(capsys: pytest.CaptureFixture[str]) -> None:
     args = Namespace(url="https://example.test", timeout=0, headers=[], json=None)
-    with pytest.raises(ValueError, match="Invalid timeout"):
-        validate_arguments(args)
+    result = validate_arguments(args)
+    assert result is False
     captured = capsys.readouterr()
     assert "Invalid timeout" in captured.err
+
+
+def test_validate_arguments_cacert_valid_path(tmp_path: Path) -> None:
+    """Test that CA bundle path is normalized to absolute path."""
+    # Path doesn't need to exist - validation happens in SSL layer
+    ca_bundle = tmp_path / "ca-bundle.pem"
+
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        json=None,
+        ignore_ssl=False,
+        ca_bundle=str(ca_bundle),
+    )
+    result = validate_arguments(args)
+
+    assert result is True
+    assert args.ca_bundle == str(ca_bundle.absolute())
+
+
+def test_validate_arguments_cacert_empty_string(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test that empty CA bundle string fails validation."""
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        json=None,
+        ignore_ssl=False,
+        ca_bundle="   ",  # Empty/whitespace only
+    )
+
+    result = validate_arguments(args)
+    assert result is False
+
+
+def test_validate_arguments_cacert_expanduser() -> None:
+    """Test that tilde expansion works for CA bundle path."""
+    from pathlib import Path
+
+    # Using a fake path with ~ - doesn't need to exist
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        json=None,
+        ignore_ssl=False,
+        ca_bundle="~/ca-bundle.pem",
+    )
+    result = validate_arguments(args)
+
+    assert result is True
+    assert not args.ca_bundle.startswith("~")
+    assert Path(args.ca_bundle).is_absolute()
+
+
+def test_parser_insecure_and_cacert_mutually_exclusive(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test that --insecure and --cacert cannot be used together (enforced by argparse)."""
+    ca_bundle = tmp_path / "ca-bundle.pem"
+    ca_bundle.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n")
+
+    parser = create_parser()
+
+    # argparse will call sys.exit() when mutually exclusive args are provided
+    with pytest.raises(SystemExit) as exc_info:
+        parser.parse_args(["-k", "--cacert", str(ca_bundle), "https://example.test"])
+
+    # Should exit with usage error code
+    assert exc_info.value.code == EXIT_USAGE_ERROR
+
+    # Check error output
+    captured = capsys.readouterr()
+    assert "mutually exclusive" in captured.err or "not allowed with argument" in captured.err
+
+
+def test_cli_parser_accepts_cacert_argument() -> None:
+    """Test that parser accepts --cacert argument."""
+    parser = create_parser()
+    args = parser.parse_args(["--cacert", "/path/to/ca.pem", "https://example.test"])
+
+    assert args.ca_bundle == "/path/to/ca.pem"
+
+
+def test_cli_parser_accepts_ca_bundle_alias() -> None:
+    """Test that parser accepts --ca-bundle as alias."""
+    parser = create_parser()
+    args = parser.parse_args(["--ca-bundle", "/path/to/ca.pem", "https://example.test"])
+
+    assert args.ca_bundle == "/path/to/ca.pem"
 
 
 class DummyProgress:
