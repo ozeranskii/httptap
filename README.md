@@ -155,7 +155,7 @@ Once completions are installed, you can use `Tab` to autocomplete commands and o
 ```shell
 # Complete command options
 httptap --<TAB>
-# Shows: --follow, --timeout, --no-http2, --ignore-ssl, --proxy, --header, --compact, --metrics-only, --json, --version, --help
+# Shows: --follow, --timeout, --no-http2, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --version, --help
 
 # Complete after typing partial option
 httptap --fol<TAB>
@@ -257,10 +257,9 @@ httptap --metrics-only https://httpbin.io/get | tee timings.log
 
 ### Advanced Usage
 
-Programmatic users can inject a custom executor for advanced scenarios. The
-default analyzer accepts either a modern `RequestExecutor` implementation or a
-legacy callable wrapped with `CallableRequestExecutor`, so new request flags
-remain backward compatible.
+Programmatic users can inject a custom executor for advanced scenarios. Provide your own `RequestExecutor` implementation if you need to change how requests are executed (for example, to plug in a different HTTP stack or add tracing).
+
+#### TLS Certificate Options
 
 Bypass TLS verification when troubleshooting self-signed endpoints:
 
@@ -273,6 +272,18 @@ constraints so that legacy endpoints (expired/self-signed/hostname
 mismatches, weak hashes, older TLS versions) still complete. Some
 algorithms removed from modern OpenSSL builds (for example RC4 or
 3DES) may remain unavailable. Use this mode only on trusted networks.
+
+Use a custom CA certificate bundle for internal APIs:
+
+```shell
+httptap --cacert /path/to/company-ca.pem https://internal-api.company.com
+```
+
+This is useful when testing internal services that use certificates signed by a custom Certificate Authority (CA) that isn't in the system's default trust store. The `--cacert` option (also available as `--ca-bundle`) accepts a path to a PEM-formatted CA certificate bundle.
+
+**Note:** `--ignore-ssl` and `--cacert` are mutually exclusive. Use `--ignore-ssl` to disable all verification, or `--cacert` to verify with a custom CA bundle.
+
+When `--cacert` is used, the CLI output marks the connection with `TLS CA: custom bundle`, and JSON exports include `network.tls_custom_ca: true` so automation can detect custom trust configuration.
 
 Route traffic through an HTTP/SOCKS proxy (explicit override takes precedence over env vars `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`):
 

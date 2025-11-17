@@ -42,7 +42,7 @@ from .models import (
     TimingMetrics,
 )
 from .render import OutputRenderer
-from .request_executor import CallableRequestExecutor, RequestExecutor, RequestOptions, RequestOutcome
+from .request_executor import HTTPClientRequestExecutor, RequestExecutor, RequestOptions, RequestOutcome
 from .visualizer import WaterfallVisualizer
 
 _package_info = get_package_info()
@@ -52,10 +52,10 @@ __author__ = _package_info.author
 __license__ = _package_info.license
 
 __all__ = [
-    "CallableRequestExecutor",
     "DNSResolutionError",
     "DNSResolver",
     "Exporter",
+    "HTTPClientRequestExecutor",
     "HTTPTapAnalyzer",
     "JSONExporter",
     "NetworkInfo",

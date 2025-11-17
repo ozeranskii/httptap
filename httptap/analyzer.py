@@ -16,33 +16,15 @@ else:  # pragma: no cover - typing helper
     ProxyTypes = object  # type: ignore[assignment]
 
 from .constants import DEFAULT_TIMEOUT_SECONDS, HTTPMethod
-from .http_client import HTTPClientError, make_request
+from .http_client import HTTPClientError
 from .models import StepMetrics
-from .request_executor import (
-    CallableRequestExecutor,
-    LegacyExecutorType,
-    RequestExecutor,
-    RequestOptions,
-    RequestOutcome,
-)
+from .request_executor import HTTPClientRequestExecutor, RequestExecutor, RequestOptions, RequestOutcome
 from .utils import sanitize_headers
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from .interfaces import DNSResolver, TimingCollector, TLSInspector
-
-
-def _normalise_executor(
-    executor: RequestExecutor | LegacyExecutorType | None,
-) -> RequestExecutor:
-    """Convert optionally legacy executors into RequestExecutor instances."""
-    if executor is None:
-        return CallableRequestExecutor(make_request)
-    if isinstance(executor, RequestExecutor):
-        return executor
-    legacy: LegacyExecutorType = executor
-    return CallableRequestExecutor(legacy)
 
 
 class HTTPTapAnalyzer:
@@ -65,6 +47,7 @@ class HTTPTapAnalyzer:
         "_request",
         "_timing_collector",
         "_tls_inspector",
+        "ca_bundle_path",
         "follow_redirects",
         "http2",
         "max_redirects",
@@ -79,8 +62,9 @@ class HTTPTapAnalyzer:
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         http2: bool = True,
         verify_ssl: bool = True,
+        ca_bundle_path: str | None = None,
         max_redirects: int = 10,
-        request_executor: RequestExecutor | LegacyExecutorType | None = None,
+        request_executor: RequestExecutor | None = None,
         proxy: ProxyTypes | None = None,
         dns_resolver: DNSResolver | None = None,
         tls_inspector: TLSInspector | None = None,
@@ -93,11 +77,12 @@ class HTTPTapAnalyzer:
             timeout: Request timeout in seconds.
             http2: Enable HTTP/2 support.
             verify_ssl: Whether to verify TLS certificates.
+            ca_bundle_path: Path to custom CA certificate bundle (PEM format).
+                Only used when verify_ssl is True. If None, uses system CA bundle.
             max_redirects: Maximum number of redirects to follow.
             request_executor: Object responsible for performing HTTP requests.
-                Can be an instance implementing RequestExecutor or a legacy
-                callable compatible with CallableRequestExecutor. Defaults to
-                the built-in httpx implementation.
+                Must implement the RequestExecutor protocol. Defaults to the
+                built-in httpx implementation.
             proxy: Optional proxy URL (http/https/socks5/socks5h) applied to all
                 requests in the analysis chain.
             dns_resolver: Custom DNS resolver implementation. If None, make_request
@@ -114,8 +99,9 @@ class HTTPTapAnalyzer:
         self.timeout = timeout
         self.http2 = http2
         self.verify_ssl = verify_ssl
+        self.ca_bundle_path = ca_bundle_path
         self.max_redirects = max_redirects
-        self._request = _normalise_executor(request_executor)
+        self._request = request_executor or HTTPClientRequestExecutor()
         self._dns_resolver = dns_resolver
         self._tls_inspector = tls_inspector
         self._timing_collector = timing_collector_factory
@@ -246,6 +232,7 @@ class HTTPTapAnalyzer:
                 content=content,
                 http2=self.http2,
                 verify_ssl=self.verify_ssl,
+                ca_bundle_path=self.ca_bundle_path,
                 dns_resolver=self._dns_resolver,
                 tls_inspector=self._tls_inspector,
                 timing_collector=timing_collector,

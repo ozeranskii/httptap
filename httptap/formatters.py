@@ -103,6 +103,8 @@ def format_network_info(step: StepMetrics) -> str | None:
         parts.append(f"[{days_style}]Expires: {days_left}d[/{days_style}]")
     if step.network.tls_verified is False:
         parts.append("[bold red]⚠ TLS verification disabled[/bold red]")
+    elif step.network.tls_custom_ca:
+        parts.append("TLS CA: custom bundle")
 
     return f"  [dim]{' | '.join(parts)}[/dim]" if parts else None
 

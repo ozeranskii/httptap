@@ -206,6 +206,16 @@ class TestFormatNetworkInfo:
         assert f"[{expected_style}]" in info
         assert f"Expires: {days_left}d" in info
 
+    def test_format_network_info_custom_ca(self) -> None:
+        """Test that custom CA indicator is shown when tls_custom_ca is True."""
+        network = NetworkInfo(tls_verified=True, tls_custom_ca=True)
+        step = StepMetrics(network=network)
+
+        info = format_network_info(step)
+
+        assert info is not None
+        assert "TLS CA: custom bundle" in info
+
 
 class TestFormatResponseInfo:
     """Test suite for format_response_info function."""

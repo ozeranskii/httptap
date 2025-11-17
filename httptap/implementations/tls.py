@@ -18,11 +18,19 @@ class TLSInspectionError(Exception):
 class SocketTLSInspector:
     """TLS inspector that performs a dedicated TLS handshake using ``ssl``."""
 
-    __slots__ = ("_verify",)
+    __slots__ = ("_ca_bundle_path", "_verify")
 
-    def __init__(self, *, verify: bool = True) -> None:
-        """Initialize inspector with optional verification toggle."""
+    def __init__(self, *, verify: bool = True, ca_bundle_path: str | None = None) -> None:
+        """Initialize inspector with optional verification toggle and custom CA bundle.
+
+        Args:
+            verify: Whether to verify TLS certificates.
+            ca_bundle_path: Path to custom CA certificate bundle (PEM format).
+                Only used when verify is True. If None, uses system CA bundle.
+
+        """
         self._verify = verify
+        self._ca_bundle_path = ca_bundle_path
 
     def inspect(self, host: str, port: int, timeout: float) -> NetworkInfo:
         """Inspect TLS connection and extract metadata."""
@@ -38,7 +46,7 @@ class SocketTLSInspector:
                 # Diagnostic tool: intentionally allows TLSv1.0+ to inspect legacy servers.
                 # This is NOT a security issue because httptap is used for troubleshooting,
                 # not for transmitting sensitive data in production.
-                context = create_ssl_context(verify_ssl=self._verify)
+                context = create_ssl_context(verify_ssl=self._verify, ca_bundle_path=self._ca_bundle_path)
                 with context.wrap_socket(raw_sock, server_hostname=host) as tls_sock:
                     tls_version, cipher_suite, cert_info = extract_tls_info(tls_sock)
                     network_info.tls_version = tls_version
