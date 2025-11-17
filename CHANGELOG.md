@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2025-11-17
+
+### Features
+
+- Add support for custom CA bundle for TLS verification ([#45](https://github.com/ozeranskii/httptap/issues/45))
+
 ## [0.3.1] - 2025-11-13
 
 ### Features
