@@ -681,9 +681,11 @@ class TestMakeRequest:
                 self,
                 method: str,
                 request_url: str,
+                content: bytes | None = None,
                 *,
                 extensions: dict[str, object] | None = None,
             ) -> DummyStream:
+                assert content is None
                 assert method == "GET"
                 assert extensions is not None
                 captured["request_url"] = request_url
@@ -766,9 +768,11 @@ class TestMakeRequest:
                 method: str,
                 request_url: str,
                 *,
+                content: bytes | None = None,
                 extensions: dict[str, object] | None = None,
             ) -> DummyStream:
                 assert method == "GET"
+                assert content is None
                 assert extensions is not None
                 captured["request_url"] = request_url
                 captured["extensions"] = dict(extensions)
