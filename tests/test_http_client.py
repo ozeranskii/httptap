@@ -83,7 +83,9 @@ def test_make_request_uses_custom_headers(
             content=body,
         )
 
-    httpx_mock.add_callback(handler, method="GET", url=url)
+    dns_resolver = FakeDNSResolver()
+    ip, _family, _dns_ms = dns_resolver.resolve("example.test", 443, 5.0)
+    httpx_mock.add_callback(handler, method="GET", url=f"https://{ip}/api")
 
     timing_input = TimingMetrics(
         dns_ms=4.2,
@@ -97,7 +99,7 @@ def test_make_request_uses_custom_headers(
         url,
         timeout=5.0,
         http2=False,
-        dns_resolver=FakeDNSResolver(),
+        dns_resolver=dns_resolver,
         tls_inspector=FakeTLSInspector(),
         timing_collector=FakeTimingCollector(timing_input),
         force_new_connection=False,
@@ -581,9 +583,11 @@ class TestMakeRequest:
         url = "http://example.test/page"
         body = b"<!DOCTYPE html><html></html>"
 
+        dns_resolver = FakeDNSResolver()
+        ip, _family, _dns_ms = dns_resolver.resolve("example.test", 80, 5.0)
         httpx_mock.add_response(
             method="GET",
-            url=url,
+            url=f"http://{ip}/page",
             status_code=200,
             content=body,
             headers={"content-type": "text/html"},
@@ -593,7 +597,7 @@ class TestMakeRequest:
             url,
             timeout=5.0,
             http2=False,
-            dns_resolver=FakeDNSResolver(),
+            dns_resolver=dns_resolver,
             timing_collector=FakeTimingCollector(
                 TimingMetrics(dns_ms=5.0, ttfb_ms=50.0, total_ms=100.0),
             ),
@@ -613,9 +617,11 @@ class TestMakeRequest:
         url = "https://secure.test/api"
         body = b'{"success": true}'
 
+        dns_resolver = FakeDNSResolver()
+        ip, _family, _dns_ms = dns_resolver.resolve("secure.test", 443, 5.0)
         httpx_mock.add_response(
             method="GET",
-            url=url,
+            url=f"https://{ip}/api",
             status_code=200,
             content=body,
         )
@@ -623,7 +629,7 @@ class TestMakeRequest:
         _timing, network, response = make_request(
             url,
             timeout=5.0,
-            dns_resolver=FakeDNSResolver(),
+            dns_resolver=dns_resolver,
             tls_inspector=FakeTLSInspector(),
             timing_collector=FakeTimingCollector(
                 TimingMetrics(dns_ms=5.0, ttfb_ms=50.0, total_ms=100.0),
@@ -635,6 +641,165 @@ class TestMakeRequest:
         assert network.tls_version == "TLSv1.3"
         assert network.cert_cn == "secure.test"
         assert network.cert_days_left == 90
+
+    def test_make_request_dials_ip_and_sets_host_header_and_sni(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """Dial IP but preserve original host for headers and SNI."""
+        url = "https://example.test/api?q=ok"
+        captured: dict[str, object] = {}
+
+        class DummyStream:
+            def __init__(self, request_url: str) -> None:
+                self.request_url = request_url
+
+            def __enter__(self) -> httpx.Response:
+                request = httpx.Request("GET", self.request_url)
+                return httpx.Response(
+                    200,
+                    request=request,
+                    headers={"content-type": "application/json"},
+                    content=b"{}",
+                    extensions={"network_stream": SimpleNamespace(get_extra_info=lambda _n: None)},
+                )
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+        class DummyClient:
+            def __init__(self, *_: object, **__: object) -> None:
+                self.headers: dict[str, str] = {}
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(
+                self,
+                method: str,
+                request_url: str,
+                content: bytes | None = None,
+                *,
+                extensions: dict[str, object] | None = None,
+            ) -> DummyStream:
+                assert content is None
+                assert method == "GET"
+                assert extensions is not None
+                captured["request_url"] = request_url
+                captured["extensions"] = dict(extensions)
+                captured["headers"] = dict(self.headers)
+                return DummyStream(request_url)
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        timing_input = TimingMetrics(
+            dns_ms=5.0,
+            connect_ms=0.0,
+            tls_ms=0.0,
+            ttfb_ms=15.0,
+            total_ms=20.0,
+        )
+
+        _timing, _network, response = make_request(
+            url,
+            timeout=5.0,
+            dns_resolver=FakeDNSResolver(),
+            tls_inspector=FakeTLSInspector(),
+            timing_collector=FakeTimingCollector(timing_input),
+            force_new_connection=True,
+        )
+
+        assert response.status == 200
+        assert captured["request_url"] == "https://203.0.113.10:443/api?q=ok"
+        assert captured["extensions"] is not None
+        assert captured["headers"] is not None
+        extensions = captured["extensions"]
+        headers = captured["headers"]
+        assert isinstance(extensions, dict)
+        assert isinstance(headers, dict)
+        assert extensions.get("sni_hostname") == "example.test"
+        assert "trace" in extensions
+        assert headers.get("Host") == "example.test"
+
+    def test_make_request_brackets_ipv6_address(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """IPv6 targets are wrapped in brackets when dialing by IP."""
+        url = "https://ipv6.test/"
+        captured: dict[str, object] = {}
+
+        class IPv6Resolver:
+            def resolve(self, _host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+                return "2001:db8::1", "IPv6", 1.0
+
+        class DummyStream:
+            def __init__(self, request_url: str) -> None:
+                self.request_url = request_url
+
+            def __enter__(self) -> httpx.Response:
+                request = httpx.Request("GET", self.request_url)
+                return httpx.Response(
+                    200,
+                    request=request,
+                    headers={"content-type": "text/plain"},
+                    content=b"ok",
+                    extensions={"network_stream": SimpleNamespace(get_extra_info=lambda _n: None)},
+                )
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+        class DummyClient:
+            def __init__(self, *_: object, **__: object) -> None:
+                self.headers: dict[str, str] = {}
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(
+                self,
+                method: str,
+                request_url: str,
+                *,
+                content: bytes | None = None,
+                extensions: dict[str, object] | None = None,
+            ) -> DummyStream:
+                assert method == "GET"
+                assert content is None
+                assert extensions is not None
+                captured["request_url"] = request_url
+                captured["extensions"] = dict(extensions)
+                captured["headers"] = dict(self.headers)
+                return DummyStream(request_url)
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        timing_input = TimingMetrics(dns_ms=1.0, ttfb_ms=5.0, total_ms=6.0)
+
+        _timing, _network, response = make_request(
+            url,
+            timeout=2.0,
+            dns_resolver=IPv6Resolver(),
+            tls_inspector=FakeTLSInspector(),
+            timing_collector=FakeTimingCollector(timing_input),
+            force_new_connection=True,
+        )
+
+        assert response.status == 200
+        assert captured["request_url"] == "https://[2001:db8::1]:443/"
+        extensions = captured["extensions"]
+        headers = captured["headers"]
+        assert isinstance(extensions, dict)
+        assert isinstance(headers, dict)
+        assert extensions.get("sni_hostname") == "ipv6.test"
+        assert headers.get("Host") == "ipv6.test"
 
     def test_make_request_handles_missing_hostname(self) -> None:
         """Test error handling for URL without hostname."""
@@ -672,17 +837,19 @@ class TestMakeRequest:
         """Test error handling for request timeout."""
         from httptap.http_client import HTTPClientError
 
+        dns_resolver = FakeDNSResolver()
+        ip, _family, _dns_ms = dns_resolver.resolve("slow.test", 443, 5.0)
         httpx_mock.add_exception(
             httpx.TimeoutException("Connection timeout"),
             method="GET",
-            url="https://slow.test",
+            url=f"https://{ip}",
         )
 
         with pytest.raises(HTTPClientError, match="Request timeout"):
             make_request(
                 "https://slow.test",
                 timeout=1.0,
-                dns_resolver=FakeDNSResolver(),
+                dns_resolver=dns_resolver,
                 timing_collector=FakeTimingCollector(TimingMetrics()),
                 force_new_connection=False,
             )
@@ -694,17 +861,19 @@ class TestMakeRequest:
         """Test error handling for connection errors."""
         from httptap.http_client import HTTPClientError
 
+        dns_resolver = FakeDNSResolver()
+        ip, _family, _dns_ms = dns_resolver.resolve("unreachable.test", 443, 5.0)
         httpx_mock.add_exception(
             httpx.ConnectError("Connection refused"),
             method="GET",
-            url="https://unreachable.test",
+            url=f"https://{ip}",
         )
 
         with pytest.raises(HTTPClientError, match="Request failed"):
             make_request(
                 "https://unreachable.test",
                 timeout=5.0,
-                dns_resolver=FakeDNSResolver(),
+                dns_resolver=dns_resolver,
                 timing_collector=FakeTimingCollector(TimingMetrics()),
                 force_new_connection=False,
             )
@@ -722,13 +891,15 @@ class TestMakeRequest:
                 raise TLSInspectionError(msg)
 
         url = "https://example.test"
-        httpx_mock.add_response(method="GET", url=url, status_code=200)
+        dns_resolver = FakeDNSResolver()
+        ip, _family, _dns_ms = dns_resolver.resolve("example.test", 443, 5.0)
+        httpx_mock.add_response(method="GET", url=f"https://{ip}", status_code=200)
 
         # Should not raise, TLS inspection is non-fatal
         _timing, network, response = make_request(
             url,
             timeout=5.0,
-            dns_resolver=FakeDNSResolver(),
+            dns_resolver=dns_resolver,
             tls_inspector=FailingTLSInspector(),
             timing_collector=FakeTimingCollector(
                 TimingMetrics(dns_ms=5.0, ttfb_ms=50.0, total_ms=100.0),
@@ -747,7 +918,7 @@ class TestMakeRequest:
     ) -> None:
         """Test that make_request uses default implementations when not provided."""
         url = "http://example.test"
-        httpx_mock.add_response(method="GET", url=url, status_code=200)
+        httpx_mock.add_response(method="GET", url="http://198.51.100.5", status_code=200)
 
         # Mock DNS resolution to avoid real network call
         mock_resolve = mocker.patch(
@@ -776,7 +947,9 @@ class TestMakeRequest:
     ) -> None:
         """Test that force_new_connection properly configures httpx limits."""
         url = "https://example.test"
-        httpx_mock.add_response(method="GET", url=url, status_code=200)
+        dns_resolver = FakeDNSResolver()
+        ip, _family, _dns_ms = dns_resolver.resolve("example.test", 443, 5.0)
+        httpx_mock.add_response(method="GET", url=f"https://{ip}", status_code=200)
 
         # Spy on httpx.Limits to verify configuration
         limits_spy = mocker.spy(httpx, "Limits")
@@ -784,7 +957,7 @@ class TestMakeRequest:
         make_request(
             url,
             timeout=5.0,
-            dns_resolver=FakeDNSResolver(),
+            dns_resolver=dns_resolver,
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=100.0)),
             force_new_connection=True,
         )
@@ -841,8 +1014,8 @@ class TestMakeRequest:
                 extensions: dict[str, object] | None = None,
             ) -> DummyStream:
                 assert method == "GET"
-                assert request_url == url
                 assert content is None
+                assert request_url == "https://203.0.113.10:443"
                 assert extensions is not None
                 assert "trace" in extensions
                 return DummyStream()
@@ -937,18 +1110,20 @@ class TestMakeRequest:
         """Test handling of unexpected exceptions."""
         from httptap.http_client import HTTPClientError
 
+        dns_resolver = FakeDNSResolver()
+        ip, _family, _dns_ms = dns_resolver.resolve("error.test", 443, 5.0)
         # Simulate unexpected exception
         httpx_mock.add_exception(
             RuntimeError("Unexpected internal error"),
             method="GET",
-            url="https://error.test",
+            url=f"https://{ip}",
         )
 
         with pytest.raises(HTTPClientError, match="Unexpected error"):
             make_request(
                 "https://error.test",
                 timeout=5.0,
-                dns_resolver=FakeDNSResolver(),
+                dns_resolver=dns_resolver,
                 timing_collector=FakeTimingCollector(TimingMetrics()),
                 force_new_connection=False,
             )
