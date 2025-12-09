@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2025-12-09
+
+### Miscellaneous Tasks
+
+- Update CNAME to point docs subdomain
+
+### Performance
+
+- Dial resolved IPs while preserving Host/SNI ([#51](https://github.com/ozeranskii/httptap/issues/51))
+
 ## [0.4.0] - 2025-11-17
 
 ### Features
