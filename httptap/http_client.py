@@ -388,6 +388,8 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 
         ssl_context = create_ssl_context(verify_ssl=verify_ssl, ca_bundle_path=ca_bundle_path)
 
+        formatted_ip = f"[{ip}]" if ip_family == "IPv6" else ip
+
         with httpx.Client(
             timeout=timeout,
             http2=http2,
@@ -399,7 +401,16 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             client.headers["User-Agent"] = USER_AGENT
             if headers:
                 client.headers.update(headers)
-            with client.stream(method.value, url, content=content, extensions={"trace": trace}) as response:
+            # Ensure the Host header is set to the original domain name
+            client.headers["Host"] = host
+
+            request_url = f"{parsed_url.scheme}://{formatted_ip}:{port}{parsed_url.path}"
+            if parsed_url.query:
+                request_url += f"?{parsed_url.query}"
+
+            with client.stream(
+                method.value, request_url, content=content, extensions={"trace": trace, "sni_hostname": host}
+            ) as response:
                 timing_collector.mark_ttfb()
                 _populate_response_metadata(response, response_info)
                 response_info.bytes = _consume_response_body(response)

@@ -4,7 +4,7 @@ This guide covers advanced usage patterns and customization options for httptap.
 
 ## Custom DNS Resolution
 
-You can provide custom DNS resolver implementations by using the Python API.
+You can provide custom DNS resolver implementations by using the Python API. httptap always dials the resolved IP address (IPv4/IPv6) while preserving the original hostname for the `Host` header and TLS SNI. IPv6 literals are bracketed automatically, so custom resolvers only need to return the correct IP/family tuple.
 
 ```python
 from httptap import HTTPTapAnalyzer, SystemDNSResolver
