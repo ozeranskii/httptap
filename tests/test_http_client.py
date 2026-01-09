@@ -1202,6 +1202,23 @@ class TestSOCKS5HProxy:
 
         assert _is_socks5h_proxy(None) is False
 
+    def test_dict_proxy_with_non_string_values(self) -> None:
+        """Test that dict proxy with non-string values doesn't crash."""
+        from httptap.http_client import _is_socks5h_proxy
+
+        # Dict with mixed types (should handle gracefully)
+        proxy_dict = {
+            "http://": "http://proxy.example.com:8080",
+            "https://": None,  # Non-string value
+        }
+        assert _is_socks5h_proxy(proxy_dict) is False
+
+        # Dict with non-string but not None
+        proxy_dict_int = {
+            "http://": 12345,  # Integer instead of string
+        }
+        assert _is_socks5h_proxy(proxy_dict_int) is False
+
     def test_socks5h_skips_dns_resolution(
         self,
         httpx_mock: pytest_httpx.HTTPXMock,
