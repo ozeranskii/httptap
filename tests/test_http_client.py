@@ -1239,7 +1239,7 @@ class TestSOCKS5HProxy:
         )
 
         # Make request with SOCKS5H proxy
-        timing, network, response = make_request(
+        timing, _network, response = make_request(
             "https://api.example.com/test",
             proxy="socks5h://127.0.0.1:1080",
             dns_resolver=mock_resolver,
@@ -1267,7 +1267,7 @@ class TestSOCKS5HProxy:
         )
 
         # Make request with SOCKS5H proxy
-        timing, network, response = make_request(
+        _timing, _network, response = make_request(
             "https://api.example.com/test",
             proxy="socks5h://127.0.0.1:1080",
             verify_ssl=False,
@@ -1299,7 +1299,7 @@ class TestSOCKS5HProxy:
         )
 
         # Make request without SOCKS5H (direct or regular SOCKS5)
-        timing, network, response = make_request(
+        _timing, network, response = make_request(
             "https://api.example.com/test",
             dns_resolver=mock_resolver,
             verify_ssl=False,

@@ -454,14 +454,12 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             # Ensure the Host header is set to the original domain name
             client.headers["Host"] = host
 
-            stream_extensions = {"trace": trace}
+            stream_extensions: dict[str, object] = {"trace": trace}
             if not use_socks5h:
                 # Only set sni_hostname when using resolved IP
                 stream_extensions["sni_hostname"] = host
 
-            with client.stream(
-                method.value, request_url, content=content, extensions=stream_extensions
-            ) as response:
+            with client.stream(method.value, request_url, content=content, extensions=stream_extensions) as response:
                 timing_collector.mark_ttfb()
                 _populate_response_metadata(response, response_info)
                 response_info.bytes = _consume_response_body(response)
