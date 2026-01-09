@@ -240,31 +240,42 @@ class TraceCollector:
         return self._duration_ms(self.TLS_EVENT)
 
 
-def _is_socks5h_proxy(proxy: ProxyTypes | None) -> bool:
-    """Check if the proxy is a SOCKS5H proxy (remote DNS resolution).
+def _needs_remote_dns(proxy: ProxyTypes | None) -> bool:
+    """Check if the proxy requires remote DNS resolution.
 
-    SOCKS5H proxies require the hostname to be passed through so the proxy
-    can perform DNS resolution on the remote side. This is different from
-    SOCKS5 (without 'h') where the client resolves DNS locally.
+    Certain proxy types require the hostname to be passed through so the proxy
+    can perform DNS resolution on the remote side, rather than the client
+    resolving DNS locally.
+
+    Proxy types that need remote DNS:
+    - socks5h:// - SOCKS5 with remote hostname resolution
+    - http:// - HTTP CONNECT proxy (handles DNS remotely)
+    - https:// - HTTPS CONNECT proxy (handles DNS remotely)
+
+    Proxy types that use local DNS:
+    - socks5:// - SOCKS5 with local DNS resolution (sends IP to proxy)
 
     Args:
         proxy: Proxy configuration (string URL or dict mapping)
 
     Returns:
-        True if the proxy is SOCKS5H, False otherwise
+        True if the proxy handles DNS resolution remotely, False otherwise
 
     """
     if proxy is None:
         return False
 
     if isinstance(proxy, str):
-        return proxy.lower().startswith("socks5h://")
+        proxy_lower = proxy.lower()
+        return proxy_lower.startswith(("socks5h://", "http://", "https://"))
 
     if isinstance(proxy, dict):
         # Check all proxy values in the dict
         for proxy_url in proxy.values():
-            if isinstance(proxy_url, str) and proxy_url.lower().startswith("socks5h://"):
-                return True
+            if isinstance(proxy_url, str):
+                proxy_lower = proxy_url.lower()
+                if proxy_lower.startswith(("socks5h://", "http://", "https://")):
+                    return True
 
     return False
 
@@ -394,19 +405,21 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             msg = "Invalid URL: missing hostname"
             raise HTTPClientError(msg)  # noqa: TRY301
 
-        # Check if using SOCKS5H proxy (remote DNS resolution)
-        # SOCKS5H proxies require the hostname to perform DNS resolution on the remote side
-        use_socks5h = _is_socks5h_proxy(proxy)
+        # Check if proxy handles DNS resolution remotely
+        # Remote DNS proxies (socks5h, http, https) require the hostname to be
+        # passed through so the proxy can perform DNS resolution on the remote side
+        use_remote_dns = _needs_remote_dns(proxy)
 
-        # Perform DNS resolution with timing (skip for SOCKS5H proxies)
-        if use_socks5h:
-            # SOCKS5H proxy will handle DNS resolution remotely
+        # Perform DNS resolution with timing (skip for remote DNS proxies)
+        if use_remote_dns:
+            # Proxy will handle DNS resolution remotely
             # Skip local DNS resolution to preserve hostname for proxy
             ip = host
             ip_family = "Unknown"
             timing_collector.mark_dns_start()
             timing_collector.mark_dns_end()
         else:
+            # Perform local DNS resolution for direct connections or socks5:// proxy
             timing_collector.mark_dns_start()
             try:
                 ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, timeout)
@@ -429,12 +442,14 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 
         ssl_context = create_ssl_context(verify_ssl=verify_ssl, ca_bundle_path=ca_bundle_path)
 
-        # For SOCKS5H, use hostname directly; otherwise use resolved IP
-        if use_socks5h:
-            # Use original hostname for SOCKS5H proxy
+        # For remote DNS proxies, use hostname directly; otherwise use resolved IP
+        if use_remote_dns:
+            # Use original hostname for remote DNS proxies (socks5h, http, https)
+            # The proxy will handle DNS resolution and establish the connection
             request_url = url
         else:
-            # Use resolved IP for direct connections or other proxy types
+            # Use resolved IP for direct connections or socks5:// proxy
+            # This optimizes performance by skipping DNS lookup in httpx
             formatted_ip = f"[{ip}]" if ip_family == "IPv6" else ip
             request_url = f"{parsed_url.scheme}://{formatted_ip}:{port}{parsed_url.path}"
             if parsed_url.query:
@@ -455,8 +470,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             client.headers["Host"] = host
 
             stream_extensions: dict[str, object] = {"trace": trace}
-            if not use_socks5h:
-                # Only set sni_hostname when using resolved IP
+            if not use_remote_dns:
+                # Only set sni_hostname when using resolved IP (direct or socks5://)
+                # For remote DNS proxies, hostname is already in request URL
                 stream_extensions["sni_hostname"] = host
 
             with client.stream(method.value, request_url, content=content, extensions=stream_extensions) as response:
