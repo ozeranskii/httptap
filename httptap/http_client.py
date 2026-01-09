@@ -240,6 +240,35 @@ class TraceCollector:
         return self._duration_ms(self.TLS_EVENT)
 
 
+def _is_socks5h_proxy(proxy: ProxyTypes | None) -> bool:
+    """Check if the proxy is a SOCKS5H proxy (remote DNS resolution).
+
+    SOCKS5H proxies require the hostname to be passed through so the proxy
+    can perform DNS resolution on the remote side. This is different from
+    SOCKS5 (without 'h') where the client resolves DNS locally.
+
+    Args:
+        proxy: Proxy configuration (string URL or dict mapping)
+
+    Returns:
+        True if the proxy is SOCKS5H, False otherwise
+
+    """
+    if proxy is None:
+        return False
+
+    if isinstance(proxy, str):
+        return proxy.lower().startswith("socks5h://")
+
+    if isinstance(proxy, dict):
+        # Check all proxy values in the dict
+        for proxy_url in proxy.values():
+            if isinstance(proxy_url, str) and proxy_url.lower().startswith("socks5h://"):
+                return True
+
+    return False
+
+
 def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     url: str,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
@@ -365,16 +394,28 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             msg = "Invalid URL: missing hostname"
             raise HTTPClientError(msg)  # noqa: TRY301
 
-        # Perform DNS resolution with timing
-        timing_collector.mark_dns_start()
-        try:
-            ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, timeout)
-            network_info.ip = ip
-            network_info.ip_family = ip_family
-        except DNSResolutionError as e:
-            raise HTTPClientError(str(e)) from e
-        finally:
+        # Check if using SOCKS5H proxy (remote DNS resolution)
+        # SOCKS5H proxies require the hostname to perform DNS resolution on the remote side
+        use_socks5h = _is_socks5h_proxy(proxy)
+
+        # Perform DNS resolution with timing (skip for SOCKS5H proxies)
+        if use_socks5h:
+            # SOCKS5H proxy will handle DNS resolution remotely
+            # Skip local DNS resolution to preserve hostname for proxy
+            ip = host
+            ip_family = "Unknown"
+            timing_collector.mark_dns_start()
             timing_collector.mark_dns_end()
+        else:
+            timing_collector.mark_dns_start()
+            try:
+                ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, timeout)
+                network_info.ip = ip
+                network_info.ip_family = ip_family
+            except DNSResolutionError as e:
+                raise HTTPClientError(str(e)) from e
+            finally:
+                timing_collector.mark_dns_end()
 
         timing_collector.mark_request_start()
 
@@ -388,7 +429,16 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 
         ssl_context = create_ssl_context(verify_ssl=verify_ssl, ca_bundle_path=ca_bundle_path)
 
-        formatted_ip = f"[{ip}]" if ip_family == "IPv6" else ip
+        # For SOCKS5H, use hostname directly; otherwise use resolved IP
+        if use_socks5h:
+            # Use original hostname for SOCKS5H proxy
+            request_url = url
+        else:
+            # Use resolved IP for direct connections or other proxy types
+            formatted_ip = f"[{ip}]" if ip_family == "IPv6" else ip
+            request_url = f"{parsed_url.scheme}://{formatted_ip}:{port}{parsed_url.path}"
+            if parsed_url.query:
+                request_url += f"?{parsed_url.query}"
 
         with httpx.Client(
             timeout=timeout,
@@ -404,12 +454,13 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             # Ensure the Host header is set to the original domain name
             client.headers["Host"] = host
 
-            request_url = f"{parsed_url.scheme}://{formatted_ip}:{port}{parsed_url.path}"
-            if parsed_url.query:
-                request_url += f"?{parsed_url.query}"
+            stream_extensions = {"trace": trace}
+            if not use_socks5h:
+                # Only set sni_hostname when using resolved IP
+                stream_extensions["sni_hostname"] = host
 
             with client.stream(
-                method.value, request_url, content=content, extensions={"trace": trace, "sni_hostname": host}
+                method.value, request_url, content=content, extensions=stream_extensions
             ) as response:
                 timing_collector.mark_ttfb()
                 _populate_response_metadata(response, response_info)
