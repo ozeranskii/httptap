@@ -1186,6 +1186,13 @@ class TestSOCKS5HProxy:
         }
         assert _is_socks5h_proxy(proxy_dict) is True
 
+        # Mixed dict with SOCKS5H only for HTTPS
+        mixed_dict = {
+            "http://": "http://proxy.example.com:8080",
+            "https://": "socks5h://127.0.0.1:1080",
+        }
+        assert _is_socks5h_proxy(mixed_dict) is True
+
     def test_detects_non_socks5h_dict_proxy(self) -> None:
         """Test that dict with non-SOCKS5H proxies is not detected as SOCKS5H."""
         from httptap.http_client import _is_socks5h_proxy
