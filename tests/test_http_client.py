@@ -1156,3 +1156,139 @@ class TestNormalizeHttpVersion:
         from httptap.http_client import _normalize_http_version
 
         assert _normalize_http_version("spdy/3") == "spdy/3"
+
+
+class TestSOCKS5HProxy:
+    """Test SOCKS5H proxy support (remote DNS resolution)."""
+
+    def test_detects_socks5h_string_proxy(self) -> None:
+        """Test detection of SOCKS5H proxy from string URL."""
+        from httptap.http_client import _is_socks5h_proxy
+
+        assert _is_socks5h_proxy("socks5h://127.0.0.1:1080") is True
+        assert _is_socks5h_proxy("SOCKS5H://proxy.example.com:1080") is True
+
+    def test_detects_non_socks5h_string_proxy(self) -> None:
+        """Test that non-SOCKS5H proxies are not detected as SOCKS5H."""
+        from httptap.http_client import _is_socks5h_proxy
+
+        assert _is_socks5h_proxy("socks5://127.0.0.1:1080") is False
+        assert _is_socks5h_proxy("http://proxy.example.com:8080") is False
+        assert _is_socks5h_proxy("https://proxy.example.com:8080") is False
+
+    def test_detects_socks5h_dict_proxy(self) -> None:
+        """Test detection of SOCKS5H proxy from dict mapping."""
+        from httptap.http_client import _is_socks5h_proxy
+
+        proxy_dict = {
+            "http://": "socks5h://127.0.0.1:1080",
+            "https://": "socks5h://127.0.0.1:1080",
+        }
+        assert _is_socks5h_proxy(proxy_dict) is True
+
+    def test_detects_non_socks5h_dict_proxy(self) -> None:
+        """Test that dict with non-SOCKS5H proxies is not detected as SOCKS5H."""
+        from httptap.http_client import _is_socks5h_proxy
+
+        proxy_dict = {
+            "http://": "http://proxy.example.com:8080",
+            "https://": "http://proxy.example.com:8080",
+        }
+        assert _is_socks5h_proxy(proxy_dict) is False
+
+    def test_none_proxy_returns_false(self) -> None:
+        """Test that None proxy returns False."""
+        from httptap.http_client import _is_socks5h_proxy
+
+        assert _is_socks5h_proxy(None) is False
+
+    def test_socks5h_skips_dns_resolution(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """Test that SOCKS5H proxy skips local DNS resolution."""
+        from httptap.http_client import make_request
+
+        # Mock the DNS resolver to track if it's called
+        mock_resolver = mocker.Mock()
+        mock_resolver.resolve = mocker.Mock(return_value=("203.0.113.10", "IPv4", 4.2))
+
+        # Mock successful HTTPS response
+        httpx_mock.add_response(
+            url="https://api.example.com/test",
+            status_code=200,
+            text="OK",
+        )
+
+        # Make request with SOCKS5H proxy
+        timing, network, response = make_request(
+            "https://api.example.com/test",
+            proxy="socks5h://127.0.0.1:1080",
+            dns_resolver=mock_resolver,
+            verify_ssl=False,
+        )
+
+        # DNS resolver should NOT be called for SOCKS5H
+        mock_resolver.resolve.assert_not_called()
+        # DNS time should be minimal (proxy handles DNS remotely)
+        assert timing.dns_ms < 1.0  # Less than 1ms (just timing overhead)
+        assert response.status == 200
+
+    def test_socks5h_uses_original_hostname(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+    ) -> None:
+        """Test that SOCKS5H proxy uses original hostname in request."""
+        from httptap.http_client import make_request
+
+        # Mock the exact original URL (not resolved IP)
+        httpx_mock.add_response(
+            url="https://api.example.com/test",
+            status_code=200,
+            text="OK",
+        )
+
+        # Make request with SOCKS5H proxy
+        timing, network, response = make_request(
+            "https://api.example.com/test",
+            proxy="socks5h://127.0.0.1:1080",
+            verify_ssl=False,
+        )
+
+        assert response.status == 200
+        # Verify the request was made to the hostname, not IP
+        requests = httpx_mock.get_requests()
+        assert len(requests) == 1
+        assert requests[0].url.host == "api.example.com"
+
+    def test_non_socks5h_performs_dns_resolution(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """Test that non-SOCKS5H proxy performs local DNS resolution."""
+        from httptap.http_client import make_request
+
+        # Mock the DNS resolver
+        mock_resolver = mocker.Mock()
+        mock_resolver.resolve = mocker.Mock(return_value=("203.0.113.10", "IPv4", 4.2))
+
+        # Mock response for resolved IP
+        httpx_mock.add_response(
+            url="https://203.0.113.10:443/test",
+            status_code=200,
+            text="OK",
+        )
+
+        # Make request without SOCKS5H (direct or regular SOCKS5)
+        timing, network, response = make_request(
+            "https://api.example.com/test",
+            dns_resolver=mock_resolver,
+            verify_ssl=False,
+        )
+
+        # DNS resolver SHOULD be called for non-SOCKS5H
+        mock_resolver.resolve.assert_called_once()
+        assert network.ip == "203.0.113.10"
+        assert response.status == 200
