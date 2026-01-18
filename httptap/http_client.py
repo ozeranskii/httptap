@@ -368,7 +368,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         # When using a proxy, skip local DNS resolution and let the proxy handle it
         # This is especially important for socks5h:// which does remote DNS resolution
         use_hostname = proxy is not None
-        
+
         if use_hostname:
             # Skip DNS resolution when using proxy
             timing_collector.mark_dns_start()
@@ -388,7 +388,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                 raise HTTPClientError(str(e)) from e
             finally:
                 timing_collector.mark_dns_end()
-            
+
             request_target = f"[{ip}]" if ip_family == "IPv6" else ip
 
         timing_collector.mark_request_start()

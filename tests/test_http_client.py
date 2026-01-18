@@ -1292,7 +1292,7 @@ class TestMakeRequest:
         mocker: pytest_mock.MockerFixture,
     ) -> None:
         """Test that proxied requests use hostname, not resolved IP address.
-        
+
         This is critical for socks5h:// proxies which require hostnames
         for remote DNS resolution.
         """
@@ -1320,12 +1320,14 @@ class TestMakeRequest:
                 extensions: dict[str, object] | None = None,
             ) -> object:
                 # Capture the actual request URL
-                captured_stream_calls.append({
-                    "method": method,
-                    "url": request_url,
-                    "content": content,
-                    "extensions": extensions,
-                })
+                captured_stream_calls.append(
+                    {
+                        "method": method,
+                        "url": request_url,
+                        "content": content,
+                        "extensions": extensions,
+                    }
+                )
 
                 class _Stream:
                     def __enter__(self) -> httpx.Response:
@@ -1353,15 +1355,13 @@ class TestMakeRequest:
         # Verify that the hostname was used, not the IP address
         assert len(captured_stream_calls) == 1
         request_url = captured_stream_calls[0]["url"]
-        
+
         # The hostname should be in the URL
-        assert "example-hostname.test" in request_url, \
-            f"Expected hostname in URL when using proxy, got: {request_url}"
-        
+        assert "example-hostname.test" in request_url, f"Expected hostname in URL when using proxy, got: {request_url}"
+
         # The resolved IP should NOT be in the URL
-        assert "203.0.113.10" not in request_url, \
-            f"Should not use IP address with proxy, got: {request_url}"
-        
+        assert "203.0.113.10" not in request_url, f"Should not use IP address with proxy, got: {request_url}"
+
         # Path should be preserved
         assert "/api/endpoint" in request_url
 
