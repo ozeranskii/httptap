@@ -365,16 +365,31 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             msg = "Invalid URL: missing hostname"
             raise HTTPClientError(msg)  # noqa: TRY301
 
-        # Perform DNS resolution with timing
-        timing_collector.mark_dns_start()
-        try:
-            ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, timeout)
-            network_info.ip = ip
-            network_info.ip_family = ip_family
-        except DNSResolutionError as e:
-            raise HTTPClientError(str(e)) from e
-        finally:
+        # When using a proxy, skip local DNS resolution and let the proxy handle it
+        # This is especially important for socks5h:// which does remote DNS resolution
+        use_hostname = proxy is not None
+        
+        if use_hostname:
+            # Skip DNS resolution when using proxy
+            timing_collector.mark_dns_start()
             timing_collector.mark_dns_end()
+            # Proxy will handle DNS, so we don't have IP info yet
+            network_info.ip = None
+            network_info.ip_family = None
+            request_target = host
+        else:
+            # Perform DNS resolution with timing (no proxy)
+            timing_collector.mark_dns_start()
+            try:
+                ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, timeout)
+                network_info.ip = ip
+                network_info.ip_family = ip_family
+            except DNSResolutionError as e:
+                raise HTTPClientError(str(e)) from e
+            finally:
+                timing_collector.mark_dns_end()
+            
+            request_target = f"[{ip}]" if ip_family == "IPv6" else ip
 
         timing_collector.mark_request_start()
 
@@ -387,8 +402,6 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         )
 
         ssl_context = create_ssl_context(verify_ssl=verify_ssl, ca_bundle_path=ca_bundle_path)
-
-        formatted_ip = f"[{ip}]" if ip_family == "IPv6" else ip
 
         with httpx.Client(
             timeout=timeout,
@@ -404,7 +417,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             # Ensure the Host header is set to the original domain name
             client.headers["Host"] = host
 
-            request_url = f"{parsed_url.scheme}://{formatted_ip}:{port}{parsed_url.path}"
+            request_url = f"{parsed_url.scheme}://{request_target}:{port}{parsed_url.path}"
             if parsed_url.query:
                 request_url += f"?{parsed_url.query}"
 

@@ -1103,6 +1103,268 @@ class TestMakeRequest:
         assert created_clients
         assert created_clients[0].kwargs["proxy"] == proxy_url
 
+    def test_make_request_uses_socks5h_proxy(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """Test that socks5h proxy (remote DNS) is properly passed to httpx."""
+        url = "https://remote-dns.test"
+        proxy_url = "socks5h://gateway:1080"
+        created_clients: list[Any] = []
+
+        class DummyClient:
+            def __init__(self, *_: object, **kwargs: object) -> None:
+                self.kwargs = kwargs
+                self.headers: dict[str, str] = {}
+                created_clients.append(self)
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(self, *_args: object, **_kwargs: object) -> object:
+                class _Stream:
+                    def __enter__(self) -> httpx.Response:
+                        request = httpx.Request("GET", url)
+                        return httpx.Response(200, request=request)
+
+                    def __exit__(self, *_exc: object) -> None:
+                        return None
+
+                return _Stream()
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        make_request(
+            url,
+            timeout=5.0,
+            proxy=proxy_url,
+            dns_resolver=FakeDNSResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+            force_new_connection=True,
+        )
+
+        assert created_clients
+        assert created_clients[0].kwargs["proxy"] == proxy_url
+
+    def test_make_request_uses_http_proxy(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """Test that HTTP proxy is properly passed to httpx."""
+        url = "https://http-proxy.test"
+        proxy_url = "http://proxy.example.com:8080"
+        created_clients: list[Any] = []
+
+        class DummyClient:
+            def __init__(self, *_: object, **kwargs: object) -> None:
+                self.kwargs = kwargs
+                self.headers: dict[str, str] = {}
+                created_clients.append(self)
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(self, *_args: object, **_kwargs: object) -> object:
+                class _Stream:
+                    def __enter__(self) -> httpx.Response:
+                        request = httpx.Request("GET", url)
+                        return httpx.Response(200, request=request)
+
+                    def __exit__(self, *_exc: object) -> None:
+                        return None
+
+                return _Stream()
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        make_request(
+            url,
+            timeout=5.0,
+            proxy=proxy_url,
+            dns_resolver=FakeDNSResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+            force_new_connection=True,
+        )
+
+        assert created_clients
+        assert created_clients[0].kwargs["proxy"] == proxy_url
+
+    def test_make_request_uses_https_proxy(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """Test that HTTPS proxy is properly passed to httpx."""
+        url = "https://https-proxy.test"
+        proxy_url = "https://secure-proxy.example.com:8443"
+        created_clients: list[Any] = []
+
+        class DummyClient:
+            def __init__(self, *_: object, **kwargs: object) -> None:
+                self.kwargs = kwargs
+                self.headers: dict[str, str] = {}
+                created_clients.append(self)
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(self, *_args: object, **_kwargs: object) -> object:
+                class _Stream:
+                    def __enter__(self) -> httpx.Response:
+                        request = httpx.Request("GET", url)
+                        return httpx.Response(200, request=request)
+
+                    def __exit__(self, *_exc: object) -> None:
+                        return None
+
+                return _Stream()
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        make_request(
+            url,
+            timeout=5.0,
+            proxy=proxy_url,
+            dns_resolver=FakeDNSResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+            force_new_connection=True,
+        )
+
+        assert created_clients
+        assert created_clients[0].kwargs["proxy"] == proxy_url
+
+    def test_make_request_proxy_with_authentication(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """Test that proxy with authentication credentials is properly passed."""
+        url = "https://auth-proxy.test"
+        proxy_url = "socks5h://user:password@gateway:1080"
+        created_clients: list[Any] = []
+
+        class DummyClient:
+            def __init__(self, *_: object, **kwargs: object) -> None:
+                self.kwargs = kwargs
+                self.headers: dict[str, str] = {}
+                created_clients.append(self)
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(self, *_args: object, **_kwargs: object) -> object:
+                class _Stream:
+                    def __enter__(self) -> httpx.Response:
+                        request = httpx.Request("GET", url)
+                        return httpx.Response(200, request=request)
+
+                    def __exit__(self, *_exc: object) -> None:
+                        return None
+
+                return _Stream()
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        make_request(
+            url,
+            timeout=5.0,
+            proxy=proxy_url,
+            dns_resolver=FakeDNSResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+            force_new_connection=True,
+        )
+
+        assert created_clients
+        assert created_clients[0].kwargs["proxy"] == proxy_url
+
+    def test_make_request_proxy_uses_hostname_not_ip(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """Test that proxied requests use hostname, not resolved IP address.
+        
+        This is critical for socks5h:// proxies which require hostnames
+        for remote DNS resolution.
+        """
+        url = "https://example-hostname.test/api/endpoint"
+        proxy_url = "socks5h://gateway:1080"
+        captured_stream_calls: list[dict[str, Any]] = []
+
+        class DummyClient:
+            def __init__(self, *_: object, **kwargs: object) -> None:
+                self.kwargs = kwargs
+                self.headers: dict[str, str] = {}
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(
+                self,
+                method: str,
+                request_url: str,
+                *,
+                content: bytes | None = None,
+                extensions: dict[str, object] | None = None,
+            ) -> object:
+                # Capture the actual request URL
+                captured_stream_calls.append({
+                    "method": method,
+                    "url": request_url,
+                    "content": content,
+                    "extensions": extensions,
+                })
+
+                class _Stream:
+                    def __enter__(self) -> httpx.Response:
+                        request = httpx.Request("GET", request_url)
+                        return httpx.Response(200, request=request, content=b"ok")
+
+                    def __exit__(self, *_exc: object) -> None:
+                        return None
+
+                return _Stream()
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        # FakeDNSResolver returns an IP address
+        # The bug would cause this IP to be used instead of the hostname
+        make_request(
+            url,
+            timeout=5.0,
+            proxy=proxy_url,
+            dns_resolver=FakeDNSResolver(),  # Returns "203.0.113.10"
+            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+            force_new_connection=True,
+        )
+
+        # Verify that the hostname was used, not the IP address
+        assert len(captured_stream_calls) == 1
+        request_url = captured_stream_calls[0]["url"]
+        
+        # The hostname should be in the URL
+        assert "example-hostname.test" in request_url, \
+            f"Expected hostname in URL when using proxy, got: {request_url}"
+        
+        # The resolved IP should NOT be in the URL
+        assert "203.0.113.10" not in request_url, \
+            f"Should not use IP address with proxy, got: {request_url}"
+        
+        # Path should be preserved
+        assert "/api/endpoint" in request_url
+
     def test_make_request_handles_unexpected_exception(
         self,
         httpx_mock: pytest_httpx.HTTPXMock,

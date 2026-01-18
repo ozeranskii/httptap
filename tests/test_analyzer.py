@@ -334,3 +334,183 @@ def test_analyze_url_with_get_method_default() -> None:
     assert steps[0].request_method == "GET"
     assert steps[0].request_body_bytes == 0
     assert steps[0].request_headers == {}
+
+
+def test_analyze_url_with_socks5h_proxy() -> None:
+    """Test that socks5h proxy (remote DNS) is properly passed through analyzer."""
+
+    class ProxyAwareExecutor:
+        def __init__(self) -> None:
+            self.proxies: list[object | None] = []
+
+        def execute(self, options: RequestOptions) -> RequestOutcome:
+            self.proxies.append(options.proxy)
+            timing = TimingMetrics(total_ms=10.0)
+            network = NetworkInfo(ip="198.51.100.1", ip_family="IPv4")
+            response = ResponseInfo(status=200)
+            return RequestOutcome(timing=timing, network=network, response=response)
+
+    executor = ProxyAwareExecutor()
+    analyzer = HTTPTapAnalyzer(
+        request_executor=executor,
+        proxy="socks5h://gateway:1080",
+    )
+
+    steps = analyzer.analyze_url("https://example.test")
+
+    assert len(steps) == 1
+    assert steps[0].response.status == 200
+    assert executor.proxies == ["socks5h://gateway:1080"]
+    assert steps[0].proxied_via == "socks5h://gateway:1080"
+
+
+def test_analyze_url_with_http_proxy() -> None:
+    """Test that HTTP proxy is properly passed through analyzer."""
+
+    class ProxyAwareExecutor:
+        def __init__(self) -> None:
+            self.proxies: list[object | None] = []
+
+        def execute(self, options: RequestOptions) -> RequestOutcome:
+            self.proxies.append(options.proxy)
+            timing = TimingMetrics(total_ms=10.0)
+            network = NetworkInfo(ip="198.51.100.2", ip_family="IPv4")
+            response = ResponseInfo(status=200)
+            return RequestOutcome(timing=timing, network=network, response=response)
+
+    executor = ProxyAwareExecutor()
+    analyzer = HTTPTapAnalyzer(
+        request_executor=executor,
+        proxy="http://proxy.example.com:8080",
+    )
+
+    steps = analyzer.analyze_url("https://example.test")
+
+    assert len(steps) == 1
+    assert steps[0].response.status == 200
+    assert executor.proxies == ["http://proxy.example.com:8080"]
+    assert steps[0].proxied_via == "http://proxy.example.com:8080"
+
+
+def test_analyze_url_with_https_proxy() -> None:
+    """Test that HTTPS proxy is properly passed through analyzer."""
+
+    class ProxyAwareExecutor:
+        def __init__(self) -> None:
+            self.proxies: list[object | None] = []
+
+        def execute(self, options: RequestOptions) -> RequestOutcome:
+            self.proxies.append(options.proxy)
+            timing = TimingMetrics(total_ms=10.0)
+            network = NetworkInfo(ip="198.51.100.3", ip_family="IPv4")
+            response = ResponseInfo(status=200)
+            return RequestOutcome(timing=timing, network=network, response=response)
+
+    executor = ProxyAwareExecutor()
+    analyzer = HTTPTapAnalyzer(
+        request_executor=executor,
+        proxy="https://secure-proxy.example.com:8443",
+    )
+
+    steps = analyzer.analyze_url("https://example.test")
+
+    assert len(steps) == 1
+    assert steps[0].response.status == 200
+    assert executor.proxies == ["https://secure-proxy.example.com:8443"]
+    assert steps[0].proxied_via == "https://secure-proxy.example.com:8443"
+
+
+def test_analyze_url_with_socks5_proxy() -> None:
+    """Test that socks5 proxy (local DNS) is properly passed through analyzer."""
+
+    class ProxyAwareExecutor:
+        def __init__(self) -> None:
+            self.proxies: list[object | None] = []
+
+        def execute(self, options: RequestOptions) -> RequestOutcome:
+            self.proxies.append(options.proxy)
+            timing = TimingMetrics(total_ms=10.0)
+            network = NetworkInfo(ip="198.51.100.4", ip_family="IPv4")
+            response = ResponseInfo(status=200)
+            return RequestOutcome(timing=timing, network=network, response=response)
+
+    executor = ProxyAwareExecutor()
+    analyzer = HTTPTapAnalyzer(
+        request_executor=executor,
+        proxy="socks5://gateway:1080",
+    )
+
+    steps = analyzer.analyze_url("https://example.test")
+
+    assert len(steps) == 1
+    assert steps[0].response.status == 200
+    assert executor.proxies == ["socks5://gateway:1080"]
+    assert steps[0].proxied_via == "socks5://gateway:1080"
+
+
+def test_analyze_url_with_proxy_and_redirects() -> None:
+    """Test that proxy is used for all requests in redirect chain."""
+
+    class ProxyAwareExecutor:
+        def __init__(self) -> None:
+            self.proxies: list[object | None] = []
+            self.call_count = 0
+
+        def execute(self, options: RequestOptions) -> RequestOutcome:
+            self.proxies.append(options.proxy)
+            self.call_count += 1
+
+            timing = TimingMetrics(total_ms=10.0)
+            network = NetworkInfo(ip="198.51.100.5", ip_family="IPv4")
+
+            if self.call_count == 1:
+                response = ResponseInfo(status=301, location="https://example.test/final")
+            else:
+                response = ResponseInfo(status=200)
+
+            return RequestOutcome(timing=timing, network=network, response=response)
+
+    executor = ProxyAwareExecutor()
+    analyzer = HTTPTapAnalyzer(
+        request_executor=executor,
+        proxy="socks5h://gateway:1080",
+        follow_redirects=True,
+    )
+
+    steps = analyzer.analyze_url("https://example.test/initial")
+
+    assert len(steps) == 2
+    assert steps[0].response.status == 301
+    assert steps[1].response.status == 200
+    # Verify proxy was used for both requests
+    assert executor.proxies == ["socks5h://gateway:1080", "socks5h://gateway:1080"]
+    assert steps[0].proxied_via == "socks5h://gateway:1080"
+    assert steps[1].proxied_via == "socks5h://gateway:1080"
+
+
+def test_analyze_url_proxy_with_authentication() -> None:
+    """Test that proxy with authentication credentials is properly handled."""
+
+    class ProxyAwareExecutor:
+        def __init__(self) -> None:
+            self.proxies: list[object | None] = []
+
+        def execute(self, options: RequestOptions) -> RequestOutcome:
+            self.proxies.append(options.proxy)
+            timing = TimingMetrics(total_ms=10.0)
+            network = NetworkInfo(ip="198.51.100.6", ip_family="IPv4")
+            response = ResponseInfo(status=200)
+            return RequestOutcome(timing=timing, network=network, response=response)
+
+    executor = ProxyAwareExecutor()
+    analyzer = HTTPTapAnalyzer(
+        request_executor=executor,
+        proxy="socks5h://user:password@gateway:1080",
+    )
+
+    steps = analyzer.analyze_url("https://example.test")
+
+    assert len(steps) == 1
+    assert steps[0].response.status == 200
+    assert executor.proxies == ["socks5h://user:password@gateway:1080"]
+    assert steps[0].proxied_via == "socks5h://user:password@gateway:1080"
