@@ -1287,6 +1287,84 @@ class TestMakeRequest:
         assert created_clients
         assert created_clients[0].kwargs["proxy"] == proxy_url
 
+    def test_make_request_respects_proxy_environment_variables(
+        self,
+        mocker: pytest_mock.MockerFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that proxy environment variables cause hostname to be used instead of IP."""
+        url = "https://example.com/path"
+        monkeypatch.setenv("HTTPS_PROXY", "http://env-proxy:3128")
+
+        # Track DNS resolve calls
+        dns_resolve_called = []
+
+        class SpyDNSResolver:
+            def resolve(self, _host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+                dns_resolve_called.append(True)
+                return "203.0.113.99", "IPv4", 4.2
+
+        captured_stream_calls: list[dict[str, Any]] = []
+
+        class DummyClient:
+            def __init__(self, *_: object, **kwargs: object) -> None:
+                self.kwargs = kwargs
+                self.headers: dict[str, str] = {}
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(
+                self,
+                method: str,
+                request_url: str,
+                *,
+                content: bytes | None = None,
+                extensions: dict[str, object] | None = None,
+            ) -> object:
+                # Capture the actual request URL
+                captured_stream_calls.append(
+                    {
+                        "method": method,
+                        "url": request_url,
+                        "content": content,
+                        "extensions": extensions,
+                    }
+                )
+
+                class _Stream:
+                    def __enter__(self) -> httpx.Response:
+                        request = httpx.Request("GET", request_url)
+                        return httpx.Response(200, request=request, content=b"ok")
+
+                    def __exit__(self, *_exc: object) -> None:
+                        return None
+
+                return _Stream()
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        make_request(
+            url,
+            timeout=5.0,
+            proxy=None,  # No explicit proxy, but environment variable is set
+            dns_resolver=SpyDNSResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+            force_new_connection=True,
+        )
+
+        # Verify DNS was NOT called (should skip when proxy env var is set)
+        assert len(dns_resolve_called) == 0, "DNS resolver should not be called when proxy env var is set"
+
+        # Verify the request URL uses hostname, not IP
+        assert len(captured_stream_calls) == 1
+        request_url = captured_stream_calls[0]["url"]
+        assert "example.com" in request_url, f"Expected hostname in URL, got: {request_url}"
+        assert "203.0.113.99" not in request_url, f"IP should not be in URL, got: {request_url}"
+
     def test_make_request_proxy_uses_hostname_not_ip(
         self,
         mocker: pytest_mock.MockerFixture,

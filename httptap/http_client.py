@@ -45,6 +45,7 @@ Examples:
 
 from __future__ import annotations
 
+import os
 import ssl
 import time
 from contextlib import suppress
@@ -367,7 +368,16 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 
         # When using a proxy, skip local DNS resolution and let the proxy handle it
         # This is especially important for socks5h:// which does remote DNS resolution
-        use_hostname = proxy is not None
+        # Check both explicit proxy parameter and scheme-appropriate environment variables
+        # Note: httpx will also respect these env vars, so we need to match its behavior
+        scheme_upper = parsed_url.scheme.upper()
+        has_proxy_env = bool(
+            os.environ.get(f"{scheme_upper}_PROXY")
+            or os.environ.get(f"{parsed_url.scheme}_proxy")
+            or os.environ.get("ALL_PROXY")
+            or os.environ.get("all_proxy")  # noqa: SIM112 - lowercase variant is commonly used
+        )
+        use_hostname = proxy is not None or has_proxy_env
 
         if use_hostname:
             # Skip DNS resolution when using proxy
@@ -440,7 +450,11 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         )
 
         # Gather TLS metadata for HTTPS
-        if is_https and network_info.tls_version is None:
+        # Skip separate TLS inspection when using a proxy, as:
+        # 1. The TLS inspector makes a direct socket connection that bypasses the proxy
+        # 2. We already get TLS info from the httpx response via _populate_tls_from_stream
+        # 3. Direct connections may fail in proxy-required environments
+        if is_https and network_info.tls_version is None and proxy is None and not has_proxy_env:
             try:
                 tls_info = tls_inspector.inspect(host, port, timeout)
                 # Merge TLS info (preserve IP/family from DNS)
