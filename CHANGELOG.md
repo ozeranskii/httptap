@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2026-01-19
+
+### Miscellaneous Tasks
+
+- Bump ruff in the dev-tools group ([#66](https://github.com/ozeranskii/httptap/issues/66))
+
 ## [0.4.2] - 2026-01-13
 
 ### Miscellaneous Tasks
