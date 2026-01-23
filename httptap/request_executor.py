@@ -2,25 +2,26 @@
 
 This module provides a clean separation between high-level analysis logic and
 low-level request execution. It exposes a declarative RequestOptions object,
-an outcome wrapper, and an adapter that bridges legacy callables to the new
-RequestExecutor protocol.
+an outcome wrapper, and a default RequestExecutor implementation that uses
+the built-in HTTP client.
 """
 
 from __future__ import annotations
 
-import warnings
-from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from httpx._types import ProxyTypes
+
+    from .models import NetworkInfo, ResponseInfo, TimingMetrics
 else:  # pragma: no cover - typing helper
     ProxyTypes = object  # type: ignore[assignment]
 
 from .constants import HTTPMethod
-from .models import NetworkInfo, ResponseInfo, TimingMetrics
+from .http_client import make_request
 
 if TYPE_CHECKING:
     from .interfaces import DNSResolver, TimingCollector, TLSInspector
@@ -36,6 +37,7 @@ class RequestOptions:
     content: bytes | None = None
     http2: bool = True
     verify_ssl: bool = True
+    ca_bundle_path: str | None = None
     dns_resolver: DNSResolver | None = None
     tls_inspector: TLSInspector | None = None
     timing_collector: TimingCollector | None = None
@@ -61,74 +63,26 @@ class RequestExecutor(Protocol):
         """Perform an HTTP request based on provided options."""
 
 
-LegacyExecutorType = Callable[
-    ...,
-    tuple[TimingMetrics, NetworkInfo, ResponseInfo],
-]
+class HTTPClientRequestExecutor:
+    """RequestExecutor that delegates to the built-in http client."""
 
-
-def _supports_verify_flag(func: Callable[..., object]) -> bool:
-    """Return True when callable defines a keyword argument named verify_ssl."""
-    try:
-        params = signature(func).parameters
-    except (TypeError, ValueError):
-        return False
-
-    param = params.get("verify_ssl")
-    if param is None:
-        return False
-    return param.kind in {Parameter.KEYWORD_ONLY, Parameter.POSITIONAL_OR_KEYWORD}
-
-
-class CallableRequestExecutor:
-    """Adapter that wraps legacy callables into the RequestExecutor protocol."""
-
-    __slots__ = ("_func", "_supports_verify")
-
-    def __init__(self, func: LegacyExecutorType) -> None:
-        """Initialize adapter by storing callable and probing verify support."""
-        self._func = func
-        self._supports_verify = _supports_verify_flag(func)
+    __slots__ = ()
 
     def execute(self, options: RequestOptions) -> RequestOutcome:
-        """Execute wrapped callable using normalized request options."""
-        kwargs: dict[str, object] = {
-            "method": options.method,
-            "content": options.content,
-            "http2": options.http2,
-            "dns_resolver": options.dns_resolver,
-            "tls_inspector": options.tls_inspector,
-            "timing_collector": options.timing_collector,
-            "force_new_connection": options.force_new_connection,
-            "headers": options.headers,
-        }
-        if self._supports_verify:
-            kwargs["verify_ssl"] = options.verify_ssl
-        if options.proxy is not None:
-            kwargs["proxy"] = options.proxy
-
-        try:
-            timing, network, response = self._func(
-                options.url,
-                options.timeout,
-                **kwargs,
-            )
-        except TypeError as exc:
-            if self._supports_verify and "verify_ssl" in str(exc):
-                self._supports_verify = False
-                kwargs.pop("verify_ssl", None)
-                warnings.warn(
-                    "Request executor does not accept 'verify_ssl'; ignoring flag. "
-                    "Support for callables without this keyword will be removed in a future release.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                timing, network, response = self._func(
-                    options.url,
-                    options.timeout,
-                    **kwargs,
-                )
-            else:
-                raise
-
+        """Perform an HTTP request using the default client."""
+        timing, network, response = make_request(
+            options.url,
+            options.timeout,
+            method=options.method,
+            content=options.content,
+            http2=options.http2,
+            verify_ssl=options.verify_ssl,
+            ca_bundle_path=options.ca_bundle_path,
+            proxy=options.proxy,
+            dns_resolver=options.dns_resolver,
+            tls_inspector=options.tls_inspector,
+            timing_collector=options.timing_collector,
+            force_new_connection=options.force_new_connection,
+            headers=options.headers,
+        )
         return RequestOutcome(timing=timing, network=network, response=response)

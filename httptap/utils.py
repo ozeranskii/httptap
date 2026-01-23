@@ -155,18 +155,30 @@ def calculate_days_until(target_date: datetime) -> int:
     return (target_date - now).days
 
 
-def create_ssl_context(*, verify_ssl: bool) -> ssl.SSLContext:
+def create_ssl_context(*, verify_ssl: bool, ca_bundle_path: str | None = None) -> ssl.SSLContext:
     """Return an SSL context honoring the requested verification policy.
 
     Args:
         verify_ssl: Whether to enforce certificate validation and modern
             security defaults.
+        ca_bundle_path: Path to custom CA certificate bundle file (PEM format).
+            Only used when verify_ssl is True. If None, uses system CA bundle.
 
     Returns:
         Configured ``ssl.SSLContext`` instance.
     """
     if verify_ssl:
-        return ssl.create_default_context()
+        context = ssl.create_default_context()
+
+        # Load custom CA bundle if provided
+        if ca_bundle_path:
+            try:
+                context.load_verify_locations(cafile=ca_bundle_path)
+            except (ssl.SSLError, FileNotFoundError, PermissionError, OSError) as e:
+                msg = f"Failed to load CA bundle from '{ca_bundle_path}': {e}"
+                raise ValueError(msg) from e
+
+        return context
 
     # For legacy mode create a mutable context allowing older protocols.
     context = ssl.SSLContext(ssl.PROTOCOL_TLS)

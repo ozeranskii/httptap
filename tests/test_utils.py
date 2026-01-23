@@ -317,6 +317,74 @@ class TestCreateSSLContext:
 
         assert ctx.verify_mode == ssl.CERT_NONE
 
+    def test_create_ssl_context_with_custom_ca_bundle(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that custom CA bundle is loaded when provided."""
+        ca_bundle = tmp_path / "ca-bundle.pem"
+        ca_bundle.write_text("dummy ca bundle")
+
+        # Mock load_verify_locations to avoid needing a real certificate
+        load_called_with = {}
+
+        def mock_load_verify_locations(cafile: str | None = None, **_kwargs: object) -> None:
+            load_called_with["cafile"] = cafile
+
+        # Create a real default context then patch its load_verify_locations
+        real_ctx = ssl.create_default_context()
+        monkeypatch.setattr(real_ctx, "load_verify_locations", mock_load_verify_locations)
+
+        # Patch create_default_context to return our mocked context
+        monkeypatch.setattr(ssl, "create_default_context", lambda: real_ctx)
+
+        ctx = create_ssl_context(verify_ssl=True, ca_bundle_path=str(ca_bundle))
+
+        # Should have called load_verify_locations with our CA bundle
+        assert load_called_with["cafile"] == str(ca_bundle)
+        # Should still have verification enabled
+        assert ctx.verify_mode == ssl.CERT_REQUIRED
+        assert ctx.check_hostname is True
+
+    def test_create_ssl_context_custom_ca_ignored_when_verify_disabled(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Test that custom CA bundle is ignored when verification is disabled."""
+        ca_bundle = tmp_path / "ca-bundle.pem"
+        ca_bundle.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n")
+
+        ctx = create_ssl_context(verify_ssl=False, ca_bundle_path=str(ca_bundle))
+
+        # Should have verification disabled regardless of ca_bundle_path
+        assert ctx.verify_mode == ssl.CERT_NONE
+        assert ctx.check_hostname is False
+
+    def test_create_ssl_context_none_ca_bundle_uses_system_ca(self) -> None:
+        """Test that None ca_bundle_path uses system CA bundle."""
+        ctx = create_ssl_context(verify_ssl=True, ca_bundle_path=None)
+
+        # Should use default system CA (verification enabled)
+        assert ctx.verify_mode == ssl.CERT_REQUIRED
+        assert ctx.check_hostname is True
+
+    def test_create_ssl_context_invalid_ca_bundle_raises_error(self) -> None:
+        """Test that invalid CA bundle file raises clear error."""
+        with pytest.raises(ValueError, match=r"Failed to load CA bundle from.*nonexistent\.pem"):
+            create_ssl_context(verify_ssl=True, ca_bundle_path="/nonexistent.pem")
+
+    def test_create_ssl_context_invalid_ca_format_raises_error(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Test that invalid CA bundle format raises clear error."""
+        ca_bundle = tmp_path / "invalid-ca.pem"
+        ca_bundle.write_text("This is not a valid PEM certificate")
+
+        with pytest.raises(ValueError, match=r"Failed to load CA bundle from.*invalid-ca\.pem"):
+            create_ssl_context(verify_ssl=True, ca_bundle_path=str(ca_bundle))
+
     def test_validate_empty_string(self) -> None:
         """Test that empty string is invalid."""
         assert validate_url("") is False

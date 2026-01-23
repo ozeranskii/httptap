@@ -132,6 +132,7 @@ class NetworkInfo:
         cert_cn: Certificate Common Name.
         cert_days_left: Days until certificate expiration.
         tls_verified: Whether TLS certificate verification was enforced.
+        tls_custom_ca: True when a custom CA bundle was configured.
 
     """
 
@@ -143,6 +144,7 @@ class NetworkInfo:
     cert_cn: str | None = None
     cert_days_left: int | None = None
     tls_verified: bool | None = None
+    tls_custom_ca: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert network info to dictionary.
@@ -160,6 +162,7 @@ class NetworkInfo:
             "cert_cn": self.cert_cn,
             "cert_days_left": self.cert_days_left,
             "tls_verified": self.tls_verified,
+            "tls_custom_ca": self.tls_custom_ca,
         }
 
 

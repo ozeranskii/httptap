@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2026-01-19
+
+### Miscellaneous Tasks
+
+- Bump ruff in the dev-tools group ([#66](https://github.com/ozeranskii/httptap/issues/66))
+
+## [0.4.2] - 2026-01-13
+
+### Miscellaneous Tasks
+
+- Bump mypy from 1.19.0 to 1.19.1 in the dev-tools group ([#55](https://github.com/ozeranskii/httptap/issues/55))
+- Bump pre-commit from 4.5.0 to 4.5.1 ([#58](https://github.com/ozeranskii/httptap/issues/58))
+- Bump ruff from 0.14.9 to 0.14.10 in the dev-tools group ([#59](https://github.com/ozeranskii/httptap/issues/59))
+- Bump ruff in the dev-tools group ([#63](https://github.com/ozeranskii/httptap/issues/63))
+
+## [0.4.1] - 2025-12-09
+
+### Miscellaneous Tasks
+
+- Update CNAME to point docs subdomain
+
+### Performance
+
+- Dial resolved IPs while preserving Host/SNI ([#51](https://github.com/ozeranskii/httptap/issues/51))
+
+## [0.4.0] - 2025-11-17
+
+### Features
+
+- Add support for custom CA bundle for TLS verification ([#45](https://github.com/ozeranskii/httptap/issues/45))
+
 ## [0.3.1] - 2025-11-13
 
 ### Features

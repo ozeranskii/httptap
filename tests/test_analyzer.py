@@ -3,17 +3,13 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
-import pytest
-
 from httptap.analyzer import HTTPTapAnalyzer
 from httptap.http_client import HTTPClientError
 from httptap.models import NetworkInfo, ResponseInfo, TimingMetrics
-from httptap.request_executor import CallableRequestExecutor, RequestOptions, RequestOutcome
+from httptap.request_executor import RequestOptions, RequestOutcome
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-    from httptap.interfaces import DNSResolver, TimingCollector, TLSInspector
 
 
 class StubExecutor:
@@ -21,44 +17,18 @@ class StubExecutor:
         self.results = results
         self.calls: list[Mapping[str, str] | None] = []
 
-    def __call__(  # noqa: PLR0913
-        self,
-        url: str,
-        timeout: float,
-        *,
-        method: str = "GET",
-        content: bytes | None = None,
-        http2: bool = True,
-        verify_ssl: bool = True,
-        proxy: Mapping[str, str] | str | None = None,
-        dns_resolver: DNSResolver | None = None,
-        tls_inspector: TLSInspector | None = None,
-        timing_collector: TimingCollector | None = None,
-        force_new_connection: bool = True,
-        headers: Mapping[str, str] | None = None,
-    ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
-        del url
-        del timeout
-        del method
-        del content
-        del http2
-        del verify_ssl
-        del proxy
-        del dns_resolver
-        del tls_inspector
-        del timing_collector
-        del force_new_connection
+    def execute(self, options: RequestOptions) -> RequestOutcome:
         if not self.results:
             msg = "no more results"
             raise HTTPClientError(msg)
 
-        self.calls.append(headers)
+        self.calls.append(options.headers)
         status, location = self.results.pop(0)
 
         timing = TimingMetrics(total_ms=100.0)
         network = NetworkInfo(ip="203.0.113.5", ip_family="IPv4")
         response = ResponseInfo(status=status, location=location)
-        return timing, network, response
+        return RequestOutcome(timing=timing, network=network, response=response)
 
 
 def test_analyze_url_without_redirect() -> None:
@@ -156,41 +126,16 @@ def test_analyze_url_passes_verify_flag_when_supported() -> None:
     class VerifyAwareExecutor:
         def __init__(self) -> None:
             self.flags: list[bool] = []
-            self.proxies: list[Mapping[str, str] | str | None] = []
+            self.proxies: list[object | None] = []
 
-        def __call__(  # noqa: PLR0913
-            self,
-            url: str,
-            timeout: float,
-            *,
-            method: str = "GET",
-            content: bytes | None = None,
-            http2: bool = True,
-            verify_ssl: bool = True,
-            proxy: Mapping[str, str] | str | None = None,
-            dns_resolver: DNSResolver | None = None,
-            tls_inspector: TLSInspector | None = None,
-            timing_collector: TimingCollector | None = None,
-            force_new_connection: bool = True,
-            headers: Mapping[str, str] | None = None,
-        ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
-            del url
-            del timeout
-            del method
-            del content
-            del http2
-            del dns_resolver
-            del tls_inspector
-            del timing_collector
-            del force_new_connection
-            del headers
-            self.flags.append(verify_ssl)
-            self.proxies.append(proxy)
+        def execute(self, options: RequestOptions) -> RequestOutcome:
+            self.flags.append(options.verify_ssl)
+            self.proxies.append(options.proxy)
 
             timing = TimingMetrics(total_ms=10.0)
             network = NetworkInfo(ip="198.51.100.1", ip_family="IPv4")
             response = ResponseInfo(status=200)
-            return timing, network, response
+            return RequestOutcome(timing=timing, network=network, response=response)
 
     executor = VerifyAwareExecutor()
     analyzer = HTTPTapAnalyzer(
@@ -233,74 +178,11 @@ def test_analyze_url_accepts_object_executor() -> None:
     assert executor.calls[0].proxy is None
 
 
-def test_callable_request_executor_warns_on_missing_verify() -> None:
-    class FlakyExecutor:
-        def __init__(self) -> None:
-            self.calls = 0
-
-        def __call__(  # noqa: PLR0913
-            self,
-            url: str,
-            timeout: float,
-            *,
-            method: str = "GET",
-            content: bytes | None = None,
-            http2: bool = True,
-            verify_ssl: bool = True,
-            dns_resolver: DNSResolver | None = None,
-            tls_inspector: TLSInspector | None = None,
-            timing_collector: TimingCollector | None = None,
-            force_new_connection: bool = True,
-            headers: Mapping[str, str] | None = None,
-        ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
-            self.calls += 1
-            if self.calls == 1:
-                msg = "unexpected keyword argument 'verify_ssl'"
-                raise TypeError(msg)
-            del url
-            del timeout
-            del method
-            del content
-            del http2
-            del verify_ssl
-            del dns_resolver
-            del tls_inspector
-            del timing_collector
-            del force_new_connection
-            del headers
-            timing = TimingMetrics(total_ms=12.0)
-            network = NetworkInfo(ip="198.51.100.3", ip_family="IPv4")
-            response = ResponseInfo(status=200)
-            return timing, network, response
-
-    adapter = CallableRequestExecutor(FlakyExecutor())
-    options = RequestOptions(
-        url="https://example.test",
-        timeout=5.0,
-        http2=True,
-        verify_ssl=False,
-        dns_resolver=None,
-        tls_inspector=None,
-        timing_collector=None,
-        force_new_connection=True,
-        headers=None,
-    )
-
-    with pytest.warns(DeprecationWarning, match="verify_ssl"):
-        outcome = adapter.execute(options)
-
-    assert outcome.response.status == 200
-
-
 def test_analyze_url_handles_unexpected_exception() -> None:
     """Test handling of unexpected exceptions during request."""
 
     class FailingExecutor:
-        def __call__(
-            self,
-            *_args: object,
-            **_kwargs: object,
-        ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
+        def execute(self, _options: RequestOptions) -> RequestOutcome:
             msg = "Unexpected failure"
             raise RuntimeError(msg)
 

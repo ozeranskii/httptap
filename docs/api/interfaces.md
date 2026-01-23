@@ -47,6 +47,8 @@ class DNSResolverProtocol(Protocol):
         ...
 ```
 
+httptap dials the resolved IP address directly while keeping the original hostname for the `Host` header and TLS SNI. IPv6 addresses are bracketed automatically; implementations only need to return a valid IP/family tuple.
+
 ### Example Implementation
 
 ```python

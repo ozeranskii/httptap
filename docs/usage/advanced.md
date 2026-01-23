@@ -4,7 +4,7 @@ This guide covers advanced usage patterns and customization options for httptap.
 
 ## Custom DNS Resolution
 
-You can provide custom DNS resolver implementations by using the Python API.
+You can provide custom DNS resolver implementations by using the Python API. httptap always dials the resolved IP address (IPv4/IPv6) while preserving the original hostname for the `Host` header and TLS SNI. IPv6 literals are bracketed automatically, so custom resolvers only need to return the correct IP/family tuple.
 
 ```python
 from httptap import HTTPTapAnalyzer, SystemDNSResolver
@@ -159,28 +159,6 @@ analyzer.analyze_url("https://httpbin.io/get", headers={"X-Debug": "1"})
 print(executor.last_options.headers)  # {'X-Debug': '1'}
 ```
 
-If you already have a callable compatible with the legacy signature, wrap
-it with the provided adapter:
-
-```python
-from httptap import CallableRequestExecutor, HTTPTapAnalyzer
-
-
-def legacy_executor(url, timeout, *, http2, headers=None, **kwargs):
-    # Custom request logic here
-    ...
-
-
-adapter = CallableRequestExecutor(legacy_executor)
-analyzer = HTTPTapAnalyzer(request_executor=adapter)
-analyzer.analyze_url("https://legacy.example")
-```
-
-When a wrapped callable is missing support for newly introduced flags (such
-as `verify_ssl`), the adapter logs a `DeprecationWarning` and transparently
-retries without that parameter. This gives you time to update custom
-executors while keeping behavior backward compatible.
-
 ## Custom Visualization
 
 Create your own visualization by implementing the `VisualizerProtocol`.
@@ -205,6 +183,16 @@ steps = analyzer.analyze_url("https://httpbin.io")
 
 visualizer = CustomVisualizer()
 visualizer.render(steps)
+
+## Custom CA bundles
+
+For internal endpoints signed by a private CA, supply a PEM bundle with `--cacert`:
+
+```bash
+httptap --cacert ~/certs/company-ca.pem https://internal-api.example.com/health
+```
+
+CLI output will show `TLS CA: custom bundle` to indicate the non-system trust store was used. JSON exports include `network.tls_custom_ca: true` so downstream tools can detect custom trust. The flag is mutually exclusive with `--ignore-ssl`.
 ```
 
 ## Custom Export Formats

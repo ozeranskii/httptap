@@ -248,6 +248,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     content: bytes | None = None,
     http2: bool = True,
     verify_ssl: bool = True,
+    ca_bundle_path: str | None = None,
     proxy: ProxyTypes | None = None,
     dns_resolver: DNSResolver | None = None,
     tls_inspector: TLSInspector | None = None,
@@ -280,6 +281,8 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         verify_ssl: Whether to verify TLS certificates during the request.
             Defaults to True. Set to False when troubleshooting hosts with
             self-signed or otherwise invalid certificates.
+        ca_bundle_path: Path to custom CA certificate bundle (PEM format).
+            Only used when verify_ssl is True. If None, uses system CA bundle.
         proxy: Optional proxy URL or mapping (supports http/https/socks5/socks5h).
         dns_resolver: Custom DNS resolver implementation.
             Defaults to SystemDNSResolver.
@@ -343,12 +346,13 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     if dns_resolver is None:
         dns_resolver = SystemDNSResolver()
     if tls_inspector is None:
-        tls_inspector = SocketTLSInspector(verify=verify_ssl)
+        tls_inspector = SocketTLSInspector(verify=verify_ssl, ca_bundle_path=ca_bundle_path)
     if timing_collector is None:
         timing_collector = PerfCounterTimingCollector()
 
     network_info = NetworkInfo()
     network_info.tls_verified = verify_ssl
+    network_info.tls_custom_ca = bool(ca_bundle_path) if verify_ssl else False
     response_info = ResponseInfo()
 
     try:
@@ -382,7 +386,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             max_keepalive_connections=0 if force_new_connection else 1,
         )
 
-        ssl_context = create_ssl_context(verify_ssl=verify_ssl)
+        ssl_context = create_ssl_context(verify_ssl=verify_ssl, ca_bundle_path=ca_bundle_path)
+
+        formatted_ip = f"[{ip}]" if ip_family == "IPv6" else ip
 
         with httpx.Client(
             timeout=timeout,
@@ -395,7 +401,16 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             client.headers["User-Agent"] = USER_AGENT
             if headers:
                 client.headers.update(headers)
-            with client.stream(method.value, url, content=content, extensions={"trace": trace}) as response:
+            # Ensure the Host header is set to the original domain name
+            client.headers["Host"] = host
+
+            request_url = f"{parsed_url.scheme}://{formatted_ip}:{port}{parsed_url.path}"
+            if parsed_url.query:
+                request_url += f"?{parsed_url.query}"
+
+            with client.stream(
+                method.value, request_url, content=content, extensions={"trace": trace, "sni_hostname": host}
+            ) as response:
                 timing_collector.mark_ttfb()
                 _populate_response_metadata(response, response_info)
                 response_info.bytes = _consume_response_body(response)
