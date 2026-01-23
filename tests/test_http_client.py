@@ -328,7 +328,7 @@ class TestPopulateTLSFromStream:
                 return "TLSv1.3"
 
             def cipher(self) -> tuple[str, str, int]:
-                return ("TLS_AES_128_GCM_SHA256", "TLSv1.3", 128)
+                return "TLS_AES_128_GCM_SHA256", "TLSv1.3", 128
 
         class FakeStream:
             def get_extra_info(self, name: str) -> FakeSSLSocket | None:
@@ -371,7 +371,7 @@ class TestPopulateTLSFromStream:
                 return "TLSv1.3"
 
             def cipher(self) -> tuple[str, str, int]:
-                return ("TLS_AES_256_GCM_SHA384", "TLSv1.3", 256)
+                return "TLS_AES_256_GCM_SHA384", "TLSv1.3", 256
 
         class FakeStream:
             def get_extra_info(self, name: str) -> FakeSSLSocket | None:
@@ -427,7 +427,7 @@ class TestPopulateTLSFromStream:
                 return "TLSv1.2"
 
             def cipher(self) -> tuple[str, str, int]:
-                return ("TLS_RSA_WITH_AES_128_GCM_SHA256", "TLSv1.2", 128)
+                return "TLS_RSA_WITH_AES_128_GCM_SHA256", "TLSv1.2", 128
 
         class FakeStream:
             def __init__(self) -> None:

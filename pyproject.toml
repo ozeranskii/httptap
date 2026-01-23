@@ -194,3 +194,6 @@ exclude_lines = [
     "^\\s*pass$",
     "class .+Protocol",
 ]
+
+[tool.typos.files]
+extend-exclude = [".gitignore"]
