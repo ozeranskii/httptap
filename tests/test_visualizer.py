@@ -216,7 +216,7 @@ class TestWaterfallVisualizer:
         assert widths[2] >= widths[0]  # 30ms should get more than 10ms
 
     def test_compute_phase_widths_adds_slack_for_remaining_width(self) -> None:
-        """Slack branch should assign leftover characters to longest remainder."""
+        """Slack branch should assign leftover characters to the longest remainder."""
         console = Console()
         visualizer = WaterfallVisualizer(console, max_bar_width=40)
 

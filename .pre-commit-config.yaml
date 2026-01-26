@@ -1,13 +1,14 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.2
+    rev: v0.14.14
     hooks:
       - id: ruff-check
         args:
           - --fix
+          - -show-fixes
       - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+    rev: v1.19.1
     hooks:
       - id: mypy
         additional_dependencies:
@@ -21,15 +22,22 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      - id: check-toml
+      - id: check-ast
+      - id: check-case-conflict
+      - id: trailing-whitespace
       - id: end-of-file-fixer
-      - id: fix-byte-order-marker
-      - id: mixed-line-ending
+      - id: check-added-large-files
+      - id: check-docstring-first
+      - id: check-json
+      - id: check-toml
+      - id: detect-private-key
+      - id: debug-statements
+      - id: check-merge-conflict
       - id: name-tests-test
         args:
           - --pytest-test-first
   - repo: https://github.com/google/yamlfmt
-    rev: v0.20.0
+    rev: v0.21.0
     hooks:
       - id: yamlfmt
         name: yamlfmt (YAML formatter)
@@ -37,3 +45,7 @@ repos:
         args:
           - "--conf"
           - ".yamlfmt"
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.42.1
+    hooks:
+      - id: typos
