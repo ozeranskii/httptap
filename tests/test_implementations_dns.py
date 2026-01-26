@@ -229,3 +229,130 @@ class TestSystemDNSResolver:
 
         # Verify that getaddrinfo was called (implicitly in a thread)
         assert thread_started.is_set()
+
+    def test_resolve_with_non_standard_port(self, mocker: MockerFixture) -> None:
+        """Test DNS resolution with non-standard port."""
+        resolver = SystemDNSResolver()
+
+        mock_getaddrinfo = mocker.patch("socket.getaddrinfo")
+        mock_getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 8443)),
+        ]
+
+        ip, ip_family, elapsed_ms = resolver.resolve("example.com", 8443, 5.0)
+
+        assert ip == "93.184.216.34"
+        assert ip_family == "IPv4"
+        assert elapsed_ms >= 0.0
+        mock_getaddrinfo.assert_called_once_with(
+            "example.com",
+            8443,
+            family=socket.AF_UNSPEC,
+            type=socket.SOCK_STREAM,
+        )
+
+    def test_resolve_ipv4_preferred_over_ipv6(self, mocker: MockerFixture) -> None:
+        """Test that first address is returned when both IPv4 and IPv6 available."""
+        resolver = SystemDNSResolver()
+
+        mock_getaddrinfo = mocker.patch("socket.getaddrinfo")
+        # Return both IPv4 and IPv6, IPv4 first
+        mock_getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443)),
+            (
+                socket.AF_INET6,
+                socket.SOCK_STREAM,
+                6,
+                "",
+                ("2606:2800:220:1:248:1893:25c8:1946", 443, 0, 0),
+            ),
+        ]
+
+        ip, ip_family, elapsed_ms = resolver.resolve("example.com", 443, 5.0)
+
+        # Should return the first address (IPv4)
+        assert ip == "93.184.216.34"
+        assert ip_family == "IPv4"
+        assert elapsed_ms >= 0.0
+
+    def test_resolve_ipv6_when_only_available(self, mocker: MockerFixture) -> None:
+        """Test that IPv6 is returned when it's the only available address."""
+        resolver = SystemDNSResolver()
+
+        mock_getaddrinfo = mocker.patch("socket.getaddrinfo")
+        # Return only IPv6
+        mock_getaddrinfo.return_value = [
+            (
+                socket.AF_INET6,
+                socket.SOCK_STREAM,
+                6,
+                "",
+                ("2606:2800:220:1:248:1893:25c8:1946", 443, 0, 0),
+            ),
+        ]
+
+        ip, ip_family, elapsed_ms = resolver.resolve("example.com", 443, 5.0)
+
+        assert ip == "2606:2800:220:1:248:1893:25c8:1946"
+        assert ip_family == "IPv6"
+        assert elapsed_ms >= 0.0
+
+    def test_resolve_with_very_short_timeout(self, mocker: MockerFixture) -> None:
+        """Test DNS resolution with very short timeout."""
+        resolver = SystemDNSResolver()
+
+        def slow_dns(*args: object, **kwargs: object) -> list[tuple[object, ...]]:
+            time.sleep(0.5)  # Sleep longer than timeout
+            return []
+
+        mocker.patch("socket.getaddrinfo", side_effect=slow_dns)
+
+        with pytest.raises(DNSResolutionError, match="DNS resolution timed out"):
+            resolver.resolve("slow.example.com", 443, 0.01)  # 10ms timeout
+
+    def test_resolve_localhost(self, mocker: MockerFixture) -> None:
+        """Test DNS resolution for localhost."""
+        resolver = SystemDNSResolver()
+
+        mock_getaddrinfo = mocker.patch("socket.getaddrinfo")
+        mock_getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 443)),
+        ]
+
+        ip, ip_family, elapsed_ms = resolver.resolve("localhost", 443, 5.0)
+
+        assert ip == "127.0.0.1"
+        assert ip_family == "IPv4"
+        assert elapsed_ms >= 0.0
+
+    def test_resolve_with_multiple_addresses_same_family(self, mocker: MockerFixture) -> None:
+        """Test that first address is returned when multiple addresses of same family exist."""
+        resolver = SystemDNSResolver()
+
+        mock_getaddrinfo = mocker.patch("socket.getaddrinfo")
+        # Return multiple IPv4 addresses
+        mock_getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443)),
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.35", 443)),
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.36", 443)),
+        ]
+
+        ip, ip_family, elapsed_ms = resolver.resolve("example.com", 443, 5.0)
+
+        # Should return the first address
+        assert ip == "93.184.216.34"
+        assert ip_family == "IPv4"
+        assert elapsed_ms >= 0.0
+
+    def test_resolve_handles_connection_refused_error(self, mocker: MockerFixture) -> None:
+        """Test handling of connection refused during DNS resolution."""
+        resolver = SystemDNSResolver()
+
+        mock_getaddrinfo = mocker.patch("socket.getaddrinfo")
+        mock_getaddrinfo.side_effect = socket.gaierror(
+            socket.EAI_AGAIN,
+            "Temporary failure in name resolution",
+        )
+
+        with pytest.raises(DNSResolutionError, match="DNS resolution failed"):
+            resolver.resolve("unreachable.example.com", 443, 5.0)
