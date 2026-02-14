@@ -8,7 +8,12 @@ import httpx
 import pytest
 from typing_extensions import Self
 
-from httptap.http_client import make_request
+from httptap.http_client import (
+    _host_matches_no_proxy,
+    _needs_remote_dns,
+    _resolve_effective_proxy,
+    make_request,
+)
 from httptap.models import NetworkInfo, TimingMetrics
 
 if TYPE_CHECKING:
@@ -1103,212 +1108,41 @@ class TestMakeRequest:
         assert created_clients
         assert created_clients[0].kwargs["proxy"] == proxy_url
 
-    def test_make_request_uses_socks5h_proxy(
+    @pytest.mark.parametrize(
+        ("proxy_url", "expect_dns_called", "expect_hostname_in_url"),
+        [
+            ("socks5h://gateway:1080", False, True),
+            ("http://proxy.example.com:8080", False, True),
+            ("https://secure-proxy.example.com:8443", False, True),
+            ("socks5://gateway:1080", True, False),
+        ],
+        ids=["socks5h-remote-dns", "http-remote-dns", "https-remote-dns", "socks5-local-dns"],
+    )
+    def test_make_request_dns_resolution_depends_on_proxy_type(
         self,
         mocker: pytest_mock.MockerFixture,
+        proxy_url: str,
+        *,
+        expect_dns_called: bool,
+        expect_hostname_in_url: bool,
     ) -> None:
-        """Test that socks5h proxy (remote DNS) is properly passed to httpx."""
-        url = "https://remote-dns.test"
-        proxy_url = "socks5h://gateway:1080"
-        created_clients: list[Any] = []
+        """Verify DNS resolution strategy depends on proxy type.
 
-        class DummyClient:
-            def __init__(self, *_: object, **kwargs: object) -> None:
-                self.kwargs = kwargs
-                self.headers: dict[str, str] = {}
-                created_clients.append(self)
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-            def stream(self, *_args: object, **_kwargs: object) -> object:
-                class _Stream:
-                    def __enter__(self) -> httpx.Response:
-                        request = httpx.Request("GET", url)
-                        return httpx.Response(200, request=request)
-
-                    def __exit__(self, *_exc: object) -> None:
-                        return None
-
-                return _Stream()
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
-
-        make_request(
-            url,
-            timeout=5.0,
-            proxy=proxy_url,
-            dns_resolver=FakeDNSResolver(),
-            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-            force_new_connection=True,
-        )
-
-        assert created_clients
-        assert created_clients[0].kwargs["proxy"] == proxy_url
-
-    def test_make_request_uses_http_proxy(
-        self,
-        mocker: pytest_mock.MockerFixture,
-    ) -> None:
-        """Test that HTTP proxy is properly passed to httpx."""
-        url = "https://http-proxy.test"
-        proxy_url = "http://proxy.example.com:8080"
-        created_clients: list[Any] = []
-
-        class DummyClient:
-            def __init__(self, *_: object, **kwargs: object) -> None:
-                self.kwargs = kwargs
-                self.headers: dict[str, str] = {}
-                created_clients.append(self)
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-            def stream(self, *_args: object, **_kwargs: object) -> object:
-                class _Stream:
-                    def __enter__(self) -> httpx.Response:
-                        request = httpx.Request("GET", url)
-                        return httpx.Response(200, request=request)
-
-                    def __exit__(self, *_exc: object) -> None:
-                        return None
-
-                return _Stream()
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
-
-        make_request(
-            url,
-            timeout=5.0,
-            proxy=proxy_url,
-            dns_resolver=FakeDNSResolver(),
-            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-            force_new_connection=True,
-        )
-
-        assert created_clients
-        assert created_clients[0].kwargs["proxy"] == proxy_url
-
-    def test_make_request_uses_https_proxy(
-        self,
-        mocker: pytest_mock.MockerFixture,
-    ) -> None:
-        """Test that HTTPS proxy is properly passed to httpx."""
-        url = "https://https-proxy.test"
-        proxy_url = "https://secure-proxy.example.com:8443"
-        created_clients: list[Any] = []
-
-        class DummyClient:
-            def __init__(self, *_: object, **kwargs: object) -> None:
-                self.kwargs = kwargs
-                self.headers: dict[str, str] = {}
-                created_clients.append(self)
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-            def stream(self, *_args: object, **_kwargs: object) -> object:
-                class _Stream:
-                    def __enter__(self) -> httpx.Response:
-                        request = httpx.Request("GET", url)
-                        return httpx.Response(200, request=request)
-
-                    def __exit__(self, *_exc: object) -> None:
-                        return None
-
-                return _Stream()
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
-
-        make_request(
-            url,
-            timeout=5.0,
-            proxy=proxy_url,
-            dns_resolver=FakeDNSResolver(),
-            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-            force_new_connection=True,
-        )
-
-        assert created_clients
-        assert created_clients[0].kwargs["proxy"] == proxy_url
-
-    def test_make_request_proxy_with_authentication(
-        self,
-        mocker: pytest_mock.MockerFixture,
-    ) -> None:
-        """Test that proxy with authentication credentials is properly passed."""
-        url = "https://auth-proxy.test"
-        proxy_url = "socks5h://user:password@gateway:1080"
-        created_clients: list[Any] = []
-
-        class DummyClient:
-            def __init__(self, *_: object, **kwargs: object) -> None:
-                self.kwargs = kwargs
-                self.headers: dict[str, str] = {}
-                created_clients.append(self)
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-            def stream(self, *_args: object, **_kwargs: object) -> object:
-                class _Stream:
-                    def __enter__(self) -> httpx.Response:
-                        request = httpx.Request("GET", url)
-                        return httpx.Response(200, request=request)
-
-                    def __exit__(self, *_exc: object) -> None:
-                        return None
-
-                return _Stream()
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
-
-        make_request(
-            url,
-            timeout=5.0,
-            proxy=proxy_url,
-            dns_resolver=FakeDNSResolver(),
-            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-            force_new_connection=True,
-        )
-
-        assert created_clients
-        assert created_clients[0].kwargs["proxy"] == proxy_url
-
-    def test_make_request_respects_proxy_environment_variables(
-        self,
-        mocker: pytest_mock.MockerFixture,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """Test that proxy environment variables cause hostname to be used instead of IP."""
-        url = "https://example.com/path"
-        monkeypatch.setenv("HTTPS_PROXY", "http://env-proxy:3128")
-
-        # Track DNS resolve calls
-        dns_resolve_called = []
+        Remote DNS proxies (socks5h, http, https) skip local DNS and use hostname.
+        Local DNS proxies (socks5) resolve DNS locally and use IP address.
+        """
+        url = "https://target.test/api"
+        dns_calls: list[str] = []
 
         class SpyDNSResolver:
-            def resolve(self, _host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
-                dns_resolve_called.append(True)
-                return "203.0.113.99", "IPv4", 4.2
+            def resolve(self, host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+                dns_calls.append(host)
+                return "203.0.113.10", "IPv4", 4.2
 
-        captured_stream_calls: list[dict[str, Any]] = []
+        captured_urls: list[str] = []
 
         class DummyClient:
-            def __init__(self, *_: object, **kwargs: object) -> None:
-                self.kwargs = kwargs
+            def __init__(self, *_: object, **__: object) -> None:
                 self.headers: dict[str, str] = {}
 
             def __enter__(self) -> Self:
@@ -1317,28 +1151,12 @@ class TestMakeRequest:
             def __exit__(self, *_exc: object) -> None:
                 return None
 
-            def stream(
-                self,
-                method: str,
-                request_url: str,
-                *,
-                content: bytes | None = None,
-                extensions: dict[str, object] | None = None,
-            ) -> object:
-                # Capture the actual request URL
-                captured_stream_calls.append(
-                    {
-                        "method": method,
-                        "url": request_url,
-                        "content": content,
-                        "extensions": extensions,
-                    }
-                )
+            def stream(self, _method: str, request_url: str, **_kw: object) -> object:
+                captured_urls.append(request_url)
 
                 class _Stream:
                     def __enter__(self) -> httpx.Response:
-                        request = httpx.Request("GET", request_url)
-                        return httpx.Response(200, request=request, content=b"ok")
+                        return httpx.Response(200, request=httpx.Request("GET", url))
 
                     def __exit__(self, *_exc: object) -> None:
                         return None
@@ -1350,37 +1168,44 @@ class TestMakeRequest:
         make_request(
             url,
             timeout=5.0,
-            proxy=None,  # No explicit proxy, but environment variable is set
+            proxy=proxy_url,
             dns_resolver=SpyDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
             force_new_connection=True,
         )
 
-        # Verify DNS was NOT called (should skip when proxy env var is set)
-        assert len(dns_resolve_called) == 0, "DNS resolver should not be called when proxy env var is set"
+        assert len(captured_urls) == 1
+        if expect_dns_called:
+            assert len(dns_calls) == 1
+            assert "203.0.113.10" in captured_urls[0]
+        else:
+            assert len(dns_calls) == 0
+            assert "target.test" in captured_urls[0]
+            assert "203.0.113.10" not in captured_urls[0]
 
-        # Verify the request URL uses hostname, not IP
-        assert len(captured_stream_calls) == 1
-        request_url = captured_stream_calls[0]["url"]
-        assert "example.com" in request_url, f"Expected hostname in URL, got: {request_url}"
-        assert "203.0.113.99" not in request_url, f"IP should not be in URL, got: {request_url}"
+        if expect_hostname_in_url:
+            assert "target.test" in captured_urls[0]
 
-    def test_make_request_proxy_uses_hostname_not_ip(
+    def test_make_request_env_proxy_skips_local_dns(
         self,
         mocker: pytest_mock.MockerFixture,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test that proxied requests use hostname, not resolved IP address.
+        """Proxy from HTTPS_PROXY env var triggers remote DNS behavior."""
+        url = "https://example.com/path"
+        monkeypatch.setenv("HTTPS_PROXY", "http://env-proxy:3128")
 
-        This is critical for socks5h:// proxies which require hostnames
-        for remote DNS resolution.
-        """
-        url = "https://example-hostname.test/api/endpoint"
-        proxy_url = "socks5h://gateway:1080"
-        captured_stream_calls: list[dict[str, Any]] = []
+        dns_calls: list[str] = []
+
+        class SpyDNSResolver:
+            def resolve(self, host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+                dns_calls.append(host)
+                return "203.0.113.99", "IPv4", 4.2
+
+        captured_urls: list[str] = []
 
         class DummyClient:
-            def __init__(self, *_: object, **kwargs: object) -> None:
-                self.kwargs = kwargs
+            def __init__(self, *_: object, **__: object) -> None:
                 self.headers: dict[str, str] = {}
 
             def __enter__(self) -> Self:
@@ -1389,28 +1214,12 @@ class TestMakeRequest:
             def __exit__(self, *_exc: object) -> None:
                 return None
 
-            def stream(
-                self,
-                method: str,
-                request_url: str,
-                *,
-                content: bytes | None = None,
-                extensions: dict[str, object] | None = None,
-            ) -> object:
-                # Capture the actual request URL
-                captured_stream_calls.append(
-                    {
-                        "method": method,
-                        "url": request_url,
-                        "content": content,
-                        "extensions": extensions,
-                    }
-                )
+            def stream(self, _method: str, request_url: str, **_kw: object) -> object:
+                captured_urls.append(request_url)
 
                 class _Stream:
                     def __enter__(self) -> httpx.Response:
-                        request = httpx.Request("GET", request_url)
-                        return httpx.Response(200, request=request, content=b"ok")
+                        return httpx.Response(200, request=httpx.Request("GET", url), content=b"ok")
 
                     def __exit__(self, *_exc: object) -> None:
                         return None
@@ -1419,29 +1228,75 @@ class TestMakeRequest:
 
         mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
 
-        # FakeDNSResolver returns an IP address
-        # The bug would cause this IP to be used instead of the hostname
         make_request(
             url,
             timeout=5.0,
-            proxy=proxy_url,
-            dns_resolver=FakeDNSResolver(),  # Returns "203.0.113.10"
+            proxy=None,
+            dns_resolver=SpyDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
             force_new_connection=True,
         )
 
-        # Verify that the hostname was used, not the IP address
-        assert len(captured_stream_calls) == 1
-        request_url = captured_stream_calls[0]["url"]
+        assert len(dns_calls) == 0
+        assert len(captured_urls) == 1
+        assert "example.com" in captured_urls[0]
+        assert "203.0.113.99" not in captured_urls[0]
 
-        # The hostname should be in the URL
-        assert "example-hostname.test" in request_url, f"Expected hostname in URL when using proxy, got: {request_url}"
+    def test_make_request_no_proxy_env_preserves_local_dns(
+        self,
+        mocker: pytest_mock.MockerFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """NO_PROXY exclusion preserves local DNS even when HTTPS_PROXY is set."""
+        url = "https://internal.corp/api"
+        monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
+        monkeypatch.setenv("NO_PROXY", "internal.corp,localhost")
 
-        # The resolved IP should NOT be in the URL
-        assert "203.0.113.10" not in request_url, f"Should not use IP address with proxy, got: {request_url}"
+        dns_calls: list[str] = []
 
-        # Path should be preserved
-        assert "/api/endpoint" in request_url
+        class SpyDNSResolver:
+            def resolve(self, host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+                dns_calls.append(host)
+                return "10.0.0.5", "IPv4", 1.0
+
+        captured_urls: list[str] = []
+
+        class DummyClient:
+            def __init__(self, *_: object, **__: object) -> None:
+                self.headers: dict[str, str] = {}
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(self, _method: str, request_url: str, **_kw: object) -> object:
+                captured_urls.append(request_url)
+
+                class _Stream:
+                    def __enter__(self) -> httpx.Response:
+                        return httpx.Response(200, request=httpx.Request("GET", url), content=b"ok")
+
+                    def __exit__(self, *_exc: object) -> None:
+                        return None
+
+                return _Stream()
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        make_request(
+            url,
+            timeout=5.0,
+            proxy=None,
+            dns_resolver=SpyDNSResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+            force_new_connection=True,
+        )
+
+        assert len(dns_calls) == 1
+        assert len(captured_urls) == 1
+        assert "10.0.0.5" in captured_urls[0]
 
     def test_make_request_handles_unexpected_exception(
         self,
@@ -1496,3 +1351,107 @@ class TestNormalizeHttpVersion:
         from httptap.http_client import _normalize_http_version
 
         assert _normalize_http_version("spdy/3") == "spdy/3"
+
+
+class TestNeedsRemoteDNS:
+    """Unit tests for proxy DNS resolution type detection."""
+
+    @pytest.mark.parametrize(
+        ("proxy_url", "expected"),
+        [
+            ("socks5h://gateway:1080", True),
+            ("SOCKS5H://gateway:1080", True),
+            ("http://proxy:8080", True),
+            ("HTTP://proxy:8080", True),
+            ("https://proxy:8443", True),
+            ("socks5://gateway:1080", False),
+            ("SOCKS5://gateway:1080", False),
+            ("socks5h://user:pass@gateway:1080", True),
+        ],
+        ids=[
+            "socks5h",
+            "socks5h-upper",
+            "http",
+            "http-upper",
+            "https",
+            "socks5-local",
+            "socks5-local-upper",
+            "socks5h-with-auth",
+        ],
+    )
+    def test_detects_proxy_dns_type(self, proxy_url: str, *, expected: bool) -> None:
+        assert _needs_remote_dns(proxy_url) is expected
+
+
+class TestHostMatchesNoProxy:
+    """Unit tests for NO_PROXY pattern matching."""
+
+    @pytest.mark.parametrize(
+        ("host", "no_proxy", "expected"),
+        [
+            ("example.com", "", False),
+            ("example.com", "example.com", True),
+            ("example.com", "EXAMPLE.COM", True),
+            ("sub.example.com", "example.com", True),
+            ("sub.example.com", ".example.com", True),
+            ("notexample.com", "example.com", False),
+            ("example.com", "*", True),
+            ("any.host", "*", True),
+            ("api.internal.corp", "internal.corp,localhost", True),
+            ("external.com", "internal.corp,localhost", False),
+            ("example.com", " example.com , other.com ", True),
+        ],
+        ids=[
+            "empty-no-proxy",
+            "exact-match",
+            "case-insensitive",
+            "suffix-match",
+            "dot-prefix-match",
+            "no-partial-match",
+            "wildcard",
+            "wildcard-any",
+            "multi-entry-match",
+            "multi-entry-no-match",
+            "whitespace-trimmed",
+        ],
+    )
+    def test_pattern_matching(self, host: str, no_proxy: str, *, expected: bool) -> None:
+        assert _host_matches_no_proxy(host, no_proxy) is expected
+
+
+class TestResolveEffectiveProxy:
+    """Unit tests for effective proxy resolution."""
+
+    def test_explicit_proxy_returned_as_is(self) -> None:
+        assert _resolve_effective_proxy("socks5h://gw:1080", "https", "example.com") == "socks5h://gw:1080"
+
+    def test_none_proxy_with_no_env_returns_none(self) -> None:
+        assert _resolve_effective_proxy(None, "https", "example.com") is None
+
+    def test_env_var_detected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
+        assert _resolve_effective_proxy(None, "https", "example.com") == "http://proxy:3128"
+
+    def test_all_proxy_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("ALL_PROXY", "socks5h://all:1080")
+        assert _resolve_effective_proxy(None, "https", "example.com") == "socks5h://all:1080"
+
+    def test_no_proxy_excludes_host(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
+        monkeypatch.setenv("NO_PROXY", "example.com")
+        assert _resolve_effective_proxy(None, "https", "example.com") is None
+
+    def test_no_proxy_does_not_exclude_other_hosts(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
+        monkeypatch.setenv("NO_PROXY", "internal.corp")
+        assert _resolve_effective_proxy(None, "https", "example.com") == "http://proxy:3128"
+
+    def test_lowercase_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("https_proxy", "http://lower:3128")
+        assert _resolve_effective_proxy(None, "https", "example.com") == "http://lower:3128"
+
+    def test_lowercase_env_var_takes_priority_over_uppercase(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Lowercase variant wins per curl/Python getproxies() convention."""
+        monkeypatch.setenv("HTTPS_PROXY", "http://upper:3128")
+        monkeypatch.setenv("https_proxy", "http://lower:3128")
+        assert _resolve_effective_proxy(None, "https", "example.com") == "http://lower:3128"

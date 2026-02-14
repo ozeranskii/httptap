@@ -152,7 +152,7 @@ Follow conventional commits format:
 feat(cli): add --timeout flag for request timeout
 
 Add command-line option to specify custom timeout for HTTP requests.
-Defaults to 30 seconds if not specified.
+Defaults to 20 seconds if not specified.
 
 Closes #123
 ```
@@ -208,11 +208,8 @@ def resolve_hostname(host: str, timeout: float = 5.0) -> tuple[str, str]:
 ```python
 def test_analyzer_follows_redirects(mock_http_client):
     """Test that analyzer follows redirect chains correctly."""
-    analyzer = HTTPTapAnalyzer()
-    steps = analyzer.analyze_url(
-        "https://httpbin.io/redirect/3",
-        follow_redirects=True
-    )
+    analyzer = HTTPTapAnalyzer(follow_redirects=True)
+    steps = analyzer.analyze_url("https://httpbin.io/redirect/3")
 
     assert len(steps) == 4  # Initial + 3 redirects
     assert steps[-1].response.status == 200
@@ -303,7 +300,7 @@ assistance with.
 
 ### Ideas for Contributions
 
-- **HTTP/2 and HTTP/3 support** - Extend to newer protocols
+- **HTTP/3 support** - Extend to the newest protocol version
 - **More export formats** - CSV, XML, Prometheus metrics
 - **Additional visualizations** - Flamegraphs, charts
 - **Performance optimizations** - Faster DNS, connection pooling

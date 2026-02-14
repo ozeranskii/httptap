@@ -29,15 +29,16 @@ Implement custom TLS inspection logic to extract additional certificate informat
 
 ```python
 from httptap import HTTPTapAnalyzer
-from httptap.interfaces import TLSInspectorProtocol
+from httptap.interfaces import TLSInspector
+from httptap.models import NetworkInfo
 
 class CustomTLSInspector:
     """Custom TLS inspector with extended certificate checks."""
 
-    def inspect(self, host: str, port: int, timeout: float):
+    def inspect(self, host: str, port: int, timeout: float) -> NetworkInfo:
         # Custom TLS inspection logic
-        # Return: (version, cipher, cert_cn, days_left, duration_ms)
-        pass
+        # Return: NetworkInfo with TLS version, cipher, and certificate data
+        ...
 
 analyzer = HTTPTapAnalyzer(tls_inspector=CustomTLSInspector())
 ```
@@ -82,13 +83,25 @@ steps = analyzer.analyze_url(
 ```python
 from httptap import HTTPTapAnalyzer
 
-analyzer = HTTPTapAnalyzer()
-steps = analyzer.analyze_url(
-    "https://httpbin.io/redirect/3",
-    follow_redirects=True
-)
+analyzer = HTTPTapAnalyzer(follow_redirects=True)
+steps = analyzer.analyze_url("https://httpbin.io/redirect/3")
 
 print(f"Total steps in redirect chain: {len(steps)}")
+```
+
+### Sending Request Body
+
+```python
+from httptap import HTTPTapAnalyzer
+from httptap.constants import HTTPMethod
+
+analyzer = HTTPTapAnalyzer()
+steps = analyzer.analyze_url(
+    "https://httpbin.io/post",
+    method=HTTPMethod.POST,
+    content=b'{"key": "value"}',
+    headers={"Content-Type": "application/json"},
+)
 ```
 
 ## Ignoring TLS Verification
@@ -106,7 +119,7 @@ likely to complete the handshake. Extremely deprecated algorithms that
 OpenSSL removes entirely (e.g., RC4, 3DES on some platforms) may still
 fail even in this mode.
 
-### Using Proxies
+## Using Proxies
 
 Direct requests through an outbound proxy (HTTP, HTTPS, SOCKS5/SOCKS5H):
 
@@ -119,6 +132,47 @@ httptap --proxy socks5h://proxy.internal:1080 https://httpbin.io/get
 ```
 
 The Rich output and JSON export include the proxy URI when one is used.
+
+### Proxy Protocols and DNS Resolution
+
+httptap supports four proxy protocols, each with different DNS resolution behavior:
+
+| Protocol   | DNS Resolved By | Use Case |
+|------------|----------------|----------|
+| `socks5h://` | Proxy server | Privacy, corporate networks, access to internal DNS |
+| `http://`    | Proxy server | Standard HTTP proxies (CONNECT method) |
+| `https://`   | Proxy server | Encrypted connection to proxy |
+| `socks5://`  | Client (local) | When you need to control DNS resolution |
+
+The `h` suffix in `socks5h` stands for "hostname" (a curl convention). With `socks5h://`, the hostname is sent to the proxy which resolves it. With `socks5://`, the client resolves DNS locally and sends the IP to the proxy.
+
+### Environment Variable Proxies
+
+When no `--proxy` flag is provided, httptap checks environment variables:
+
+1. `no_proxy` / `NO_PROXY` - Comma-separated list of hosts to bypass (lowercase takes priority)
+2. `https_proxy` / `HTTPS_PROXY` - Proxy for HTTPS requests (lowercase takes priority)
+3. `http_proxy` / `HTTP_PROXY` - Proxy for HTTP requests (lowercase takes priority)
+4. `all_proxy` / `ALL_PROXY` - Fallback proxy for all protocols
+
+The `--proxy` flag always takes precedence over environment variables.
+
+**NO_PROXY patterns:**
+
+- `*` - Bypass proxy for all hosts
+- `example.com` - Exact hostname match
+- `.example.com` - All subdomains of example.com
+- `sub.example.com` - Exact subdomain match
+
+## Custom CA Bundles
+
+For internal endpoints signed by a private CA, supply a PEM bundle with `--cacert`:
+
+```bash
+httptap --cacert ~/certs/company-ca.pem https://internal-api.example.com/health
+```
+
+CLI output will show `TLS CA: custom bundle` to indicate the non-system trust store was used. JSON exports include `network.tls_custom_ca: true` so downstream tools can detect custom trust. The flag is mutually exclusive with `--ignore-ssl`.
 
 ## Custom Request Executors
 
@@ -161,19 +215,16 @@ print(executor.last_options.headers)  # {'X-Debug': '1'}
 
 ## Custom Visualization
 
-Create your own visualization by implementing the `VisualizerProtocol`.
+Create your own visualization by implementing the `Visualizer` protocol.
 
 ```python
-from httptap.interfaces import VisualizerProtocol
-from httptap.models import RequestStep
+from httptap.models import StepMetrics
 
 class CustomVisualizer:
     """Custom visualizer for request steps."""
 
-    def render(self, steps: list[RequestStep], *, follow: bool = False):
-        for step in steps:
-            # Custom rendering logic
-            print(f"Step {step.step_number}: {step.timing.total_ms}ms")
+    def render(self, step: StepMetrics) -> None:
+        print(f"Step {step.step_number}: {step.timing.total_ms}ms")
 
 # Use custom visualizer
 from httptap import HTTPTapAnalyzer
@@ -182,17 +233,8 @@ analyzer = HTTPTapAnalyzer()
 steps = analyzer.analyze_url("https://httpbin.io")
 
 visualizer = CustomVisualizer()
-visualizer.render(steps)
-
-## Custom CA bundles
-
-For internal endpoints signed by a private CA, supply a PEM bundle with `--cacert`:
-
-```bash
-httptap --cacert ~/certs/company-ca.pem https://internal-api.example.com/health
-```
-
-CLI output will show `TLS CA: custom bundle` to indicate the non-system trust store was used. JSON exports include `network.tls_custom_ca: true` so downstream tools can detect custom trust. The flag is mutually exclusive with `--ignore-ssl`.
+for step in steps:
+    visualizer.render(step)
 ```
 
 ## Custom Export Formats
@@ -200,18 +242,18 @@ CLI output will show `TLS CA: custom bundle` to indicate the non-system trust st
 Implement custom export formats beyond JSON.
 
 ```python
-from httptap.interfaces import ExporterProtocol
-from httptap.models import RequestStep
+from collections.abc import Sequence
+from httptap.models import StepMetrics
 import csv
 
 class CSVExporter:
     """Export request data to CSV format."""
 
-    def export(self, steps: list[RequestStep], output_path: str):
-        with open(output_path, 'w', newline='') as f:
+    def export(self, steps: Sequence[StepMetrics], initial_url: str, output_path: str) -> None:
+        with open(output_path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(['url', 'status', 'dns_ms', 'connect_ms',
-                           'tls_ms', 'ttfb_ms', 'total_ms'])
+            writer.writerow(["url", "status", "dns_ms", "connect_ms",
+                           "tls_ms", "ttfb_ms", "total_ms"])
 
             for step in steps:
                 writer.writerow([
@@ -221,7 +263,7 @@ class CSVExporter:
                     step.timing.connect_ms,
                     step.timing.tls_ms,
                     step.timing.ttfb_ms,
-                    step.timing.total_ms
+                    step.timing.total_ms,
                 ])
 
 # Usage
@@ -231,7 +273,7 @@ analyzer = HTTPTapAnalyzer()
 steps = analyzer.analyze_url("https://httpbin.io")
 
 exporter = CSVExporter()
-exporter.export(steps, "output.csv")
+exporter.export(steps, "https://httpbin.io", "output.csv")
 ```
 
 ## Performance Monitoring
@@ -300,12 +342,13 @@ Handle errors gracefully when analyzing URLs.
 from httptap import HTTPTapAnalyzer
 
 analyzer = HTTPTapAnalyzer()
+steps = analyzer.analyze_url("https://httpbin.io/status/500")
 
-try:
-    steps = analyzer.analyze_url("https://httpbin.io/status/500")
-except Exception as e:
-    print(f"Error analyzing URL: {e}")
-    # Handle error appropriately
+step = steps[0]
+if step.has_error:
+    print(f"Error: {step.error}")
+else:
+    print(f"Status: {step.response.status}")
 ```
 
 ## Integration with Testing Frameworks
@@ -355,26 +398,26 @@ from httptap import HTTPTapAnalyzer
 config = {
     "production": {
         "timeout": 30,
-        "follow_redirects": True
+        "follow_redirects": True,
     },
     "staging": {
         "timeout": 60,
-        "follow_redirects": True
+        "follow_redirects": True,
     },
     "development": {
         "timeout": 120,
-        "follow_redirects": False
-    }
+        "follow_redirects": False,
+    },
 }
 
 env = os.getenv("ENVIRONMENT", "development")
 settings = config[env]
 
-analyzer = HTTPTapAnalyzer()
-steps = analyzer.analyze_url(
-    "https://httpbin.io/status/200",
-    follow_redirects=settings["follow_redirects"]
+analyzer = HTTPTapAnalyzer(
+    timeout=settings["timeout"],
+    follow_redirects=settings["follow_redirects"],
 )
+steps = analyzer.analyze_url("https://httpbin.io/status/200")
 ```
 
 ## Debugging Tips

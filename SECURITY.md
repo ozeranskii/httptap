@@ -66,7 +66,7 @@ Your PoC code here
 [Your suggestion if you have one]
 
 ## Environment
-- Python: 3.10-3.14
+- Python: 3.10-3.15
 - OS: macOS/Linux/Windows
 - httptap version: X.Y.Z
 

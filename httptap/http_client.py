@@ -241,6 +241,103 @@ class TraceCollector:
         return self._duration_ms(self.TLS_EVENT)
 
 
+# Proxy schemes where DNS resolution happens on the proxy side.
+# All other schemes (e.g. socks5) perform local DNS on the client.
+_REMOTE_DNS_PROXY_SCHEMES: frozenset[str] = frozenset({"socks5h", "http", "https"})
+
+
+def _needs_remote_dns(proxy_url: str) -> bool:
+    """Check if the proxy requires remote DNS resolution.
+
+    Remote DNS proxy types send the hostname to the proxy for resolution:
+        - socks5h:// - SOCKS5 with remote hostname resolution
+        - http:// - HTTP CONNECT proxy
+        - https:// - HTTPS CONNECT proxy
+
+    Local DNS proxy types resolve DNS on the client side:
+        - socks5:// - SOCKS5 with local DNS resolution
+
+    Args:
+        proxy_url: The proxy URL to check.
+
+    Returns:
+        True if the proxy handles DNS resolution remotely.
+
+    """
+    scheme = proxy_url.split("://", maxsplit=1)[0].lower()
+    return scheme in _REMOTE_DNS_PROXY_SCHEMES
+
+
+def _host_matches_no_proxy(host: str, no_proxy: str) -> bool:
+    """Check if a hostname matches any entry in the NO_PROXY exclusion list.
+
+    Supports exact matches, suffix matches with leading dot, and wildcard (*).
+
+    Args:
+        host: Hostname to check (e.g., "api.example.com").
+        no_proxy: Comma-separated list of hosts/patterns to exclude.
+
+    Returns:
+        True if the host should bypass proxy.
+
+    """
+    if not no_proxy:
+        return False
+
+    host_lower = host.lower()
+
+    def _matches(pattern: str) -> bool:
+        return (
+            pattern in {"*", host_lower}
+            or (pattern.startswith(".") and host_lower.endswith(pattern))
+            or host_lower.endswith(f".{pattern}")
+        )
+
+    return any(_matches(entry.strip().lower()) for entry in no_proxy.split(",") if entry.strip())
+
+
+def _resolve_effective_proxy(
+    proxy: ProxyTypes | None,
+    url_scheme: str,
+    host: str,
+) -> str | None:
+    """Resolve the effective proxy URL for a request.
+
+    When an explicit proxy is provided, returns its URL string. Otherwise
+    checks standard proxy environment variables (HTTPS_PROXY, HTTP_PROXY,
+    ALL_PROXY) with NO_PROXY exclusion support.
+
+    Args:
+        proxy: Explicit proxy from the caller, or None.
+        url_scheme: Scheme of the target URL (e.g., "https").
+        host: Hostname of the target URL.
+
+    Returns:
+        Proxy URL string if a proxy applies, None otherwise.
+
+    """
+    if proxy is not None:
+        return str(getattr(proxy, "url", proxy))
+
+    # Check NO_PROXY exclusions before reading proxy env vars.
+    # Lowercase no_proxy takes priority per curl/Python convention.
+    no_proxy = os.environ.get("no_proxy", os.environ.get("NO_PROXY", ""))
+    if _host_matches_no_proxy(host, no_proxy):
+        return None
+
+    # Resolve scheme-specific proxy env var, then ALL_PROXY fallback.
+    # Lowercase variants take priority per curl/Python getproxies() convention.
+    scheme_lower = url_scheme.lower()
+    scheme_upper = url_scheme.upper()
+
+    return (
+        os.environ.get(f"{scheme_lower}_proxy")
+        or os.environ.get(f"{scheme_upper}_PROXY")
+        or os.environ.get("all_proxy")  # noqa: SIM112 - lowercase variant takes priority
+        or os.environ.get("ALL_PROXY")
+    ) or None
+
+
 def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     url: str,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
@@ -366,29 +463,28 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             msg = "Invalid URL: missing hostname"
             raise HTTPClientError(msg)  # noqa: TRY301
 
-        # When using a proxy, skip local DNS resolution and let the proxy handle it
-        # This is especially important for socks5h:// which does remote DNS resolution
-        # Check both explicit proxy parameter and scheme-appropriate environment variables
-        # Note: httpx will also respect these env vars, so we need to match its behavior
-        scheme_upper = parsed_url.scheme.upper()
-        has_proxy_env = bool(
-            os.environ.get(f"{scheme_upper}_PROXY")
-            or os.environ.get(f"{parsed_url.scheme}_proxy")
-            or os.environ.get("ALL_PROXY")
-            or os.environ.get("all_proxy")  # noqa: SIM112 - lowercase variant is commonly used
-        )
-        use_hostname = proxy is not None or has_proxy_env
+        # Determine effective proxy and DNS resolution strategy.
+        #
+        # Different proxy types have different DNS resolution requirements:
+        # - socks5h://, http://, https:// → Remote DNS (proxy resolves hostname)
+        # - socks5:// → Local DNS (client resolves, sends IP to proxy)
+        # - No proxy → Local DNS (direct connection)
+        #
+        # When using remote DNS proxies, we skip local resolution and send the
+        # original hostname so the proxy can resolve it. This prevents TLS errors
+        # caused by sending CONNECT with an IP instead of a hostname.
+        effective_proxy_url = _resolve_effective_proxy(proxy, parsed_url.scheme, host)
+        skip_local_dns = effective_proxy_url is not None and _needs_remote_dns(effective_proxy_url)
 
-        if use_hostname:
-            # Skip DNS resolution when using proxy
+        if skip_local_dns:
+            # Remote DNS proxy: skip local resolution, let the proxy handle it
             timing_collector.mark_dns_start()
             timing_collector.mark_dns_end()
-            # Proxy will handle DNS, so we don't have IP info yet
             network_info.ip = None
             network_info.ip_family = None
             request_target = host
         else:
-            # Perform DNS resolution with timing (no proxy)
+            # Local DNS: resolve hostname before connecting
             timing_collector.mark_dns_start()
             try:
                 ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, timeout)
@@ -449,12 +545,11 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             tls_ms=trace.tls_ms,
         )
 
-        # Gather TLS metadata for HTTPS
-        # Skip separate TLS inspection when using a proxy, as:
-        # 1. The TLS inspector makes a direct socket connection that bypasses the proxy
-        # 2. We already get TLS info from the httpx response via _populate_tls_from_stream
-        # 3. Direct connections may fail in proxy-required environments
-        if is_https and network_info.tls_version is None and proxy is None and not has_proxy_env:
+        # Gather TLS metadata for HTTPS.
+        # Skip separate TLS inspection when using a proxy, as the TLS inspector
+        # makes a direct socket connection that bypasses the proxy. TLS info is
+        # already captured via _populate_tls_from_stream when available.
+        if is_https and network_info.tls_version is None and effective_proxy_url is None:
             try:
                 tls_info = tls_inspector.inspect(host, port, timeout)
                 # Merge TLS info (preserve IP/family from DNS)
