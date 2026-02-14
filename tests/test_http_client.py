@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import ssl
+import sys
 from types import SimpleNamespace, TracebackType
 from typing import TYPE_CHECKING, Any
 
 import httpx
 import pytest
-from typing_extensions import Self
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 from httptap.http_client import (
     _host_matches_no_proxy,

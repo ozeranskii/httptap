@@ -7,7 +7,11 @@ from io import StringIO
 from typing import TYPE_CHECKING, no_type_check
 
 from rich.console import Console
-from typing_extensions import Self
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 from httptap.models import StepMetrics, TimingMetrics
 from httptap.visualizer import WaterfallVisualizer

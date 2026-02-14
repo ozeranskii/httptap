@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import json
 import signal
+import sys
 from argparse import Namespace
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pytest
-from typing_extensions import Self
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 from httptap.cli import (
     EXIT_FATAL_ERROR,
