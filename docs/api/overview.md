@@ -19,7 +19,7 @@ httptap is built around a modular architecture with clear interfaces:
          │
          ├─► DNS Resolver (Protocol)
          ├─► TLS Inspector (Protocol)
-         ├─► Timing Provider (Protocol)
+         ├─► Timing Collector (Protocol)
          ├─► Visualizer (Protocol)
          └─► Exporter (Protocol)
 ```
@@ -37,18 +37,18 @@ analyzer = HTTPTapAnalyzer()
 steps = analyzer.analyze_url("https://httpbin.io")
 ```
 
-### RequestStep
+### StepMetrics
 
 Data model representing a single request/response cycle.
 
 ```python
-from httptap.models import RequestStep
+from httptap.models import StepMetrics
 
-step: RequestStep
+step: StepMetrics
 print(step.url)           # Request URL
-print(step.timing)        # Timing information
-print(step.network)       # Network details
-print(step.response)      # Response data
+print(step.timing)        # TimingMetrics object
+print(step.network)       # NetworkInfo object
+print(step.response)      # ResponseInfo object
 ```
 
 ### Timing Information
@@ -67,24 +67,26 @@ step.timing.is_estimated  # Whether timing is estimated
 ### Network Information
 
 ```python
-step.network.ip             # IP address
-step.network.ip_family      # IPv4 or IPv6
-step.network.http_version   # HTTP protocol (HTTP/1.1, HTTP/2.0, ...)
-step.network.tls_version    # TLS protocol version
-step.network.tls_cipher     # Cipher suite
-step.network.cert_cn        # Certificate common name
-step.network.cert_days_left # Days until expiration
+step.network.ip             # IP address (str | None)
+step.network.ip_family      # IPv4 or IPv6 (str | None)
+step.network.http_version   # HTTP protocol (str | None)
+step.network.tls_version    # TLS protocol version (str | None)
+step.network.tls_cipher     # Cipher suite (str | None)
+step.network.cert_cn        # Certificate common name (str | None)
+step.network.cert_days_left # Days until expiration (int | None)
+step.network.tls_verified   # Whether TLS was verified (bool | None)
+step.network.tls_custom_ca  # Custom CA bundle used (bool | None)
 ```
 
 ### Response Data
 
 ```python
-step.response.status        # HTTP status code
-step.response.bytes         # Response body size
-step.response.content_type  # Content-Type header
-step.response.server        # Server header
-step.response.date          # Response date
-step.response.location      # Location header (redirects)
+step.response.status        # HTTP status code (int | None)
+step.response.bytes         # Response body size (int)
+step.response.content_type  # Content-Type header (str | None)
+step.response.server        # Server header (str | None)
+step.response.date          # Response date (datetime | None)
+step.response.location      # Location header (str | None)
 step.response.headers       # All headers dict
 ```
 
@@ -92,83 +94,85 @@ step.response.headers       # All headers dict
 
 httptap uses Protocol classes (PEP 544) for type-safe extensibility.
 
-### DNSResolverProtocol
+### DNSResolver
 
 Interface for custom DNS resolution implementations.
 
 ```python
-from httptap.interfaces import DNSResolverProtocol
+from httptap.interfaces import DNSResolver
 
 class CustomResolver:
-    def resolve(self, host: str, port: int, timeout: float):
+    def resolve(self, host: str, port: int, timeout: float) -> tuple[str, str, float]:
         """Resolve host to IP address.
 
         Returns:
             tuple[str, str, float]: (ip_address, family, duration_ms)
         """
-        pass
+        ...
 ```
 
-### TLSInspectorProtocol
+### TLSInspector
 
 Interface for TLS certificate and connection inspection.
 
 ```python
-from httptap.interfaces import TLSInspectorProtocol
+from httptap.interfaces import TLSInspector
+from httptap.models import NetworkInfo
 
 class CustomTLSInspector:
-    def inspect(self, host: str, port: int, timeout: float):
+    def inspect(self, host: str, port: int, timeout: float) -> NetworkInfo:
         """Inspect TLS connection and certificate.
 
         Returns:
-            tuple: (tls_version, cipher, cert_cn, days_left, duration_ms)
+            NetworkInfo with TLS version, cipher, and certificate data.
         """
-        pass
+        ...
 ```
 
-### TimingProviderProtocol
+### TimingCollector
 
-Interface for request timing implementations.
+Interface for request timing implementations. A new instance is created for each request.
 
 ```python
-from httptap.interfaces import TimingProviderProtocol
+from httptap.interfaces import TimingCollector
+from httptap.models import TimingMetrics
 
-class CustomTimingProvider:
-    def time_request(self, url: str, headers: dict):
-        """Time HTTP request execution.
-
-        Returns:
-            RequestStep: Complete step with timing information
-        """
-        pass
+class CustomTimingCollector:
+    def mark_dns_start(self) -> None: ...
+    def mark_dns_end(self) -> None: ...
+    def mark_request_start(self) -> None: ...
+    def mark_ttfb(self) -> None: ...
+    def mark_request_end(self) -> None: ...
+    def get_metrics(self) -> TimingMetrics: ...
 ```
 
-### VisualizerProtocol
+### Visualizer
 
 Interface for custom output visualization.
 
 ```python
-from httptap.interfaces import VisualizerProtocol
-from httptap.models import RequestStep
+from httptap.interfaces import Visualizer
+from httptap.models import StepMetrics
 
 class CustomVisualizer:
-    def render(self, steps: list[RequestStep], *, follow: bool = False):
-        """Render request steps for display."""
-        pass
+    def render(self, step: StepMetrics) -> None:
+        """Render a single request step for display."""
+        ...
 ```
 
-### ExporterProtocol
+### Exporter
 
 Interface for custom data export formats.
 
 ```python
-from httptap.interfaces import ExporterProtocol
-from httptap.models import RequestStep
+from httptap.interfaces import Exporter
+from httptap.models import StepMetrics
+from collections.abc import Sequence
 
 class CustomExporter:
-    def export(self, steps: list[RequestStep], output_path: str):
+    def export(self, steps: Sequence[StepMetrics], initial_url: str, output_path: str) -> None:
         """Export request data to file."""
-        pass
+        ...
 ```
 
 ## Built-in Implementations
@@ -180,7 +184,7 @@ httptap provides default implementations of all protocols:
 Uses Python's `socket.getaddrinfo()` for DNS resolution.
 
 ```python
-from httptap.implementations import SystemDNSResolver
+from httptap import SystemDNSResolver
 
 resolver = SystemDNSResolver()
 ip, family, duration = resolver.resolve("httpbin.io", 443, timeout=5.0)
@@ -191,32 +195,37 @@ ip, family, duration = resolver.resolve("httpbin.io", 443, timeout=5.0)
 Uses Python's `ssl` module to inspect TLS connections.
 
 ```python
-from httptap.implementations import SocketTLSInspector
+from httptap import SocketTLSInspector
 
 inspector = SocketTLSInspector()
-version, cipher, cn, days, duration = inspector.inspect("httpbin.io", 443, 5.0)
+network_info = inspector.inspect("httpbin.io", 443, 5.0)
+print(network_info.tls_version, network_info.tls_cipher)
 ```
 
-### HTTPCoreTimingProvider
+### PerfCounterTimingCollector
 
-Uses httpcore trace hooks for precise timing.
+Uses `time.perf_counter()` for precise timing.
 
 ```python
-from httptap.implementations import HTTPCoreTimingProvider
+from httptap import PerfCounterTimingCollector
 
-provider = HTTPCoreTimingProvider()
-step = provider.time_request("https://httpbin.io", headers={})
+collector = PerfCounterTimingCollector()
+collector.mark_dns_start()
+# ... perform DNS ...
+collector.mark_dns_end()
+metrics = collector.get_metrics()
 ```
 
 ### WaterfallVisualizer
 
-Uses Rich library for beautiful terminal output.
+Uses Rich library for waterfall terminal output.
 
 ```python
+from rich.console import Console
 from httptap import WaterfallVisualizer
 
-visualizer = WaterfallVisualizer()
-visualizer.render(steps)
+visualizer = WaterfallVisualizer(Console())
+visualizer.render(step)
 ```
 
 ### JSONExporter
@@ -224,10 +233,24 @@ visualizer.render(steps)
 Exports request data to JSON format.
 
 ```python
+from rich.console import Console
 from httptap import JSONExporter
 
-exporter = JSONExporter()
-exporter.export(steps, "output.json")
+exporter = JSONExporter(Console())
+exporter.export(steps, "https://httpbin.io", "output.json")
+```
+
+## Request Executor
+
+For fully customized HTTP behavior, implement the `RequestExecutor` protocol.
+
+```python
+from httptap import RequestExecutor, RequestOptions, RequestOutcome
+
+class CustomExecutor:
+    def execute(self, options: RequestOptions) -> RequestOutcome:
+        """Perform an HTTP request based on provided options."""
+        ...
 ```
 
 ## Type Hints
@@ -236,37 +259,30 @@ All public APIs are fully type-hinted for excellent IDE support.
 
 ```python
 from httptap import HTTPTapAnalyzer
-from httptap.models import RequestStep
+from httptap.models import StepMetrics
 
-def analyze_api(url: str) -> list[RequestStep]:
+def analyze_api(url: str) -> list[StepMetrics]:
     """Analyze API endpoint and return steps."""
     analyzer: HTTPTapAnalyzer = HTTPTapAnalyzer()
-    steps: list[RequestStep] = analyzer.analyze_url(url)
+    steps: list[StepMetrics] = analyzer.analyze_url(url)
     return steps
 ```
 
 ## Error Handling
 
-httptap raises standard Python exceptions:
-
-- `ValueError` - Invalid input parameters
-- `TimeoutError` - Request timeout exceeded
-- `ConnectionError` - Network connection failed
-- `Exception` - General errors with descriptive messages
+httptap returns errors as part of `StepMetrics` rather than raising exceptions during analysis.
 
 ```python
 from httptap import HTTPTapAnalyzer
 
 analyzer = HTTPTapAnalyzer()
+steps = analyzer.analyze_url("https://invalid-domain.example")
 
-try:
-    steps = analyzer.analyze_url("https://invalid-domain.com")
-except TimeoutError:
-    print("Request timed out")
-except ConnectionError:
-    print("Connection failed")
-except Exception as e:
-    print(f"Error: {e}")
+step = steps[0]
+if step.has_error:
+    print(f"Error: {step.error}")
+else:
+    print(f"Status: {step.response.status}")
 ```
 
 ---

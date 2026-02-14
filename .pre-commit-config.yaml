@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.14
+    rev: v0.15.1
     hooks:
       - id: ruff-check
         args:
@@ -46,6 +46,6 @@ repos:
           - "--conf"
           - ".yamlfmt"
   - repo: https://github.com/crate-ci/typos
-    rev: v1.42.1
+    rev: v1.43.4
     hooks:
       - id: typos

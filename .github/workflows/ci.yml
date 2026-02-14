@@ -53,10 +53,10 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --locked --group typing
+        run: uv sync --locked --no-dev --group typing
 
       - name: Run mypy
-        run: uv run mypy httptap
+        run: uv run --no-dev --group typing mypy httptap
 
   test:
     name: Test / Python ${{ matrix.python-version }} / ${{ matrix.os }}
@@ -75,6 +75,8 @@ jobs:
           - "3.13"
           - "3.14"
           - "3.14t"
+          - "3.15"
+          - "3.15t"
 
     steps:
       - name: Checkout code
@@ -87,10 +89,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --locked --group test
+        run: uv sync --locked --no-dev --group test
 
       - name: Run tests with coverage
-        run: uv run pytest --cov --cov-report=xml --cov-report=term
+        run: uv run --no-dev --group test pytest --cov --cov-report=xml --cov-report=term
 
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14' && github.actor != 'dependabot[bot]'

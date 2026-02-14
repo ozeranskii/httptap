@@ -10,17 +10,34 @@ The main analyzer class that orchestrates HTTP request analysis.
 
 ```python
 HTTPTapAnalyzer(
-    dns_resolver: DNSResolverProtocol | None = None,
-    tls_inspector: TLSInspectorProtocol | None = None,
-    timing_provider: TimingProviderProtocol | None = None
+    *,
+    follow_redirects: bool = False,
+    timeout: float = 20.0,
+    http2: bool = True,
+    verify_ssl: bool = True,
+    ca_bundle_path: str | None = None,
+    max_redirects: int = 10,
+    request_executor: RequestExecutor | None = None,
+    proxy: ProxyTypes | None = None,
+    dns_resolver: DNSResolver | None = None,
+    tls_inspector: TLSInspector | None = None,
+    timing_collector_factory: type[TimingCollector] | None = None,
 )
 ```
 
 **Parameters:**
 
+- `follow_redirects` - Whether to follow 3xx redirects
+- `timeout` - Request timeout in seconds (default 20)
+- `http2` - Enable HTTP/2 support (default True)
+- `verify_ssl` - Whether to verify TLS certificates
+- `ca_bundle_path` - Path to custom CA certificate bundle (PEM format)
+- `max_redirects` - Maximum number of redirects to follow
+- `request_executor` - Custom request executor implementation (optional)
+- `proxy` - Proxy URL (http/https/socks5/socks5h) for all requests
 - `dns_resolver` - Custom DNS resolver implementation (optional)
 - `tls_inspector` - Custom TLS inspector implementation (optional)
-- `timing_provider` - Custom timing provider implementation (optional)
+- `timing_collector_factory` - Factory class for creating timing collectors (optional)
 
 If not provided, default implementations are used.
 
@@ -33,9 +50,10 @@ def analyze_url(
     self,
     url: str,
     *,
-    headers: dict[str, str] | None = None,
-    follow_redirects: bool = False
-) -> list[RequestStep]
+    method: HTTPMethod = HTTPMethod.GET,
+    content: bytes | None = None,
+    headers: Mapping[str, str] | None = None,
+) -> list[StepMetrics]
 ```
 
 Analyze an HTTP request and return detailed timing information.
@@ -43,81 +61,84 @@ Analyze an HTTP request and return detailed timing information.
 **Parameters:**
 
 - `url` - The URL to analyze (must include scheme: http:// or https://)
+- `method` - HTTP method to use (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)
+- `content` - Optional request body as bytes
 - `headers` - Optional custom HTTP headers
-- `follow_redirects` - Whether to follow HTTP redirects
 
 **Returns:**
 
-- `list[RequestStep]` - List of request steps (one per redirect)
-
-**Raises:**
-
-- `ValueError` - If URL is invalid
-- `TimeoutError` - If request times out
-- `ConnectionError` - If connection fails
+- `list[StepMetrics]` - List of request steps (one per redirect)
 
 **Example:**
 
 ```python
 from httptap import HTTPTapAnalyzer
+from httptap.constants import HTTPMethod
 
-analyzer = HTTPTapAnalyzer()
+analyzer = HTTPTapAnalyzer(follow_redirects=True)
 steps = analyzer.analyze_url(
     "https://httpbin.io",
     headers={"Accept": "application/json"},
-    follow_redirects=True
 )
 ```
 
 ## Data Models
 
-### RequestStep
+### StepMetrics
 
 Represents a single HTTP request/response cycle.
 
 ```python
-@dataclass
-class RequestStep:
-    url: str                    # Request URL
-    step_number: int           # Step number in redirect chain
-    timing: TimingInfo         # Timing information
-    network: NetworkInfo       # Network details
-    response: ResponseInfo     # Response data
-    error: str | None          # Error message if failed
-    note: str | None           # Additional notes
+@dataclass(slots=True)
+class StepMetrics:
+    url: str = ""                                       # Request URL
+    step_number: int = 1                                # Step number in redirect chain
+    timing: TimingMetrics = field(default_factory=...)   # Timing information
+    network: NetworkInfo = field(default_factory=...)    # Network details
+    response: ResponseInfo = field(default_factory=...)  # Response data
+    error: str | None = None                            # Error message if failed
+    note: str | None = None                             # Additional notes
+    proxied_via: str | None = None                      # Proxy URL used, if any
+    request_method: str | None = None                   # HTTP method used
+    request_headers: dict[str, str] = field(...)        # Request headers (sanitized)
+    request_body_bytes: int = 0                         # Size of request body
 ```
 
-### TimingInfo
+### TimingMetrics
 
-Contains detailed timing breakdown for the request.
+Contains detailed timing breakdown for the request. All values are in milliseconds.
 
 ```python
-@dataclass
-class TimingInfo:
-    dns_ms: float              # DNS resolution time
-    connect_ms: float          # TCP connection time
-    tls_ms: float              # TLS handshake time
-    ttfb_ms: float             # Time to first byte
-    total_ms: float            # Total request time
-    wait_ms: float             # Server processing time
-    xfer_ms: float             # Body transfer time
-    is_estimated: bool         # Whether timing is estimated
+@dataclass(slots=True)
+class TimingMetrics:
+    dns_ms: float = 0.0        # DNS resolution time
+    connect_ms: float = 0.0    # TCP connection time
+    tls_ms: float = 0.0        # TLS handshake time
+    ttfb_ms: float = 0.0       # Time to first byte
+    total_ms: float = 0.0      # Total request time
+    wait_ms: float = 0.0       # Server processing time (derived)
+    xfer_ms: float = 0.0       # Body transfer time (derived)
+    is_estimated: bool = False  # Whether timing is estimated
 ```
+
+Call `calculate_derived()` after populating raw timing values to compute `wait_ms` and `xfer_ms`.
 
 ### NetworkInfo
 
-Contains network-level details about the connection.
+Contains network-level details about the connection. All fields are optional.
 
 ```python
-@dataclass
+@dataclass(slots=True)
 class NetworkInfo:
-    ip: str                    # IP address
-    ip_family: str             # "IPv4" or "IPv6"
-    http_version: str          # HTTP protocol version
-    tls_version: str           # TLS protocol version
-    tls_cipher: str            # Cipher suite name
-    cert_cn: str               # Certificate common name
-    cert_days_left: int        # Days until certificate expires
+    ip: str | None = None              # Resolved IP address
+    ip_family: str | None = None       # "IPv4" or "IPv6"
+    http_version: str | None = None    # HTTP protocol version
+    tls_version: str | None = None     # TLS protocol version
+    tls_cipher: str | None = None      # Cipher suite name
+    cert_cn: str | None = None         # Certificate common name
+    cert_days_left: int | None = None  # Days until certificate expires
+    tls_verified: bool | None = None   # Whether TLS verification was enforced
+    tls_custom_ca: bool | None = None  # True when custom CA bundle was used
 ```
 
 ### ResponseInfo
@@ -125,71 +146,82 @@ class NetworkInfo:
 Contains HTTP response metadata.
 
 ```python
-@dataclass
+@dataclass(slots=True)
 class ResponseInfo:
-    status: int                # HTTP status code
-    bytes: int                 # Response body size
-    content_type: str | None   # Content-Type header
-    server: str | None         # Server header
-    date: str | None           # Response date
-    location: str | None       # Location header (redirects)
-    headers: dict[str, str]    # All response headers
+    status: int | None = None            # HTTP status code
+    bytes: int = 0                       # Response body size
+    content_type: str | None = None      # Content-Type header
+    server: str | None = None            # Server header
+    date: datetime | None = None         # Response date (parsed)
+    location: str | None = None          # Location header (redirects)
+    headers: dict[str, str] = field(...) # Sanitized response headers
 ```
 
 ## Utility Functions
 
-### format_duration()
+### validate_url()
 
-Format duration in milliseconds to human-readable string.
+Validate that a URL is a valid HTTP/HTTPS URL.
 
 ```python
-from httptap.utils import format_duration
+from httptap.utils import validate_url
 
-formatted = format_duration(1234.56)  # "1234.6ms"
+validate_url("https://httpbin.io")     # True
+validate_url("ftp://example.com")      # False
 ```
 
-### parse_certificate()
+### sanitize_headers()
 
-Extract certificate information from SSL connection.
+Mask sensitive header values (Authorization, Cookie, API keys).
 
 ```python
-from httptap.utils import parse_certificate
+from httptap.utils import sanitize_headers
 
-cert_info = parse_certificate(ssl_cert_dict)
-# Returns: (common_name, days_until_expiry)
+sanitize_headers({"Authorization": "Bearer secret123"})
+# {'Authorization': 'Bear****t123'}
 ```
 
-### detect_ip_family()
+### parse_http_date()
 
-Determine if an IP address is IPv4 or IPv6.
+Parse HTTP date header to datetime.
 
 ```python
-from httptap.utils import detect_ip_family
+from httptap.utils import parse_http_date
 
-family = detect_ip_family("192.168.1.1")     # "IPv4"
-family = detect_ip_family("2001:db8::1")     # "IPv6"
+dt = parse_http_date("Mon, 22 Oct 2025 12:00:00 GMT")
+```
+
+### create_ssl_context()
+
+Create an SSL context with configurable verification and optional custom CA bundle.
+
+```python
+from httptap.utils import create_ssl_context
+
+ctx = create_ssl_context(verify_ssl=True, ca_bundle_path="/path/to/ca.pem")
 ```
 
 ## Constants
 
-### Default Timeouts
+### Timeouts and Limits
 
 ```python
 from httptap.constants import (
-    DEFAULT_TIMEOUT,        # 30.0 seconds
-    DNS_TIMEOUT,           # 5.0 seconds
-    TLS_TIMEOUT,           # 10.0 seconds
-    REQUEST_TIMEOUT        # 30.0 seconds
+    DEFAULT_TIMEOUT_SECONDS,       # 20.0 seconds
+    TLS_PROBE_MAX_TIMEOUT_SECONDS, # 5.0 seconds
+    HTTP_DEFAULT_PORT,             # 80
+    HTTPS_DEFAULT_PORT,            # 443
 )
 ```
 
-### HTTP Settings
+### Exit Codes
 
 ```python
 from httptap.constants import (
-    DEFAULT_USER_AGENT,    # "httptap/X.Y.Z"
-    MAX_REDIRECTS,         # 10
-    MAX_BODY_SIZE          # 10 MB
+    EXIT_CODE_OK,        # 0 - Success
+    EXIT_CODE_USAGE,     # 64 - Invalid arguments
+    EXIT_CODE_SOFTWARE,  # 70 - Internal error
+    EXIT_CODE_TEMPFAIL,  # 75 - Network/TLS error
 )
 ```
 
@@ -197,15 +229,12 @@ from httptap.constants import (
 
 ```python
 from httptap import HTTPTapAnalyzer
-from httptap.implementations import SystemDNSResolver, SocketTLSInspector
 
-# Create analyzer with custom components
-resolver = SystemDNSResolver()
-inspector = SocketTLSInspector()
-
+# Create analyzer with custom settings
 analyzer = HTTPTapAnalyzer(
-    dns_resolver=resolver,
-    tls_inspector=inspector
+    follow_redirects=True,
+    timeout=30.0,
+    http2=True,
 )
 
 # Analyze with custom headers
@@ -214,9 +243,8 @@ steps = analyzer.analyze_url(
     headers={
         "Authorization": "Bearer token123",
         "Accept": "application/json",
-        "User-Agent": "MyApp/1.0"
+        "User-Agent": "MyApp/1.0",
     },
-    follow_redirects=True
 )
 
 # Process results
@@ -228,11 +256,15 @@ for step in steps:
     print(f"  TLS: {step.timing.tls_ms:.2f}ms")
     print(f"  TTFB: {step.timing.ttfb_ms:.2f}ms")
     print(f"  Total: {step.timing.total_ms:.2f}ms")
-    print(f"  IP: {step.network.ip} ({step.network.ip_family})")
-    print(f"  HTTP: {step.network.http_version}")
-    print(f"  TLS: {step.network.tls_version}")
-    print(f"  Certificate: {step.network.cert_cn} "
-          f"(expires in {step.network.cert_days_left} days)")
+    if step.network.ip:
+        print(f"  IP: {step.network.ip} ({step.network.ip_family})")
+    if step.network.http_version:
+        print(f"  HTTP: {step.network.http_version}")
+    if step.network.tls_version:
+        print(f"  TLS: {step.network.tls_version}")
+    if step.network.cert_cn:
+        print(f"  Certificate: {step.network.cert_cn} "
+              f"(expires in {step.network.cert_days_left} days)")
 ```
 
 ---

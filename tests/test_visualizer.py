@@ -7,7 +7,11 @@ from io import StringIO
 from typing import TYPE_CHECKING, no_type_check
 
 from rich.console import Console
-from typing_extensions import Self
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 from httptap.models import StepMetrics, TimingMetrics
 from httptap.visualizer import WaterfallVisualizer
@@ -596,7 +600,7 @@ class TestWaterfallVisualizer:
 
         module_dict = sys.modules["httptap.visualizer"].__dict__
         monkeypatch.setitem(module_dict, "list", clearing_list)
-        monkeypatch.setattr("httptap.visualizer.math.ceil", lambda value: int(value))
+        monkeypatch.setattr("httptap.visualizer.math.ceil", int)
 
         durations = [12.0, 6.0]
         widths = visualizer._compute_phase_widths(durations)
@@ -623,7 +627,7 @@ class TestWaterfallVisualizer:
 
             return generator()
 
-        monkeypatch.setattr("httptap.visualizer.math.ceil", lambda value: int(value))
+        monkeypatch.setattr("httptap.visualizer.math.ceil", int)
         monkeypatch.setattr("httptap.visualizer.itertools.cycle", fake_cycle)
 
         durations = [15.0, 5.0]
@@ -661,7 +665,7 @@ class TestWaterfallVisualizer:
         def empty_cycle(_order: list[int]) -> Iterator[int]:
             return iter(())
 
-        monkeypatch.setattr("httptap.visualizer.math.ceil", lambda value: int(value))
+        monkeypatch.setattr("httptap.visualizer.math.ceil", int)
         monkeypatch.setattr("httptap.visualizer.itertools.cycle", empty_cycle)
 
         widths = visualizer._compute_phase_widths([12.0, 6.0])

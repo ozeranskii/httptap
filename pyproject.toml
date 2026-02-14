@@ -4,7 +4,7 @@ version = "0.4.3"
 description = "HTTP request visualizer with detailed timing breakdown (DNS → TCP → TLS → HTTP)"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 
 authors = [
     { name = "Sergei Ozeranskii" },
@@ -30,7 +30,7 @@ keywords = [
 ]
 
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "Topic :: Internet :: WWW/HTTP",
@@ -44,6 +44,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: 3 :: Only",
     "Environment :: Console",
     "Operating System :: OS Independent",
@@ -55,7 +56,7 @@ classifiers = [
 
 dependencies = [
     "httpx[http2,socks]>=0.28.1",
-    "rich>=14.2.0",
+    "rich>=14.3.2",
     "dnspython>=2.8.0",
 ]
 
@@ -69,13 +70,13 @@ httptap = "httptap.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/ozeranskii/httptap"
-Documentation = "https://github.com/ozeranskii/httptap?tab=readme-ov-file"
+Documentation = "https://docs.httptap.dev"
 Repository = "https://github.com/ozeranskii/httptap.git"
 Issues = "https://github.com/ozeranskii/httptap/issues"
 Changelog = "https://github.com/ozeranskii/httptap/blob/main/CHANGELOG.md"
 
 [build-system]
-requires = ["uv_build>=0.9.5,<0.10.0"]
+requires = ["uv_build>=0.10.2,<0.11.0"]
 build-backend = "uv_build"
 
 [tool.uv]
@@ -86,39 +87,34 @@ module-root = ""
 
 [dependency-groups]
 dev = [
-    "ruff>=0.14.1",
-    "mypy>=1.18.2",
-    "pytest>=8.4.2",
-    "pytest-cov>=7.0.0",
-    "pytest-mock>=3.15.1",
-    "pytest-httpx>=0.35.0",
-    "faker>=37.11.0",
-    "mkdocs-material[imaging]>=9.6.22",
-    "pre-commit>=4.3.0",
+    {include-group = "lint"},
+    {include-group = "typing"},
+    {include-group = "test"},
+    {include-group = "precommit"},
 ]
 
 typing = [
-    "mypy>=1.18.2",
+    "mypy>=1.19.1",
     "argcomplete>=3.6.3",
 ]
 
 test = [
-    "pytest>=8.4.2",
+    "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
-    "pytest-httpx>=0.35.0",
-    "faker>=37.11.0"
+    "pytest-httpx>=0.36.0",
+    "faker>=40.4.0",
 ]
 
 lint = [
-    "ruff>=0.14.1",
+    "ruff>=0.15.1",
 ]
 
 docs = [
-    "mkdocs-material[imaging]>=9.6.22",
+    "mkdocs-material[imaging]>=9.7.1",
 ]
 precommit = [
-    "pre-commit>=4.3.0",
+    "pre-commit>=4.5.1",
 ]
 
 [tool.ruff]

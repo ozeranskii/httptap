@@ -12,7 +12,7 @@ Protocols provide:
 - **Clear contracts** - Explicit interface definitions
 - **Easy testing** - Simple to mock and substitute
 
-## DNSResolverProtocol
+## DNSResolver
 
 Interface for DNS resolution implementations.
 
@@ -21,7 +21,7 @@ Interface for DNS resolution implementations.
 ```python
 from typing import Protocol
 
-class DNSResolverProtocol(Protocol):
+class DNSResolver(Protocol):
     def resolve(
         self,
         host: str,
@@ -83,7 +83,7 @@ from httptap import HTTPTapAnalyzer
 analyzer = HTTPTapAnalyzer(dns_resolver=CustomDNSResolver())
 ```
 
-## TLSInspectorProtocol
+## TLSInspector
 
 Interface for TLS connection and certificate inspection.
 
@@ -91,14 +91,15 @@ Interface for TLS connection and certificate inspection.
 
 ```python
 from typing import Protocol
+from httptap.models import NetworkInfo
 
-class TLSInspectorProtocol(Protocol):
+class TLSInspector(Protocol):
     def inspect(
         self,
         host: str,
         port: int,
         timeout: float
-    ) -> tuple[str, str, str, int, float]:
+    ) -> NetworkInfo:
         """Inspect TLS connection and certificate.
 
         Args:
@@ -107,12 +108,7 @@ class TLSInspectorProtocol(Protocol):
             timeout: Maximum time to wait in seconds
 
         Returns:
-            Tuple of (version, cipher, cert_cn, days_left, duration_ms) where:
-            - version: TLS protocol version (e.g., "TLSv1.3")
-            - cipher: Cipher suite name
-            - cert_cn: Certificate common name
-            - days_left: Days until certificate expires
-            - duration_ms: Inspection time in milliseconds
+            NetworkInfo object with TLS version, cipher, and certificate data.
 
         Raises:
             Exception: If inspection fails
@@ -127,37 +123,30 @@ import ssl
 import socket
 import time
 from datetime import datetime
+from httptap.models import NetworkInfo
 
 class CustomTLSInspector:
-    def inspect(self, host: str, port: int, timeout: float):
+    def inspect(self, host: str, port: int, timeout: float) -> NetworkInfo:
         start = time.perf_counter()
 
-        try:
-            context = ssl.create_default_context()
-            with socket.create_connection((host, port), timeout=timeout) as sock:
-                with context.wrap_socket(sock, server_hostname=host) as ssock:
-                    # Get TLS version
-                    version = ssock.version()
+        context = ssl.create_default_context()
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            with context.wrap_socket(sock, server_hostname=host) as ssock:
+                version = ssock.version()
+                cipher = ssock.cipher()[0]
+                cert = ssock.getpeercert()
+                cert_cn = dict(x[0] for x in cert["subject"])["commonName"]
+                not_after = datetime.strptime(
+                    cert["notAfter"], "%b %d %H:%M:%S %Y %Z"
+                )
+                days_left = (not_after - datetime.now()).days
 
-                    # Get cipher suite
-                    cipher = ssock.cipher()[0]
-
-                    # Get certificate info
-                    cert = ssock.getpeercert()
-                    cert_cn = dict(x[0] for x in cert['subject'])['commonName']
-
-                    # Calculate days until expiry
-                    not_after = datetime.strptime(
-                        cert['notAfter'],
-                        '%b %d %H:%M:%S %Y %Z'
-                    )
-                    days_left = (not_after - datetime.now()).days
-
-                    duration_ms = (time.perf_counter() - start) * 1000
-                    return version, cipher, cert_cn, days_left, duration_ms
-
-        except Exception as e:
-            raise Exception(f"TLS inspection failed: {e}")
+        return NetworkInfo(
+            tls_version=version,
+            tls_cipher=cipher,
+            cert_cn=cert_cn,
+            cert_days_left=days_left,
+        )
 
 # Usage
 from httptap import HTTPTapAnalyzer
@@ -165,33 +154,37 @@ from httptap import HTTPTapAnalyzer
 analyzer = HTTPTapAnalyzer(tls_inspector=CustomTLSInspector())
 ```
 
-## TimingProviderProtocol
+## TimingCollector
 
-Interface for HTTP request timing implementations.
+Interface for HTTP request timing implementations. A new collector instance is created for each request in the chain.
 
 ### Protocol Definition
 
 ```python
 from typing import Protocol
-from httptap.models import RequestStep
+from httptap.models import TimingMetrics
 
-class TimingProviderProtocol(Protocol):
-    def time_request(
-        self,
-        url: str,
-        headers: dict[str, str] | None = None
-    ) -> RequestStep:
-        """Execute HTTP request and capture timing.
+class TimingCollector(Protocol):
+    def mark_dns_start(self) -> None:
+        """Mark the start of DNS resolution phase."""
 
-        Args:
-            url: URL to request
-            headers: Optional custom headers
+    def mark_dns_end(self) -> None:
+        """Mark the end of DNS resolution phase."""
+
+    def mark_request_start(self) -> None:
+        """Mark the start of HTTP request phase."""
+
+    def mark_ttfb(self) -> None:
+        """Mark the time to first byte (headers received)."""
+
+    def mark_request_end(self) -> None:
+        """Mark the end of HTTP request (body fully received)."""
+
+    def get_metrics(self) -> TimingMetrics:
+        """Calculate and return timing metrics.
 
         Returns:
-            RequestStep with complete timing and response information
-
-        Raises:
-            Exception: If request fails
+            TimingMetrics with all phase durations calculated.
         """
         ...
 ```
@@ -199,71 +192,49 @@ class TimingProviderProtocol(Protocol):
 ### Example Implementation
 
 ```python
-import httpx
 import time
-from httptap.models import RequestStep, TimingInfo, NetworkInfo, ResponseInfo
+from httptap.models import TimingMetrics
 
-class CustomTimingProvider:
-    def time_request(self, url: str, headers: dict | None = None):
-        start_total = time.perf_counter()
+class CustomTimingCollector:
+    """Timing collector using perf_counter."""
 
-        # Make request
-        with httpx.Client() as client:
-            response = client.get(url, headers=headers or {}, follow_redirects=False)
+    def __init__(self) -> None:
+        self._dns_start = 0.0
+        self._dns_end = 0.0
+        self._request_start = 0.0
+        self._ttfb = 0.0
+        self._request_end = 0.0
 
-        total_ms = (time.perf_counter() - start_total) * 1000
+    def mark_dns_start(self) -> None:
+        self._dns_start = time.perf_counter()
 
-        # Build timing info (simplified)
-        timing = TimingInfo(
-            dns_ms=0.0,
-            connect_ms=0.0,
-            tls_ms=0.0,
-            ttfb_ms=total_ms,
-            total_ms=total_ms,
-            wait_ms=0.0,
-            xfer_ms=0.0,
-            is_estimated=True
-        )
+    def mark_dns_end(self) -> None:
+        self._dns_end = time.perf_counter()
 
-        # Build network info (simplified)
-        network = NetworkInfo(
-            ip="",
-            ip_family="",
-            http_version="",
-            tls_version="",
-            tls_cipher="",
-            cert_cn="",
-            cert_days_left=0
-        )
+    def mark_request_start(self) -> None:
+        self._request_start = time.perf_counter()
 
-        # Build response info
-        response_info = ResponseInfo(
-            status=response.status_code,
-            bytes=len(response.content),
-            content_type=response.headers.get("content-type"),
-            server=response.headers.get("server"),
-            date=response.headers.get("date"),
-            location=response.headers.get("location"),
-            headers=dict(response.headers)
-        )
+    def mark_ttfb(self) -> None:
+        self._ttfb = time.perf_counter()
 
-        return RequestStep(
-            url=url,
-            step_number=1,
-            timing=timing,
-            network=network,
-            response=response_info,
-            error=None,
-            note=None
-        )
+    def mark_request_end(self) -> None:
+        self._request_end = time.perf_counter()
 
-# Usage
+    def get_metrics(self) -> TimingMetrics:
+        dns_ms = (self._dns_end - self._dns_start) * 1000
+        ttfb_ms = (self._ttfb - self._dns_start) * 1000
+        total_ms = (self._request_end - self._dns_start) * 1000
+        metrics = TimingMetrics(dns_ms=dns_ms, ttfb_ms=ttfb_ms, total_ms=total_ms)
+        metrics.calculate_derived()
+        return metrics
+
+# Usage: pass the class (not an instance) as factory
 from httptap import HTTPTapAnalyzer
 
-analyzer = HTTPTapAnalyzer(timing_provider=CustomTimingProvider())
+analyzer = HTTPTapAnalyzer(timing_collector_factory=CustomTimingCollector)
 ```
 
-## VisualizerProtocol
+## Visualizer
 
 Interface for custom output visualization.
 
@@ -271,23 +242,14 @@ Interface for custom output visualization.
 
 ```python
 from typing import Protocol
-from httptap.models import RequestStep
+from httptap.models import StepMetrics
 
-class VisualizerProtocol(Protocol):
-    def render(
-        self,
-        steps: list[RequestStep],
-        *,
-        follow: bool = False
-    ) -> None:
-        """Render request steps for display.
+class Visualizer(Protocol):
+    def render(self, step: StepMetrics) -> None:
+        """Render a single request step for display.
 
         Args:
-            steps: List of request steps to visualize
-            follow: Whether steps are from redirect chain
-
-        Returns:
-            None (output to console/stdout)
+            step: Step metrics containing timing, network, and response data.
         """
         ...
 ```
@@ -295,34 +257,34 @@ class VisualizerProtocol(Protocol):
 ### Example Implementation
 
 ```python
-from httptap.models import RequestStep
+from httptap.models import StepMetrics
 
 class SimpleVisualizer:
     """Simple text-based visualizer."""
 
-    def render(self, steps: list[RequestStep], *, follow: bool = False):
-        print(f"\nAnalyzed {len(steps)} step(s):\n")
-
-        for step in steps:
-            print(f"Step {step.step_number}: {step.url}")
-            print(f"  Status: {step.response.status}")
-            print(f"  Timing:")
-            print(f"    DNS:     {step.timing.dns_ms:8.2f}ms")
-            print(f"    Connect: {step.timing.connect_ms:8.2f}ms")
-            print(f"    TLS:     {step.timing.tls_ms:8.2f}ms")
-            print(f"    TTFB:    {step.timing.ttfb_ms:8.2f}ms")
-            print(f"    Total:   {step.timing.total_ms:8.2f}ms")
-            print()
+    def render(self, step: StepMetrics) -> None:
+        print(f"Step {step.step_number}: {step.url}")
+        print(f"  Status: {step.response.status}")
+        print(f"  Timing:")
+        print(f"    DNS:     {step.timing.dns_ms:8.2f}ms")
+        print(f"    Connect: {step.timing.connect_ms:8.2f}ms")
+        print(f"    TLS:     {step.timing.tls_ms:8.2f}ms")
+        print(f"    TTFB:    {step.timing.ttfb_ms:8.2f}ms")
+        print(f"    Total:   {step.timing.total_ms:8.2f}ms")
+        print()
 
 # Usage
+from httptap import HTTPTapAnalyzer
+
 analyzer = HTTPTapAnalyzer()
 steps = analyzer.analyze_url("https://httpbin.io")
 
 visualizer = SimpleVisualizer()
-visualizer.render(steps)
+for step in steps:
+    visualizer.render(step)
 ```
 
-## ExporterProtocol
+## Exporter
 
 Interface for custom data export formats.
 
@@ -330,25 +292,25 @@ Interface for custom data export formats.
 
 ```python
 from typing import Protocol
-from httptap.models import RequestStep
+from collections.abc import Sequence
+from httptap.models import StepMetrics
 
-class ExporterProtocol(Protocol):
+class Exporter(Protocol):
     def export(
         self,
-        steps: list[RequestStep],
-        output_path: str
+        steps: Sequence[StepMetrics],
+        initial_url: str,
+        output_path: str,
     ) -> None:
         """Export request data to file.
 
         Args:
-            steps: List of request steps to export
+            steps: Sequence of request steps to export
+            initial_url: The initial URL that was analyzed
             output_path: Path to output file
 
-        Returns:
-            None (writes to file)
-
         Raises:
-            Exception: If export fails
+            IOError: If file cannot be written
         """
         ...
 ```
@@ -357,15 +319,17 @@ class ExporterProtocol(Protocol):
 
 ```python
 import yaml
-from httptap.models import RequestStep
+from collections.abc import Sequence
+from httptap.models import StepMetrics
 
 class YAMLExporter:
     """Export request data to YAML format."""
 
-    def export(self, steps: list[RequestStep], output_path: str):
+    def export(self, steps: Sequence[StepMetrics], initial_url: str, output_path: str) -> None:
         data = {
+            "initial_url": initial_url,
             "total_steps": len(steps),
-            "steps": []
+            "steps": [],
         }
 
         for step in steps:
@@ -377,26 +341,45 @@ class YAMLExporter:
                     "connect_ms": step.timing.connect_ms,
                     "tls_ms": step.timing.tls_ms,
                     "ttfb_ms": step.timing.ttfb_ms,
-                    "total_ms": step.timing.total_ms
+                    "total_ms": step.timing.total_ms,
                 },
                 "network": {
                     "ip": step.network.ip,
                     "family": step.network.ip_family,
                     "http_version": step.network.http_version,
-                    "tls_version": step.network.tls_version
-                }
+                    "tls_version": step.network.tls_version,
+                },
             }
             data["steps"].append(step_data)
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             yaml.dump(data, f, default_flow_style=False)
 
 # Usage
+from httptap import HTTPTapAnalyzer
+
 analyzer = HTTPTapAnalyzer()
 steps = analyzer.analyze_url("https://httpbin.io")
 
 exporter = YAMLExporter()
-exporter.export(steps, "output.yaml")
+exporter.export(steps, "https://httpbin.io", "output.yaml")
+```
+
+## RequestExecutor
+
+Interface for custom HTTP request execution.
+
+### Protocol Definition
+
+```python
+from typing import Protocol, runtime_checkable
+from httptap.request_executor import RequestOptions, RequestOutcome
+
+@runtime_checkable
+class RequestExecutor(Protocol):
+    def execute(self, options: RequestOptions) -> RequestOutcome:
+        """Perform an HTTP request based on provided options."""
+        ...
 ```
 
 ## Type Checking
@@ -405,15 +388,15 @@ All protocols are fully type-hinted and work with mypy, pyright, and other type 
 
 ```python
 from typing import reveal_type
-from httptap.interfaces import DNSResolverProtocol
+from httptap.interfaces import DNSResolver
 
 class MyResolver:
     def resolve(self, host: str, port: int, timeout: float):
         return "192.168.1.1", "IPv4", 10.5
 
 # Type checker will verify MyResolver implements the protocol
-resolver: DNSResolverProtocol = MyResolver()
-reveal_type(resolver)  # Type: DNSResolverProtocol
+resolver: DNSResolver = MyResolver()
+reveal_type(resolver)  # Type: DNSResolver
 ```
 
 ## Next Steps

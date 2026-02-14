@@ -139,11 +139,24 @@ Route requests through the specified proxy. Supports HTTP, HTTPS, SOCKS5, and SO
 # HTTP proxy
 httptap --proxy http://proxy.local:8080 https://httpbin.io/get
 
-# SOCKS5 proxy
+# SOCKS5 proxy (DNS resolved by proxy)
 httptap --proxy socks5h://proxy.local:1080 https://httpbin.io/get
+
+# SOCKS5 proxy (DNS resolved locally)
+httptap --proxy socks5://proxy.local:1080 https://httpbin.io/get
 ```
 
-The proxy setting takes precedence over environment variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`).
+The `--proxy` flag takes precedence over environment variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`). See [Advanced Features](advanced.md#using-proxies) for details on proxy protocols, DNS resolution, and environment variable configuration.
+
+#### `--cacert, --ca-bundle PATH`
+
+Use a custom CA certificate bundle (PEM format) for TLS verification. Useful for internal endpoints signed by a private CA.
+
+```bash
+httptap --cacert ~/certs/company-ca.pem https://internal-api.example.com/health
+```
+
+Mutually exclusive with `--ignore-ssl`.
 
 ### Output Options
 
@@ -192,7 +205,7 @@ The JSON file contains:
 
 #### `--version`
 
-Display the httptap version and Python runtime information.
+Display the httptap version and exit.
 
 ```bash
 httptap --version
