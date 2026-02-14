@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.4] - 2026-02-14
+
+### Bug Fixes
+
+- Respect SOCKS5h proxy DNS resolution and harden CI pipeline ([#61](https://github.com/ozeranskii/httptap/issues/61))
+
+### Miscellaneous Tasks
+
+- Bump ruff in the dev-tools group ([#68](https://github.com/ozeranskii/httptap/issues/68))
+- Add typos and improve pre-commit params ([#69](https://github.com/ozeranskii/httptap/issues/69))
+
 ## [0.4.3] - 2026-01-19
 
 ### Miscellaneous Tasks
