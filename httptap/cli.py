@@ -142,6 +142,10 @@ Examples:
       httptap --compact --timeout 10 https://httpbin.io/delay/2
   - Metrics-only output and JSON export:
       httptap --metrics-only --json out/report.json https://httpbin.io/get
+  - Route through a proxy:
+      httptap -x http://proxy:3128 https://httpbin.io/get
+  - Ignore proxy environment variables and connect directly:
+      httptap --proxy "" https://httpbin.io/get
 
 Exit codes:
   {EXIT_SUCCESS:>3} (EX_OK)       : Success
@@ -464,14 +468,15 @@ def main() -> int:
         if args.headers:
             headers_dict.update(args.headers)
 
+        noproxy = args.proxy == ""
         analyzer = HTTPTapAnalyzer(
             follow_redirects=args.follow,
             timeout=args.timeout,
             http2=not args.no_http2,
             verify_ssl=not args.ignore_ssl,
             ca_bundle_path=args.ca_bundle,
-            proxy=args.proxy,
-            noproxy=args.proxy == "",
+            proxy=None if noproxy else args.proxy,
+            noproxy=noproxy,
         )
 
         renderer = OutputRenderer(
