@@ -75,6 +75,8 @@ def _format_proxy_part(step: StepMetrics) -> str:
         return f"Proxy: {step.proxied_via} ({hint})"
     if source == "NO_PROXY":
         return "[yellow]Proxy: none (bypassed by env no_proxy)[/yellow]"
+    if source == "--noproxy":
+        return "Proxy: disabled (from arg --noproxy)"
     if source == "no_proxy_env":
         return "Proxy: direct (no matching proxy scheme in env)"
     return "Proxy: direct"
@@ -226,6 +228,8 @@ def format_metrics_line(step: StepMetrics) -> str:
         parts.append(f"proxy={step.proxied_via} proxy_from={hint}")
     elif step.network.proxy_source == "NO_PROXY":
         parts.append("proxy=none proxy_from=env:no_proxy")
+    elif step.network.proxy_source == "--noproxy":
+        parts.append("proxy=disabled proxy_from=arg:--noproxy")
     elif step.network.proxy_source == "no_proxy_env":
         parts.append("proxy=direct proxy_from=no_scheme_match")
     else:

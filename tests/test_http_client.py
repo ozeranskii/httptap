@@ -1483,3 +1483,10 @@ class TestResolveEffectiveProxy:
         url, source = _resolve_effective_proxy(None, "https", "example.com")
         assert url is None
         assert source == "no_proxy_env"
+
+    def test_noproxy_flag_ignores_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Return '--noproxy' when noproxy flag is set, even with proxy env vars."""
+        monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
+        url, source = _resolve_effective_proxy(None, "https", "example.com", noproxy=True)
+        assert url is None
+        assert source == "--noproxy"

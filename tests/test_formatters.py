@@ -175,6 +175,15 @@ class TestFormatNetworkInfo:
         assert info is not None
         assert "Proxy: direct (no matching proxy scheme in env)" in info
 
+    def test_format_network_info_noproxy_flag(self) -> None:
+        """Test proxy display when --noproxy flag is used."""
+        network = NetworkInfo(proxy_source="--noproxy")
+        step = StepMetrics(network=network)
+        info = format_network_info(step)
+
+        assert info is not None
+        assert "Proxy: disabled (from arg --noproxy)" in info
+
     def test_format_network_info_with_ip_only(self) -> None:
         """Test formatting network info with only IP."""
         network = NetworkInfo(ip="2001:db8::1")
@@ -461,6 +470,16 @@ class TestFormatMetricsLine:
 
         assert "proxy=none" in line
         assert "proxy_from=env:no_proxy" in line
+
+    def test_format_metrics_line_proxy_noproxy_flag(self) -> None:
+        """Test metrics line shows --noproxy flag."""
+        network = NetworkInfo(proxy_source="--noproxy")
+        step = StepMetrics(step_number=1, network=network, response=ResponseInfo(status=200))
+
+        line = format_metrics_line(step)
+
+        assert "proxy=disabled" in line
+        assert "proxy_from=arg:--noproxy" in line
 
     def test_format_metrics_line_proxy_no_scheme_match(self) -> None:
         """Test metrics line shows no matching proxy scheme."""

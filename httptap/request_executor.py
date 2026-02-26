@@ -44,6 +44,7 @@ class RequestOptions:
     force_new_connection: bool = True
     headers: Mapping[str, str] | None = None
     proxy: ProxyTypes | None = None
+    noproxy: bool = False
 
 
 @dataclass(slots=True)
@@ -79,6 +80,7 @@ class HTTPClientRequestExecutor:
             verify_ssl=options.verify_ssl,
             ca_bundle_path=options.ca_bundle_path,
             proxy=options.proxy,
+            noproxy=options.noproxy,
             dns_resolver=options.dns_resolver,
             tls_inspector=options.tls_inspector,
             timing_collector=options.timing_collector,

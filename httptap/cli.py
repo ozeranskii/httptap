@@ -227,11 +227,17 @@ Exit codes:
         metavar="FILE",
         help="Path to custom CA certificate bundle (PEM format). Use for internal APIs with custom CAs.",
     )
-    request_group.add_argument(
+    proxy_group = request_group.add_mutually_exclusive_group()
+    proxy_group.add_argument(
         "-x",
         "--proxy",
         metavar="URL",
         help="Route requests through the given proxy (http://, https://, socks5://, socks5h://).",
+    )
+    proxy_group.add_argument(
+        "--noproxy",
+        action="store_true",
+        help="Ignore proxy environment variables and connect directly.",
     )
     request_group.add_argument(
         "-H",
@@ -468,6 +474,7 @@ def main() -> int:
             verify_ssl=not args.ignore_ssl,
             ca_bundle_path=args.ca_bundle,
             proxy=args.proxy,
+            noproxy=args.noproxy,
         )
 
         renderer = OutputRenderer(

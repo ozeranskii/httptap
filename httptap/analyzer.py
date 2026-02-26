@@ -43,6 +43,7 @@ class HTTPTapAnalyzer:
 
     __slots__ = (
         "_dns_resolver",
+        "_noproxy",
         "_proxy",
         "_request",
         "_timing_collector",
@@ -66,6 +67,7 @@ class HTTPTapAnalyzer:
         max_redirects: int = 10,
         request_executor: RequestExecutor | None = None,
         proxy: ProxyTypes | None = None,
+        noproxy: bool = False,
         dns_resolver: DNSResolver | None = None,
         tls_inspector: TLSInspector | None = None,
         timing_collector_factory: type[TimingCollector] | None = None,
@@ -85,6 +87,8 @@ class HTTPTapAnalyzer:
                 built-in httpx implementation.
             proxy: Optional proxy URL (http/https/socks5/socks5h) applied to all
                 requests in the analysis chain.
+            noproxy: When True, ignore proxy environment variables and connect
+                directly. Mutually exclusive with proxy.
             dns_resolver: Custom DNS resolver implementation. If None, make_request
                 will use its default (SystemDNSResolver).
             tls_inspector: Custom TLS inspector implementation. If None, make_request
@@ -106,6 +110,7 @@ class HTTPTapAnalyzer:
         self._tls_inspector = tls_inspector
         self._timing_collector = timing_collector_factory
         self._proxy = proxy
+        self._noproxy = noproxy
 
     def analyze_url(
         self,
@@ -239,6 +244,7 @@ class HTTPTapAnalyzer:
                 force_new_connection=True,
                 headers=headers,
                 proxy=self._proxy,
+                noproxy=self._noproxy,
             )
             outcome: RequestOutcome = self._request.execute(options)
 

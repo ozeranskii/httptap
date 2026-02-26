@@ -319,6 +319,8 @@ def _resolve_effective_proxy(
     proxy: ProxyTypes | None,
     url_scheme: str,
     host: str,
+    *,
+    noproxy: bool = False,
 ) -> tuple[str | None, str | None]:
     """Resolve the effective proxy URL for a request.
 
@@ -330,16 +332,21 @@ def _resolve_effective_proxy(
         proxy: Explicit proxy from the caller, or None.
         url_scheme: Scheme of the target URL (e.g., "https").
         host: Hostname of the target URL.
+        noproxy: When True, skip all proxy resolution and connect directly.
 
     Returns:
         Tuple of (proxy_url, source) where source describes the origin:
         - ("url", "--proxy") for explicit CLI proxy
         - ("url", "HTTPS_PROXY") for env-var proxy (var name as source)
         - (None, "NO_PROXY") when host matched NO_PROXY exclusion
+        - (None, "--noproxy") when proxy was disabled via --noproxy flag
         - (None, "no_proxy_env") when proxy env vars exist but none matched
         - (None, None) when no proxy is configured at all
 
     """
+    if noproxy:
+        return None, "--noproxy"
+
     if proxy is not None:
         return str(getattr(proxy, "url", proxy)), "--proxy"
 
@@ -380,6 +387,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     verify_ssl: bool = True,
     ca_bundle_path: str | None = None,
     proxy: ProxyTypes | None = None,
+    noproxy: bool = False,
     dns_resolver: DNSResolver | None = None,
     tls_inspector: TLSInspector | None = None,
     timing_collector: TimingCollector | None = None,
@@ -414,6 +422,8 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         ca_bundle_path: Path to custom CA certificate bundle (PEM format).
             Only used when verify_ssl is True. If None, uses system CA bundle.
         proxy: Optional proxy URL or mapping (supports http/https/socks5/socks5h).
+        noproxy: When True, ignore proxy environment variables and connect
+            directly. Mutually exclusive with proxy.
         dns_resolver: Custom DNS resolver implementation.
             Defaults to SystemDNSResolver.
         tls_inspector: Custom TLS inspector implementation.
@@ -505,7 +515,12 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         # When using remote DNS proxies, we skip local resolution and send the
         # original hostname so the proxy can resolve it. This prevents TLS errors
         # caused by sending CONNECT with an IP instead of a hostname.
-        effective_proxy_url, proxy_source = _resolve_effective_proxy(proxy, parsed_url.scheme, host)
+        effective_proxy_url, proxy_source = _resolve_effective_proxy(
+            proxy,
+            parsed_url.scheme,
+            host,
+            noproxy=noproxy,
+        )
         network_info.proxy_url = effective_proxy_url
         network_info.proxy_source = proxy_source
         skip_local_dns = effective_proxy_url is not None and _needs_remote_dns(effective_proxy_url)
