@@ -339,13 +339,13 @@ def _resolve_effective_proxy(
         - ("url", "--proxy") for explicit CLI proxy
         - ("url", "HTTPS_PROXY") for env-var proxy (var name as source)
         - (None, "NO_PROXY") when host matched NO_PROXY exclusion
-        - (None, "--noproxy") when proxy was disabled via --noproxy flag
+        - (None, "noproxy") when proxy was disabled via --proxy ""
         - (None, "no_proxy_env") when proxy env vars exist but none matched
         - (None, None) when no proxy is configured at all
 
     """
     if noproxy:
-        return None, "--noproxy"
+        return None, "noproxy"
 
     if proxy is not None:
         return str(getattr(proxy, "url", proxy)), "--proxy"
@@ -423,7 +423,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             Only used when verify_ssl is True. If None, uses system CA bundle.
         proxy: Optional proxy URL or mapping (supports http/https/socks5/socks5h).
         noproxy: When True, ignore proxy environment variables and connect
-            directly. Mutually exclusive with proxy.
+            directly. Triggered by --proxy "".
         dns_resolver: Custom DNS resolver implementation.
             Defaults to SystemDNSResolver.
         tls_inspector: Custom TLS inspector implementation.

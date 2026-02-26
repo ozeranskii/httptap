@@ -88,7 +88,7 @@ class HTTPTapAnalyzer:
             proxy: Optional proxy URL (http/https/socks5/socks5h) applied to all
                 requests in the analysis chain.
             noproxy: When True, ignore proxy environment variables and connect
-                directly. Mutually exclusive with proxy.
+                directly. Triggered by --proxy "".
             dns_resolver: Custom DNS resolver implementation. If None, make_request
                 will use its default (SystemDNSResolver).
             tls_inspector: Custom TLS inspector implementation. If None, make_request
