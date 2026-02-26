@@ -296,11 +296,30 @@ def _host_matches_no_proxy(host: str, no_proxy: str) -> bool:
     return any(_matches(entry.strip().lower()) for entry in no_proxy.split(",") if entry.strip())
 
 
+_PROXY_ENV_VARS: frozenset[str] = frozenset(
+    {
+        "http_proxy",
+        "HTTP_PROXY",
+        "https_proxy",
+        "HTTPS_PROXY",
+        "all_proxy",
+        "ALL_PROXY",
+        "no_proxy",
+        "NO_PROXY",
+    }
+)
+
+
+def _any_proxy_env_set() -> bool:
+    """Return True if any proxy-related environment variable is set."""
+    return any(os.environ.get(v) for v in _PROXY_ENV_VARS)
+
+
 def _resolve_effective_proxy(
     proxy: ProxyTypes | None,
     url_scheme: str,
     host: str,
-) -> str | None:
+) -> tuple[str | None, str | None]:
     """Resolve the effective proxy URL for a request.
 
     When an explicit proxy is provided, returns its URL string. Otherwise
@@ -313,29 +332,42 @@ def _resolve_effective_proxy(
         host: Hostname of the target URL.
 
     Returns:
-        Proxy URL string if a proxy applies, None otherwise.
+        Tuple of (proxy_url, source) where source describes the origin:
+        - ("url", "--proxy") for explicit CLI proxy
+        - ("url", "HTTPS_PROXY") for env-var proxy (var name as source)
+        - (None, "NO_PROXY") when host matched NO_PROXY exclusion
+        - (None, "no_proxy_env") when proxy env vars exist but none matched
+        - (None, None) when no proxy is configured at all
 
     """
     if proxy is not None:
-        return str(getattr(proxy, "url", proxy))
+        return str(getattr(proxy, "url", proxy)), "--proxy"
 
     # Check NO_PROXY exclusions before reading proxy env vars.
     # Lowercase no_proxy takes priority per curl/Python convention.
     no_proxy = os.environ.get("no_proxy", os.environ.get("NO_PROXY", ""))
     if _host_matches_no_proxy(host, no_proxy):
-        return None
+        return None, "NO_PROXY"
 
     # Resolve scheme-specific proxy env var, then ALL_PROXY fallback.
     # Lowercase variants take priority per curl/Python getproxies() convention.
     scheme_lower = url_scheme.lower()
     scheme_upper = url_scheme.upper()
 
-    return (
-        os.environ.get(f"{scheme_lower}_proxy")
-        or os.environ.get(f"{scheme_upper}_PROXY")
-        or os.environ.get("all_proxy")  # noqa: SIM112 - lowercase variant takes priority
-        or os.environ.get("ALL_PROXY")
-    ) or None
+    for var_name in (
+        f"{scheme_lower}_proxy",
+        f"{scheme_upper}_PROXY",
+        "all_proxy",
+        "ALL_PROXY",
+    ):
+        value = os.environ.get(var_name)
+        if value:
+            return value, var_name
+
+    if _any_proxy_env_set():
+        return None, "no_proxy_env"
+
+    return None, None
 
 
 def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
@@ -473,7 +505,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         # When using remote DNS proxies, we skip local resolution and send the
         # original hostname so the proxy can resolve it. This prevents TLS errors
         # caused by sending CONNECT with an IP instead of a hostname.
-        effective_proxy_url = _resolve_effective_proxy(proxy, parsed_url.scheme, host)
+        effective_proxy_url, proxy_source = _resolve_effective_proxy(proxy, parsed_url.scheme, host)
+        network_info.proxy_url = effective_proxy_url
+        network_info.proxy_source = proxy_source
         skip_local_dns = effective_proxy_url is not None and _needs_remote_dns(effective_proxy_url)
 
         if skip_local_dns:

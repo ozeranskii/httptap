@@ -211,6 +211,8 @@ class TestNetworkInfo:
             "cert_days_left": cert_days_left,
             "tls_verified": True,
             "tls_custom_ca": True,
+            "proxy_url": None,
+            "proxy_source": None,
         }
 
     def test_to_dict_handles_none_values(self, faker: Faker) -> None:

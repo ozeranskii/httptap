@@ -59,6 +59,27 @@ def format_error(step: StepMetrics) -> Panel:
     )
 
 
+def _format_proxy_part(step: StepMetrics) -> str:
+    """Format proxy information for display.
+
+    Args:
+        step: Step metrics with proxy data.
+
+    Returns:
+        Formatted proxy string with Rich markup.
+
+    """
+    source = step.network.proxy_source
+    if step.proxied_via:
+        hint = "from arg --proxy" if source == "--proxy" else f"from env {source}"
+        return f"Proxy: {step.proxied_via} ({hint})"
+    if source == "NO_PROXY":
+        return "[yellow]Proxy: none (bypassed by env no_proxy)[/yellow]"
+    if source == "no_proxy_env":
+        return "Proxy: direct (no matching proxy scheme in env)"
+    return "Proxy: direct"
+
+
 def format_network_info(step: StepMetrics) -> str | None:
     """Format network and security information.
 
@@ -80,8 +101,7 @@ def format_network_info(step: StepMetrics) -> str | None:
     if http_version:
         parts.append(f"HTTP: {http_version}")
 
-    if step.proxied_via:
-        parts.append(f"Proxy: {step.proxied_via}")
+    parts.append(_format_proxy_part(step))
 
     for label, value in (
         ("TLS", step.network.tls_version),
@@ -199,5 +219,16 @@ def format_metrics_line(step: StepMetrics) -> str:
         parts.append(f"family={step.network.ip_family}")
     if step.network.tls_version:
         parts.append(f"tls_version={step.network.tls_version}")
+
+    if step.proxied_via:
+        src = step.network.proxy_source
+        hint = "arg" if src == "--proxy" else f"env:{src}"
+        parts.append(f"proxy={step.proxied_via} proxy_from={hint}")
+    elif step.network.proxy_source == "NO_PROXY":
+        parts.append("proxy=none proxy_from=env:no_proxy")
+    elif step.network.proxy_source == "no_proxy_env":
+        parts.append("proxy=direct proxy_from=no_scheme_match")
+    else:
+        parts.append("proxy=direct")
 
     return f"Step {step.step_number}: {' '.join(parts)}"

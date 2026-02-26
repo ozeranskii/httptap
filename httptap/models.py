@@ -145,6 +145,8 @@ class NetworkInfo:
     cert_days_left: int | None = None
     tls_verified: bool | None = None
     tls_custom_ca: bool | None = None
+    proxy_url: str | None = None
+    proxy_source: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert network info to dictionary.
@@ -163,6 +165,8 @@ class NetworkInfo:
             "cert_days_left": self.cert_days_left,
             "tls_verified": self.tls_verified,
             "tls_custom_ca": self.tls_custom_ca,
+            "proxy_url": self.proxy_url,
+            "proxy_source": self.proxy_source,
         }
 
 

@@ -246,8 +246,7 @@ class HTTPTapAnalyzer:
             step.timing = outcome.timing
             step.network = outcome.network
             step.response = outcome.response
-            if self._proxy:
-                step.proxied_via = str(self._proxy)
+            step.proxied_via = outcome.network.proxy_url or (str(self._proxy) if self._proxy else None)
 
         except HTTPClientError as e:
             # Request failed, but we have partial data
