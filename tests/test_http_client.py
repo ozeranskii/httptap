@@ -1441,13 +1441,17 @@ class TestResolveEffectiveProxy:
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
         url, source = _resolve_effective_proxy(None, "https", "example.com")
         assert url == "http://proxy:3128"
-        assert source == "HTTPS_PROXY"
+        # On Windows, env vars are case-insensitive so the lowercase
+        # variant may match first; compare case-insensitively.
+        assert source is not None
+        assert source.upper() == "HTTPS_PROXY"
 
     def test_all_proxy_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("ALL_PROXY", "socks5h://all:1080")
         url, source = _resolve_effective_proxy(None, "https", "example.com")
         assert url == "socks5h://all:1080"
-        assert source == "ALL_PROXY"
+        assert source is not None
+        assert source.upper() == "ALL_PROXY"
 
     def test_no_proxy_excludes_host(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
@@ -1461,7 +1465,8 @@ class TestResolveEffectiveProxy:
         monkeypatch.setenv("NO_PROXY", "internal.corp")
         url, source = _resolve_effective_proxy(None, "https", "example.com")
         assert url == "http://proxy:3128"
-        assert source == "HTTPS_PROXY"
+        assert source is not None
+        assert source.upper() == "HTTPS_PROXY"
 
     def test_lowercase_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("https_proxy", "http://lower:3128")
