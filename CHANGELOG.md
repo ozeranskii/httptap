@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.5] - 2026-03-14
+
+### Features
+
+- Display proxy source and explicit no-proxy status ([#78](https://github.com/ozeranskii/httptap/issues/78))
+
+### Miscellaneous Tasks
+
+- Update Codecov action to v5 and upload test results ([#74](https://github.com/ozeranskii/httptap/issues/74))
+- Bump ruff from 0.15.1 to 0.15.2 in the dev-tools group ([#76](https://github.com/ozeranskii/httptap/issues/76))
+- Bump faker in the test-dependencies group ([#77](https://github.com/ozeranskii/httptap/issues/77))
+- Bump ruff from 0.15.2 to 0.15.4 in the dev-tools group ([#81](https://github.com/ozeranskii/httptap/issues/81))
+- Bump ruff from 0.15.4 to 0.15.5 in the dev-tools group ([#82](https://github.com/ozeranskii/httptap/issues/82))
+- Bump faker in the test-dependencies group ([#83](https://github.com/ozeranskii/httptap/issues/83))
+- Bump faker in the test-dependencies group ([#86](https://github.com/ozeranskii/httptap/issues/86))
+- Bump ruff from 0.15.5 to 0.15.6 in the dev-tools group ([#85](https://github.com/ozeranskii/httptap/issues/85))
+
 ## [0.4.4] - 2026-02-14
 
 ### Bug Fixes
