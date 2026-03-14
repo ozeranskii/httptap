@@ -2022,8 +2022,11 @@
 </span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
 </span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1"># SOCKS5 proxy (DNS resolved locally)</span>
 </span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>httptap<span class="w"> </span>--proxy<span class="w"> </span>socks5://proxy.local:1080<span class="w"> </span>https://httpbin.io/get
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="c1"># Ignore proxy environment variables and connect directly</span>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>httptap<span class="w"> </span>--proxy<span class="w"> </span><span class="s2">&quot;&quot;</span><span class="w"> </span>https://httpbin.io/get
 </span></code></pre></div>
-<p>The <code>--proxy</code> flag takes precedence over environment variables (<code>HTTP_PROXY</code>, <code>HTTPS_PROXY</code>, <code>NO_PROXY</code>). See <a href="../advanced/#using-proxies">Advanced Features</a> for details on proxy protocols, DNS resolution, and environment variable configuration.</p>
+<p>The <code>--proxy</code> flag takes precedence over environment variables (<code>HTTP_PROXY</code>, <code>HTTPS_PROXY</code>, <code>NO_PROXY</code>). Use <code>--proxy ""</code> to ignore all proxy environment variables and connect directly. See <a href="../advanced/#using-proxies">Advanced Features</a> for details on proxy protocols, DNS resolution, and environment variable configuration.</p>
 <h4 id="-cacert-ca-bundle-path"><code>--cacert, --ca-bundle PATH</code><a class="headerlink" href="#-cacert-ca-bundle-path" title="Permanent link">&para;</a></h4>
 <p>Use a custom CA certificate bundle (PEM format) for TLS verification. Useful for internal endpoints signed by a private CA.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>httptap<span class="w"> </span>--cacert<span class="w"> </span>~/certs/company-ca.pem<span class="w"> </span>https://internal-api.example.com/health
