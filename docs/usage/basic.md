@@ -144,9 +144,12 @@ httptap --proxy socks5h://proxy.local:1080 https://httpbin.io/get
 
 # SOCKS5 proxy (DNS resolved locally)
 httptap --proxy socks5://proxy.local:1080 https://httpbin.io/get
+
+# Ignore proxy environment variables and connect directly
+httptap --proxy "" https://httpbin.io/get
 ```
 
-The `--proxy` flag takes precedence over environment variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`). See [Advanced Features](advanced.md#using-proxies) for details on proxy protocols, DNS resolution, and environment variable configuration.
+The `--proxy` flag takes precedence over environment variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`). Use `--proxy ""` to ignore all proxy environment variables and connect directly. See [Advanced Features](advanced.md#using-proxies) for details on proxy protocols, DNS resolution, and environment variable configuration.
 
 #### `--cacert, --ca-bundle PATH`
 

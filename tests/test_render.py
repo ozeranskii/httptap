@@ -266,6 +266,20 @@ class TestOutputRenderer:
         assert captured
         assert captured[0] is step
 
+    def test_render_step_skips_none_network_line(self, mocker: MockerFixture) -> None:
+        """Network info line is omitted when format_network_info returns None."""
+        console = Console(record=True, width=120)
+        renderer = OutputRenderer(console=console)
+        mocker.patch.object(renderer.visualizer, "render")
+        mocker.patch("httptap.render.format_network_info", return_value=None)
+
+        step = build_step("https://example.test", 200, 50.0)
+        renderer._render_step(step)
+
+        output = console.export_text()
+        assert "IP:" not in output
+        assert "Proxy:" not in output
+
     @pytest.mark.parametrize(
         ("status", "expected_color"),
         [

@@ -4,6 +4,12 @@ import re
 
 import pytest
 
+from httptap.constants import (
+    PROXY_SOURCE_CLI,
+    PROXY_SOURCE_DISABLED,
+    PROXY_SOURCE_NO_MATCH,
+    PROXY_SOURCE_NO_PROXY,
+)
 from httptap.formatters import (
     format_bytes_human,
     format_error,
@@ -132,11 +138,57 @@ class TestFormatNetworkInfo:
         assert "Proxy: socks5://proxy:1080" in info
 
     def test_format_network_info_with_no_data(self) -> None:
-        """Test formatting network info when no data available."""
+        """Test formatting network info when no data available shows direct proxy."""
         step = StepMetrics(network=NetworkInfo())
         info = format_network_info(step)
 
-        assert info is None
+        assert info is not None
+        assert "Proxy: direct" in info
+
+    def test_format_network_info_proxy_from_cli(self) -> None:
+        """Test proxy display when set via --proxy CLI arg."""
+        network = NetworkInfo(proxy_url="socks5h://gw:1080", proxy_source=PROXY_SOURCE_CLI)
+        step = StepMetrics(network=network, proxied_via="socks5h://gw:1080")
+        info = format_network_info(step)
+
+        assert info is not None
+        assert "Proxy: socks5h://gw:1080 (from arg --proxy)" in info
+
+    def test_format_network_info_proxy_from_env(self) -> None:
+        """Test proxy display when resolved from env var."""
+        network = NetworkInfo(proxy_url="http://proxy:3128", proxy_source="HTTPS_PROXY")
+        step = StepMetrics(network=network, proxied_via="http://proxy:3128")
+        info = format_network_info(step)
+
+        assert info is not None
+        assert "Proxy: http://proxy:3128 (from env HTTPS_PROXY)" in info
+
+    def test_format_network_info_no_proxy_bypass(self) -> None:
+        """Test proxy display when NO_PROXY matched."""
+        network = NetworkInfo(proxy_source=PROXY_SOURCE_NO_PROXY)
+        step = StepMetrics(network=network)
+        info = format_network_info(step)
+
+        assert info is not None
+        assert "Proxy: none (bypassed by env no_proxy)" in info
+
+    def test_format_network_info_no_matching_proxy_scheme(self) -> None:
+        """Test proxy display when proxy env vars exist but none matched."""
+        network = NetworkInfo(proxy_source=PROXY_SOURCE_NO_MATCH)
+        step = StepMetrics(network=network)
+        info = format_network_info(step)
+
+        assert info is not None
+        assert "Proxy: direct (no matching proxy scheme in env)" in info
+
+    def test_format_network_info_noproxy_flag(self) -> None:
+        """Test proxy display when --proxy "" is used."""
+        network = NetworkInfo(proxy_source=PROXY_SOURCE_DISABLED)
+        step = StepMetrics(network=network)
+        info = format_network_info(step)
+
+        assert info is not None
+        assert 'Proxy: disabled (from --proxy "")' in info
 
     def test_format_network_info_with_ip_only(self) -> None:
         """Test formatting network info with only IP."""
@@ -384,3 +436,72 @@ class TestFormatMetricsLine:
         assert "ip=" not in line
         assert "family=" not in line
         assert "tls_version=" not in line
+
+    def test_format_metrics_line_proxy_from_cli(self) -> None:
+        """Test metrics line shows proxy from --proxy arg."""
+        network = NetworkInfo(proxy_url="socks5h://gw:1080", proxy_source=PROXY_SOURCE_CLI)
+        step = StepMetrics(
+            step_number=1,
+            network=network,
+            proxied_via="socks5h://gw:1080",
+            response=ResponseInfo(status=200),
+        )
+
+        line = format_metrics_line(step)
+
+        assert "proxy=socks5h://gw:1080" in line
+        assert "proxy_from=arg" in line
+
+    def test_format_metrics_line_proxy_from_env(self) -> None:
+        """Test metrics line shows proxy from env var."""
+        network = NetworkInfo(proxy_url="http://proxy:3128", proxy_source="HTTPS_PROXY")
+        step = StepMetrics(
+            step_number=1,
+            network=network,
+            proxied_via="http://proxy:3128",
+            response=ResponseInfo(status=200),
+        )
+
+        line = format_metrics_line(step)
+
+        assert "proxy=http://proxy:3128" in line
+        assert "proxy_from=env:HTTPS_PROXY" in line
+
+    def test_format_metrics_line_proxy_no_proxy_bypass(self) -> None:
+        """Test metrics line shows NO_PROXY bypass."""
+        network = NetworkInfo(proxy_source=PROXY_SOURCE_NO_PROXY)
+        step = StepMetrics(step_number=1, network=network, response=ResponseInfo(status=200))
+
+        line = format_metrics_line(step)
+
+        assert "proxy=none" in line
+        assert "proxy_from=env:no_proxy" in line
+
+    def test_format_metrics_line_proxy_noproxy_flag(self) -> None:
+        """Test metrics line shows --proxy "" disabled."""
+        network = NetworkInfo(proxy_source=PROXY_SOURCE_DISABLED)
+        step = StepMetrics(step_number=1, network=network, response=ResponseInfo(status=200))
+
+        line = format_metrics_line(step)
+
+        assert "proxy=disabled" in line
+        assert 'proxy_from=--proxy ""' in line
+
+    def test_format_metrics_line_proxy_no_scheme_match(self) -> None:
+        """Test metrics line shows no matching proxy scheme."""
+        network = NetworkInfo(proxy_source=PROXY_SOURCE_NO_MATCH)
+        step = StepMetrics(step_number=1, network=network, response=ResponseInfo(status=200))
+
+        line = format_metrics_line(step)
+
+        assert "proxy=direct" in line
+        assert "proxy_from=no_scheme_match" in line
+
+    def test_format_metrics_line_proxy_direct(self) -> None:
+        """Test metrics line shows direct when no proxy configured."""
+        step = StepMetrics(step_number=1, response=ResponseInfo(status=200))
+
+        line = format_metrics_line(step)
+
+        assert "proxy=direct" in line
+        assert "proxy_from" not in line

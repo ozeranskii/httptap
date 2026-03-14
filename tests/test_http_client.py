@@ -13,6 +13,12 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
+from httptap.constants import (
+    PROXY_SOURCE_CLI,
+    PROXY_SOURCE_DISABLED,
+    PROXY_SOURCE_NO_MATCH,
+    PROXY_SOURCE_NO_PROXY,
+)
 from httptap.http_client import (
     _host_matches_no_proxy,
     _needs_remote_dns,
@@ -1428,35 +1434,70 @@ class TestResolveEffectiveProxy:
     """Unit tests for effective proxy resolution."""
 
     def test_explicit_proxy_returned_as_is(self) -> None:
-        assert _resolve_effective_proxy("socks5h://gw:1080", "https", "example.com") == "socks5h://gw:1080"
+        url, source = _resolve_effective_proxy("socks5h://gw:1080", "https", "example.com")
+        assert url == "socks5h://gw:1080"
+        assert source == PROXY_SOURCE_CLI
 
     def test_none_proxy_with_no_env_returns_none(self) -> None:
-        assert _resolve_effective_proxy(None, "https", "example.com") is None
+        url, source = _resolve_effective_proxy(None, "https", "example.com")
+        assert url is None
+        assert source is None
 
     def test_env_var_detected(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
-        assert _resolve_effective_proxy(None, "https", "example.com") == "http://proxy:3128"
+        url, source = _resolve_effective_proxy(None, "https", "example.com")
+        assert url == "http://proxy:3128"
+        # On Windows, env vars are case-insensitive so the lowercase
+        # variant may match first; compare case-insensitively.
+        assert source is not None
+        assert source.upper() == "HTTPS_PROXY"
 
     def test_all_proxy_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("ALL_PROXY", "socks5h://all:1080")
-        assert _resolve_effective_proxy(None, "https", "example.com") == "socks5h://all:1080"
+        url, source = _resolve_effective_proxy(None, "https", "example.com")
+        assert url == "socks5h://all:1080"
+        assert source is not None
+        assert source.upper() == "ALL_PROXY"
 
     def test_no_proxy_excludes_host(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
         monkeypatch.setenv("NO_PROXY", "example.com")
-        assert _resolve_effective_proxy(None, "https", "example.com") is None
+        url, source = _resolve_effective_proxy(None, "https", "example.com")
+        assert url is None
+        assert source == PROXY_SOURCE_NO_PROXY
 
     def test_no_proxy_does_not_exclude_other_hosts(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
         monkeypatch.setenv("NO_PROXY", "internal.corp")
-        assert _resolve_effective_proxy(None, "https", "example.com") == "http://proxy:3128"
+        url, source = _resolve_effective_proxy(None, "https", "example.com")
+        assert url == "http://proxy:3128"
+        assert source is not None
+        assert source.upper() == "HTTPS_PROXY"
 
     def test_lowercase_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("https_proxy", "http://lower:3128")
-        assert _resolve_effective_proxy(None, "https", "example.com") == "http://lower:3128"
+        url, source = _resolve_effective_proxy(None, "https", "example.com")
+        assert url == "http://lower:3128"
+        assert source == "https_proxy"
 
     def test_lowercase_env_var_takes_priority_over_uppercase(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Lowercase variant wins per curl/Python getproxies() convention."""
         monkeypatch.setenv("HTTPS_PROXY", "http://upper:3128")
         monkeypatch.setenv("https_proxy", "http://lower:3128")
-        assert _resolve_effective_proxy(None, "https", "example.com") == "http://lower:3128"
+        url, source = _resolve_effective_proxy(None, "https", "example.com")
+        assert url == "http://lower:3128"
+        assert source == "https_proxy"
+
+    def test_no_proxy_env_when_env_vars_exist_but_no_scheme_match(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Return 'no_proxy_env' when proxy env vars exist but none match the scheme."""
+        monkeypatch.setenv("HTTP_PROXY", "http://proxy:3128")
+        url, source = _resolve_effective_proxy(None, "https", "example.com")
+        assert url is None
+        assert source == PROXY_SOURCE_NO_MATCH
+
+    def test_noproxy_flag_ignores_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Return 'noproxy' when noproxy flag is set, even with proxy env vars."""
+        monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
+        url, source = _resolve_effective_proxy(None, "https", "example.com", noproxy=True)
+        assert url is None
+        assert source == PROXY_SOURCE_DISABLED

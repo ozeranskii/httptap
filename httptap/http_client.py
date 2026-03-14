@@ -61,6 +61,10 @@ from .constants import (
     HTTP_DEFAULT_PORT,
     HTTPS_DEFAULT_PORT,
     MS_IN_SECOND,
+    PROXY_SOURCE_CLI,
+    PROXY_SOURCE_DISABLED,
+    PROXY_SOURCE_NO_MATCH,
+    PROXY_SOURCE_NO_PROXY,
     TLS_PHASE_RATIO,
     HTTPMethod,
 )
@@ -296,11 +300,35 @@ def _host_matches_no_proxy(host: str, no_proxy: str) -> bool:
     return any(_matches(entry.strip().lower()) for entry in no_proxy.split(",") if entry.strip())
 
 
+_PROXY_URL_ENV_VARS: frozenset[str] = frozenset(
+    {
+        "http_proxy",
+        "HTTP_PROXY",
+        "https_proxy",
+        "HTTPS_PROXY",
+        "all_proxy",
+        "ALL_PROXY",
+    }
+)
+
+
+def _any_proxy_env_set() -> bool:
+    """Return True if any proxy URL environment variable is set.
+
+    Only checks variables that carry a proxy URL (http_proxy, https_proxy,
+    all_proxy and their uppercase variants). NO_PROXY / no_proxy are
+    exclusion lists, not proxy URLs, and are intentionally excluded.
+    """
+    return any(os.environ.get(v) for v in _PROXY_URL_ENV_VARS)
+
+
 def _resolve_effective_proxy(
     proxy: ProxyTypes | None,
     url_scheme: str,
     host: str,
-) -> str | None:
+    *,
+    noproxy: bool = False,
+) -> tuple[str | None, str | None]:
     """Resolve the effective proxy URL for a request.
 
     When an explicit proxy is provided, returns its URL string. Otherwise
@@ -311,31 +339,49 @@ def _resolve_effective_proxy(
         proxy: Explicit proxy from the caller, or None.
         url_scheme: Scheme of the target URL (e.g., "https").
         host: Hostname of the target URL.
+        noproxy: When True, skip all proxy resolution and connect directly.
 
     Returns:
-        Proxy URL string if a proxy applies, None otherwise.
+        Tuple of (proxy_url, source) where source describes the origin:
+        - ("url", "--proxy") for explicit CLI proxy
+        - ("url", "HTTPS_PROXY") for env-var proxy (var name as source)
+        - (None, "NO_PROXY") when host matched NO_PROXY exclusion
+        - (None, "noproxy") when proxy was disabled via --proxy ""
+        - (None, "no_proxy_env") when proxy env vars exist but none matched
+        - (None, None) when no proxy is configured at all
 
     """
+    if noproxy:
+        return None, PROXY_SOURCE_DISABLED
+
     if proxy is not None:
-        return str(getattr(proxy, "url", proxy))
+        return str(getattr(proxy, "url", proxy)), PROXY_SOURCE_CLI
 
     # Check NO_PROXY exclusions before reading proxy env vars.
     # Lowercase no_proxy takes priority per curl/Python convention.
     no_proxy = os.environ.get("no_proxy", os.environ.get("NO_PROXY", ""))
     if _host_matches_no_proxy(host, no_proxy):
-        return None
+        return None, PROXY_SOURCE_NO_PROXY
 
     # Resolve scheme-specific proxy env var, then ALL_PROXY fallback.
     # Lowercase variants take priority per curl/Python getproxies() convention.
     scheme_lower = url_scheme.lower()
     scheme_upper = url_scheme.upper()
 
-    return (
-        os.environ.get(f"{scheme_lower}_proxy")
-        or os.environ.get(f"{scheme_upper}_PROXY")
-        or os.environ.get("all_proxy")  # noqa: SIM112 - lowercase variant takes priority
-        or os.environ.get("ALL_PROXY")
-    ) or None
+    for var_name in (
+        f"{scheme_lower}_proxy",
+        f"{scheme_upper}_PROXY",
+        "all_proxy",
+        "ALL_PROXY",
+    ):
+        value = os.environ.get(var_name)
+        if value:
+            return value, var_name
+
+    if _any_proxy_env_set():
+        return None, PROXY_SOURCE_NO_MATCH
+
+    return None, None
 
 
 def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
@@ -348,6 +394,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     verify_ssl: bool = True,
     ca_bundle_path: str | None = None,
     proxy: ProxyTypes | None = None,
+    noproxy: bool = False,
     dns_resolver: DNSResolver | None = None,
     tls_inspector: TLSInspector | None = None,
     timing_collector: TimingCollector | None = None,
@@ -382,6 +429,8 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         ca_bundle_path: Path to custom CA certificate bundle (PEM format).
             Only used when verify_ssl is True. If None, uses system CA bundle.
         proxy: Optional proxy URL or mapping (supports http/https/socks5/socks5h).
+        noproxy: When True, ignore proxy environment variables and connect
+            directly. Triggered by --proxy "".
         dns_resolver: Custom DNS resolver implementation.
             Defaults to SystemDNSResolver.
         tls_inspector: Custom TLS inspector implementation.
@@ -473,7 +522,14 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         # When using remote DNS proxies, we skip local resolution and send the
         # original hostname so the proxy can resolve it. This prevents TLS errors
         # caused by sending CONNECT with an IP instead of a hostname.
-        effective_proxy_url = _resolve_effective_proxy(proxy, parsed_url.scheme, host)
+        effective_proxy_url, proxy_source = _resolve_effective_proxy(
+            proxy,
+            parsed_url.scheme,
+            host,
+            noproxy=noproxy,
+        )
+        network_info.proxy_url = effective_proxy_url
+        network_info.proxy_source = proxy_source
         skip_local_dns = effective_proxy_url is not None and _needs_remote_dns(effective_proxy_url)
 
         if skip_local_dns:
