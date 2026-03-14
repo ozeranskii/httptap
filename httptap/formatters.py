@@ -15,6 +15,10 @@ from .constants import (
     HTTP_REDIRECT_MIN,
     HTTP_SUCCESS_MAX,
     HTTP_SUCCESS_MIN,
+    PROXY_SOURCE_CLI,
+    PROXY_SOURCE_DISABLED,
+    PROXY_SOURCE_NO_MATCH,
+    PROXY_SOURCE_NO_PROXY,
 )
 from .models import StepMetrics
 
@@ -71,13 +75,13 @@ def _format_proxy_part(step: StepMetrics) -> str:
     """
     source = step.network.proxy_source
     if step.proxied_via:
-        hint = "from arg --proxy" if source == "--proxy" else f"from env {source}"
+        hint = "from arg --proxy" if source == PROXY_SOURCE_CLI else f"from env {source}"
         return f"Proxy: {step.proxied_via} ({hint})"
-    if source == "NO_PROXY":
+    if source == PROXY_SOURCE_NO_PROXY:
         return "[yellow]Proxy: none (bypassed by env no_proxy)[/yellow]"
-    if source == "noproxy":
+    if source == PROXY_SOURCE_DISABLED:
         return 'Proxy: disabled (from --proxy "")'
-    if source == "no_proxy_env":
+    if source == PROXY_SOURCE_NO_MATCH:
         return "Proxy: direct (no matching proxy scheme in env)"
     return "Proxy: direct"
 
@@ -224,13 +228,13 @@ def format_metrics_line(step: StepMetrics) -> str:
 
     if step.proxied_via:
         src = step.network.proxy_source
-        hint = "arg" if src == "--proxy" else f"env:{src}"
+        hint = "arg" if src == PROXY_SOURCE_CLI else f"env:{src}"
         parts.append(f"proxy={step.proxied_via} proxy_from={hint}")
-    elif step.network.proxy_source == "NO_PROXY":
+    elif step.network.proxy_source == PROXY_SOURCE_NO_PROXY:
         parts.append("proxy=none proxy_from=env:no_proxy")
-    elif step.network.proxy_source == "noproxy":
+    elif step.network.proxy_source == PROXY_SOURCE_DISABLED:
         parts.append('proxy=disabled proxy_from=--proxy ""')
-    elif step.network.proxy_source == "no_proxy_env":
+    elif step.network.proxy_source == PROXY_SOURCE_NO_MATCH:
         parts.append("proxy=direct proxy_from=no_scheme_match")
     else:
         parts.append("proxy=direct")

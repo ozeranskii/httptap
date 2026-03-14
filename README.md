@@ -291,8 +291,15 @@ Route traffic through an HTTP/SOCKS proxy (explicit override takes precedence ov
 httptap --proxy socks5h://proxy.local:1080 https://httpbin.io/get
 ```
 
-The output and JSON export include the proxy URI so you can confirm what
-path was used.
+Ignore all proxy environment variables and connect directly:
+
+```shell
+httptap --proxy "" https://httpbin.io/get
+```
+
+The output and JSON export include the proxy URI and its source so you
+can confirm what path was used (e.g., `(from arg --proxy)`,
+`(from env HTTPS_PROXY)`, `(bypassed by env no_proxy)`).
 
 ---
 
@@ -362,7 +369,10 @@ The redirect summary includes a total row:
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
         "cert_days_left": 143,
-        "tls_verified": true
+        "tls_verified": true,
+        "tls_custom_ca": null,
+        "proxy_url": null,
+        "proxy_source": null
       },
       "response": {
         "status": 302,
@@ -409,7 +419,10 @@ The redirect summary includes a total row:
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
         "cert_days_left": 143,
-        "tls_verified": true
+        "tls_verified": true,
+        "tls_custom_ca": null,
+        "proxy_url": null,
+        "proxy_source": null
       },
       "response": {
         "status": 302,
@@ -456,7 +469,10 @@ The redirect summary includes a total row:
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
         "cert_days_left": 143,
-        "tls_verified": true
+        "tls_verified": true,
+        "tls_custom_ca": null,
+        "proxy_url": null,
+        "proxy_source": null
       },
       "response": {
         "status": 200,
@@ -495,8 +511,7 @@ httptap --metrics-only https://httpbin.io/get
 ```
 
 ```terminaloutput
-Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=389 ip=44.211.11.205 family=IPv4
-tls_version=TLSv1.2
+Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=389 ip=44.211.11.205 family=IPv4 tls_version=TLSv1.2 proxy=direct
 ```
 
 ---

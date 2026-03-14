@@ -61,6 +61,10 @@ from .constants import (
     HTTP_DEFAULT_PORT,
     HTTPS_DEFAULT_PORT,
     MS_IN_SECOND,
+    PROXY_SOURCE_CLI,
+    PROXY_SOURCE_DISABLED,
+    PROXY_SOURCE_NO_MATCH,
+    PROXY_SOURCE_NO_PROXY,
     TLS_PHASE_RATIO,
     HTTPMethod,
 )
@@ -296,7 +300,7 @@ def _host_matches_no_proxy(host: str, no_proxy: str) -> bool:
     return any(_matches(entry.strip().lower()) for entry in no_proxy.split(",") if entry.strip())
 
 
-_PROXY_ENV_VARS: frozenset[str] = frozenset(
+_PROXY_URL_ENV_VARS: frozenset[str] = frozenset(
     {
         "http_proxy",
         "HTTP_PROXY",
@@ -304,15 +308,18 @@ _PROXY_ENV_VARS: frozenset[str] = frozenset(
         "HTTPS_PROXY",
         "all_proxy",
         "ALL_PROXY",
-        "no_proxy",
-        "NO_PROXY",
     }
 )
 
 
 def _any_proxy_env_set() -> bool:
-    """Return True if any proxy-related environment variable is set."""
-    return any(os.environ.get(v) for v in _PROXY_ENV_VARS)
+    """Return True if any proxy URL environment variable is set.
+
+    Only checks variables that carry a proxy URL (http_proxy, https_proxy,
+    all_proxy and their uppercase variants). NO_PROXY / no_proxy are
+    exclusion lists, not proxy URLs, and are intentionally excluded.
+    """
+    return any(os.environ.get(v) for v in _PROXY_URL_ENV_VARS)
 
 
 def _resolve_effective_proxy(
@@ -345,16 +352,16 @@ def _resolve_effective_proxy(
 
     """
     if noproxy:
-        return None, "noproxy"
+        return None, PROXY_SOURCE_DISABLED
 
     if proxy is not None:
-        return str(getattr(proxy, "url", proxy)), "--proxy"
+        return str(getattr(proxy, "url", proxy)), PROXY_SOURCE_CLI
 
     # Check NO_PROXY exclusions before reading proxy env vars.
     # Lowercase no_proxy takes priority per curl/Python convention.
     no_proxy = os.environ.get("no_proxy", os.environ.get("NO_PROXY", ""))
     if _host_matches_no_proxy(host, no_proxy):
-        return None, "NO_PROXY"
+        return None, PROXY_SOURCE_NO_PROXY
 
     # Resolve scheme-specific proxy env var, then ALL_PROXY fallback.
     # Lowercase variants take priority per curl/Python getproxies() convention.
@@ -372,7 +379,7 @@ def _resolve_effective_proxy(
             return value, var_name
 
     if _any_proxy_env_set():
-        return None, "no_proxy_env"
+        return None, PROXY_SOURCE_NO_MATCH
 
     return None, None
 

@@ -65,7 +65,7 @@ httptap --metrics-only https://httpbin.io
 ### Example Output
 
 ```
-Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=389 ip=44.211.11.205 family=IPv4 tls_version=TLSv1.2
+Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=389 ip=44.211.11.205 family=IPv4 tls_version=TLSv1.2 proxy=direct
 ```
 
 ### Features
@@ -128,7 +128,11 @@ httptap --json output.json https://httpbin.io
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143
+        "cert_days_left": 143,
+        "tls_verified": true,
+        "tls_custom_ca": null,
+        "proxy_url": null,
+        "proxy_source": null
       },
       "response": {
         "status": 200,

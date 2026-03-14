@@ -133,6 +133,9 @@ class NetworkInfo:
         cert_days_left: Days until certificate expiration.
         tls_verified: Whether TLS certificate verification was enforced.
         tls_custom_ca: True when a custom CA bundle was configured.
+        proxy_url: Effective proxy URL used for this request, or None.
+        proxy_source: Origin of the proxy setting (see PROXY_SOURCE_*
+            constants). None when no proxy is configured.
 
     """
 

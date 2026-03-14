@@ -13,6 +13,12 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
+from httptap.constants import (
+    PROXY_SOURCE_CLI,
+    PROXY_SOURCE_DISABLED,
+    PROXY_SOURCE_NO_MATCH,
+    PROXY_SOURCE_NO_PROXY,
+)
 from httptap.http_client import (
     _host_matches_no_proxy,
     _needs_remote_dns,
@@ -1430,7 +1436,7 @@ class TestResolveEffectiveProxy:
     def test_explicit_proxy_returned_as_is(self) -> None:
         url, source = _resolve_effective_proxy("socks5h://gw:1080", "https", "example.com")
         assert url == "socks5h://gw:1080"
-        assert source == "--proxy"
+        assert source == PROXY_SOURCE_CLI
 
     def test_none_proxy_with_no_env_returns_none(self) -> None:
         url, source = _resolve_effective_proxy(None, "https", "example.com")
@@ -1458,7 +1464,7 @@ class TestResolveEffectiveProxy:
         monkeypatch.setenv("NO_PROXY", "example.com")
         url, source = _resolve_effective_proxy(None, "https", "example.com")
         assert url is None
-        assert source == "NO_PROXY"
+        assert source == PROXY_SOURCE_NO_PROXY
 
     def test_no_proxy_does_not_exclude_other_hosts(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
@@ -1487,11 +1493,11 @@ class TestResolveEffectiveProxy:
         monkeypatch.setenv("HTTP_PROXY", "http://proxy:3128")
         url, source = _resolve_effective_proxy(None, "https", "example.com")
         assert url is None
-        assert source == "no_proxy_env"
+        assert source == PROXY_SOURCE_NO_MATCH
 
     def test_noproxy_flag_ignores_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Return 'noproxy' when noproxy flag is set, even with proxy env vars."""
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
         url, source = _resolve_effective_proxy(None, "https", "example.com", noproxy=True)
         assert url is None
-        assert source == "noproxy"
+        assert source == PROXY_SOURCE_DISABLED

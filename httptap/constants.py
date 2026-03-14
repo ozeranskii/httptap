@@ -50,3 +50,10 @@ HTTP_SUCCESS_MIN = HTTPStatus.OK.value
 HTTP_SUCCESS_MAX = HTTPStatus.MULTIPLE_CHOICES.value - 1
 HTTP_REDIRECT_MIN = HTTPStatus.MULTIPLE_CHOICES.value
 HTTP_REDIRECT_MAX = HTTPStatus.BAD_REQUEST.value - 1
+
+# Proxy source identifiers returned by _resolve_effective_proxy.
+# Used in formatters to render proxy hints consistently.
+PROXY_SOURCE_CLI = "--proxy"
+PROXY_SOURCE_NO_PROXY = "NO_PROXY"
+PROXY_SOURCE_DISABLED = "noproxy"
+PROXY_SOURCE_NO_MATCH = "no_proxy_env"

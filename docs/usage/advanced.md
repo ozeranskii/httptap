@@ -131,7 +131,15 @@ httptap --proxy https://proxy.internal:8443 https://httpbin.io/get
 httptap --proxy socks5h://proxy.internal:1080 https://httpbin.io/get
 ```
 
-The Rich output and JSON export include the proxy URI when one is used.
+Ignore all proxy environment variables and connect directly:
+
+```shell
+httptap --proxy "" https://httpbin.io/get
+```
+
+The Rich output and JSON export include the proxy URI and its source
+(e.g., `(from arg --proxy)`, `(from env HTTPS_PROXY)`,
+`(bypassed by env no_proxy)`) so you can confirm which path was used.
 
 ### Proxy Protocols and DNS Resolution
 
