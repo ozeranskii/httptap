@@ -185,23 +185,14 @@ def test_bench_mask_sensitive_value(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="utils")
 def test_bench_sanitize_headers(benchmark: BenchmarkFixture) -> None:
-    benchmark.pedantic(
-        sanitize_headers,
-        setup=lambda: (
-            (),
-            {
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Accept": "text/html",
-                    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secret",
-                    "X-Request-Id": "abc-123-def-456",
-                    "Cookie": "session=s3cr3t_v4lu3; tracking=abc123",
-                },
-            },
-        ),
-        warmup_rounds=1,
-        rounds=5,
-    )
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "text/html",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secret",
+        "X-Request-Id": "abc-123-def-456",
+        "Cookie": "session=s3cr3t_v4lu3; tracking=abc123",
+    }
+    benchmark(sanitize_headers, headers)
 
 
 @pytest.mark.benchmark(group="utils")
@@ -232,12 +223,8 @@ def test_bench_calculate_days_until(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="exporter")
 def test_bench_build_summary(benchmark: BenchmarkFixture, sample_step: StepMetrics) -> None:
-    benchmark.pedantic(
-        JSONExporter._build_summary,
-        setup=lambda: (([sample_step] * 5, "https://example.com"), {}),
-        warmup_rounds=1,
-        rounds=5,
-    )
+    steps = [sample_step] * 5
+    benchmark(JSONExporter._build_summary, steps, "https://example.com")
 
 
 @pytest.mark.benchmark(group="exporter")
