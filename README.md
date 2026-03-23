@@ -26,7 +26,7 @@
         <img src="https://codecov.io/github/ozeranskii/httptap/graph/badge.svg?token=OFOHOI1X5J" alt="Coverage" />
       </a><br />
       <a href="https://codspeed.io/ozeranskii/httptap?utm_source=badge">
-        <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fcodspeed.io%2Fbadge.json%3Frepo%3Dozeranskii%2Fhttptap" alt="CodSpeed" />
+        <img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed Badge" />
       </a>
     </td>
     <td>
