@@ -98,6 +98,20 @@ Run mypy:
 uv run mypy httptap
 ```
 
+### Running Benchmarks
+
+Performance benchmarks use [pytest-codspeed](https://codspeed.io) and run automatically in CI:
+
+```bash
+# Run benchmarks locally (validates correctness, no performance data)
+uv run pytest tests/test_benchmarks.py --codspeed
+
+# Run benchmarks without CodSpeed (as regular tests)
+uv run pytest tests/test_benchmarks.py
+```
+
+Benchmarks cover pure-computation functions across models, formatters, utils, and exporter modules. CI measures CPU instructions (simulation), wall-clock time, and memory usage.
+
 ### Running Locally
 
 Test your changes:

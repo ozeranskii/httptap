@@ -104,6 +104,7 @@ test = [
     "pytest-mock>=3.15.1",
     "pytest-httpx>=0.36.0",
     "faker>=40.4.0",
+    "pytest-codspeed>=4.3.0",
 ]
 
 lint = [

@@ -139,6 +139,20 @@ uv run pytest -k "test_timing"
 uv run pytest -v
 ```
 
+### Running Benchmarks
+
+Performance benchmarks use [pytest-codspeed](https://codspeed.io) and run automatically in CI:
+
+```bash
+# Run benchmarks locally (validates correctness, no performance data)
+uv run pytest tests/test_benchmarks.py --codspeed
+
+# Run benchmarks without CodSpeed (as regular tests)
+uv run pytest tests/test_benchmarks.py
+```
+
+Benchmarks cover pure-computation functions across models, formatters, utils, and exporter modules. CI measures CPU instructions (simulation), wall-clock time, and memory usage.
+
 ### Writing Tests
 
 - Place tests in `tests/` directory
@@ -253,6 +267,7 @@ Use the PR template and include:
 httptap/
 ├── httptap/                 # Main package
 │   ├── __init__.py         # Public API
+│   ├── _pkgmeta.py        # Package metadata helper
 │   ├── cli.py              # CLI entry point
 │   ├── http_client.py      # HTTP client with tracing
 │   ├── analyzer.py         # High-level analyzer
@@ -262,9 +277,13 @@ httptap/
 │   │   ├── dns.py         # DNS resolvers
 │   │   ├── tls.py         # TLS inspectors
 │   │   └── timing.py      # Timing collectors
+│   ├── request_executor.py # Custom request executor protocol
 │   ├── tls_inspector.py   # TLS certificate inspection
+│   ├── exporter.py        # JSON export functionality
 │   ├── formatters.py      # Output formatters
+│   ├── render.py          # Output rendering orchestration
 │   ├── visualizer.py      # Rich table visualizer
+│   ├── utils.py           # Utility functions
 │   └── constants.py       # Configuration constants
 ├── tests/                  # Test suite
 ├── .github/               # GitHub configuration
