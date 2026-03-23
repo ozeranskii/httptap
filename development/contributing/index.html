@@ -1049,6 +1049,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#running-benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Benchmarks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#running-locally" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1575,6 +1586,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#running-benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Benchmarks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#running-locally" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1871,13 +1893,22 @@ participating, you are expected to uphold this code.</p>
 <p>Run mypy:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mypy<span class="w"> </span>httptap
 </span></code></pre></div>
+<h3 id="running-benchmarks">Running Benchmarks<a class="headerlink" href="#running-benchmarks" title="Permanent link">&para;</a></h3>
+<p>Performance benchmarks use <a href="https://codspeed.io">pytest-codspeed</a> and run automatically in CI:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Run benchmarks locally (validates correctness, no performance data)</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/test_benchmarks.py<span class="w"> </span>--codspeed
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Run benchmarks without CodSpeed (as regular tests)</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/test_benchmarks.py
+</span></code></pre></div>
+<p>Benchmarks cover pure-computation functions across models, formatters, utils, and exporter modules. CI measures CPU instructions (simulation), wall-clock time, and memory usage.</p>
 <h3 id="running-locally">Running Locally<a class="headerlink" href="#running-locally" title="Permanent link">&para;</a></h3>
 <p>Test your changes:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>uv<span class="w"> </span>run<span class="w"> </span>httptap<span class="w"> </span>https://httpbin.io
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>uv<span class="w"> </span>run<span class="w"> </span>httptap<span class="w"> </span>https://httpbin.io
 </span></code></pre></div>
 <p>Or install in editable mode:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>httptap<span class="w"> </span>https://httpbin.io
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>httptap<span class="w"> </span>https://httpbin.io
 </span></code></pre></div>
 <h2 id="making-changes">Making Changes<a class="headerlink" href="#making-changes" title="Permanent link">&para;</a></h2>
 <h3 id="branch-naming">Branch Naming<a class="headerlink" href="#branch-naming" title="Permanent link">&para;</a></h3>
@@ -1890,11 +1921,11 @@ participating, you are expected to uphold this code.</p>
 </ul>
 <h3 id="commit-messages">Commit Messages<a class="headerlink" href="#commit-messages" title="Permanent link">&para;</a></h3>
 <p>Follow conventional commits format:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>&lt;type&gt;(&lt;scope&gt;): &lt;subject&gt;
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>&lt;body&gt;
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>
-</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>&lt;footer&gt;
+<div class="language-text highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>&lt;type&gt;(&lt;scope&gt;): &lt;subject&gt;
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>&lt;body&gt;
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>&lt;footer&gt;
 </span></code></pre></div>
 <p><strong>Types:</strong></p>
 <ul>
@@ -1907,19 +1938,19 @@ participating, you are expected to uphold this code.</p>
 <li><code>perf</code> - Performance improvements</li>
 </ul>
 <p><strong>Examples:</strong></p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>feat(cli): add --timeout flag for request timeout
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
-</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>Add command-line option to specify custom timeout for HTTP requests.
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>Defaults to 20 seconds if not specified.
-</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>
-</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>Closes #123
-</span></code></pre></div>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>fix(tls): handle certificate expiry edge case
+<div class="language-text highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>feat(cli): add --timeout flag for request timeout
 </span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
-</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>Fix crash when certificate expiry date is in the past.
-</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>Now properly reports negative days and warns user.
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>Add command-line option to specify custom timeout for HTTP requests.
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>Defaults to 20 seconds if not specified.
 </span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>
-</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>Fixes #456
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>Closes #123
+</span></code></pre></div>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>fix(tls): handle certificate expiry edge case
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>Fix crash when certificate expiry date is in the past.
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>Now properly reports negative days and warns user.
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>Fixes #456
 </span></code></pre></div>
 <h3 id="code-style">Code Style<a class="headerlink" href="#code-style" title="Permanent link">&para;</a></h3>
 <p>Follow the <a href="https://google.github.io/styleguide/pyguide.html">Google Python Style Guide</a>:</p>
@@ -1931,20 +1962,20 @@ participating, you are expected to uphold this code.</p>
 <li>Follow PEP 8 naming conventions</li>
 </ul>
 <p><strong>Example:</strong></p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">resolve_hostname</span><span class="p">(</span><span class="n">host</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Resolve hostname to IP address.</span>
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
-</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="sd">    Args:</span>
-</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="sd">        host: Hostname to resolve.</span>
-</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="sd">        timeout: Maximum time to wait in seconds.</span>
-</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>
-</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="sd">    Returns:</span>
-</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="sd">        Tuple of (ip_address, family).</span>
-</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>
-</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="sd">    Raises:</span>
-</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="sd">        DNSError: If resolution fails.</span>
-</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>    <span class="k">pass</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">resolve_hostname</span><span class="p">(</span><span class="n">host</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Resolve hostname to IP address.</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="sd">    Args:</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="sd">        host: Hostname to resolve.</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="sd">        timeout: Maximum time to wait in seconds.</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="sd">    Returns:</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="sd">        Tuple of (ip_address, family).</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="sd">    Raises:</span>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="sd">        DNSError: If resolution fails.</span>
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>    <span class="k">pass</span>
 </span></code></pre></div>
 <h3 id="testing-guidelines">Testing Guidelines<a class="headerlink" href="#testing-guidelines" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1955,30 +1986,30 @@ participating, you are expected to uphold this code.</p>
 <li>Test both success and failure cases</li>
 </ul>
 <p><strong>Example:</strong></p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_analyzer_follows_redirects</span><span class="p">(</span><span class="n">mock_http_client</span><span class="p">):</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Test that analyzer follows redirect chains correctly.&quot;&quot;&quot;</span>
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>    <span class="n">analyzer</span> <span class="o">=</span> <span class="n">HTTPTapAnalyzer</span><span class="p">(</span><span class="n">follow_redirects</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="n">steps</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">analyze_url</span><span class="p">(</span><span class="s2">&quot;https://httpbin.io/redirect/3&quot;</span><span class="p">)</span>
-</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>
-</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">steps</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span>  <span class="c1"># Initial + 3 redirects</span>
-</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>    <span class="k">assert</span> <span class="n">steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_analyzer_follows_redirects</span><span class="p">(</span><span class="n">mock_http_client</span><span class="p">):</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Test that analyzer follows redirect chains correctly.&quot;&quot;&quot;</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>    <span class="n">analyzer</span> <span class="o">=</span> <span class="n">HTTPTapAnalyzer</span><span class="p">(</span><span class="n">follow_redirects</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>    <span class="n">steps</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">analyze_url</span><span class="p">(</span><span class="s2">&quot;https://httpbin.io/redirect/3&quot;</span><span class="p">)</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">steps</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span>  <span class="c1"># Initial + 3 redirects</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>    <span class="k">assert</span> <span class="n">steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span>
 </span></code></pre></div>
 <h2 id="pull-request-process">Pull Request Process<a class="headerlink" href="#pull-request-process" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Create a feature branch:</strong></li>
 </ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>feature/your-feature-name
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>feature/your-feature-name
 </span></code></pre></div>
 <ol>
 <li><strong>Make your changes and commit:</strong></li>
 </ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>git<span class="w"> </span>add<span class="w"> </span>.
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat: add awesome feature&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>git<span class="w"> </span>add<span class="w"> </span>.
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat: add awesome feature&quot;</span>
 </span></code></pre></div>
 <ol>
 <li><strong>Push to your fork:</strong></li>
 </ol>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>feature/your-feature-name
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>feature/your-feature-name
 </span></code></pre></div>
 <ol>
 <li>
@@ -2005,15 +2036,15 @@ participating, you are expected to uphold this code.</p>
 <h2 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h2>
 <h3 id="updating-docs">Updating Docs<a class="headerlink" href="#updating-docs" title="Permanent link">&para;</a></h3>
 <p>Documentation is in the <code>docs/</code> directory:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>docs/
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>├── getting-started/
-</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>├── usage/
-</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>├── api/
-</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>├── development/
-</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>└── about/
+<div class="language-text highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>docs/
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>├── getting-started/
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>├── usage/
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>├── api/
+</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>├── development/
+</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>└── about/
 </span></code></pre></div>
 <p>Build docs locally:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mkdocs<span class="w"> </span>serve
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mkdocs<span class="w"> </span>serve
 </span></code></pre></div>
 <p>View at: http://127.0.0.1:8000</p>
 <h3 id="documentation-standards">Documentation Standards<a class="headerlink" href="#documentation-standards" title="Permanent link">&para;</a></h3>
