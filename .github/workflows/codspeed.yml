@@ -42,6 +42,5 @@ jobs:
       - name: Run benchmarks
         uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4
         with:
-          mode: simulation,walltime
-          token: ${{ secrets.CODSPEED_TOKEN }}
+          mode: simulation
           run: uv run --no-dev --group test pytest tests/test_benchmarks.py --codspeed
