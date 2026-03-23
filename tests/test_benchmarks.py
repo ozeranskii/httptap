@@ -30,14 +30,7 @@ from httptap.utils import (
 )
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from pytest_codspeed.plugin import BenchmarkFixture
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -94,164 +87,127 @@ def sample_step(
     )
 
 
-# ---------------------------------------------------------------------------
-# Models benchmarks
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="models")
 def test_bench_timing_calculate_derived(benchmark: BenchmarkFixture, sample_timing: TimingMetrics) -> None:
-    @benchmark
-    def _() -> None:
-        sample_timing.calculate_derived()
+    benchmark(sample_timing.calculate_derived)
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="models")
 def test_bench_timing_to_dict(benchmark: BenchmarkFixture, sample_timing: TimingMetrics) -> None:
-    @benchmark
-    def _() -> dict[str, float | bool]:
-        return sample_timing.to_dict()
+    benchmark(sample_timing.to_dict)
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="models")
 def test_bench_network_to_dict(benchmark: BenchmarkFixture, sample_network: NetworkInfo) -> None:
-    @benchmark
-    def _() -> dict[str, object]:
-        return sample_network.to_dict()
+    benchmark(sample_network.to_dict)
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="models")
+def test_bench_response_to_dict(benchmark: BenchmarkFixture, sample_response: ResponseInfo) -> None:
+    benchmark(sample_response.to_dict)
+
+
+@pytest.mark.benchmark(group="models")
 def test_bench_step_to_dict(benchmark: BenchmarkFixture, sample_step: StepMetrics) -> None:
-    @benchmark
-    def _() -> dict[str, object]:
-        return sample_step.to_dict()
+    benchmark(sample_step.to_dict)
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="models")
 def test_bench_step_is_redirect(benchmark: BenchmarkFixture, sample_step: StepMetrics) -> None:
-    @benchmark
-    def _() -> bool:
-        return sample_step.is_redirect
+    benchmark(lambda: sample_step.is_redirect)
 
 
-# ---------------------------------------------------------------------------
-# Formatters benchmarks
-# ---------------------------------------------------------------------------
+@pytest.mark.benchmark(group="models")
+def test_bench_step_has_error(benchmark: BenchmarkFixture, sample_step: StepMetrics) -> None:
+    benchmark(lambda: sample_step.has_error)
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="formatters")
 def test_bench_format_bytes_human_small(benchmark: BenchmarkFixture) -> None:
-    @benchmark
-    def _() -> str:
-        return format_bytes_human(512)
+    benchmark(format_bytes_human, 512)
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="formatters")
 def test_bench_format_bytes_human_large(benchmark: BenchmarkFixture) -> None:
-    @benchmark
-    def _() -> str:
-        return format_bytes_human(1_048_576)
+    benchmark(format_bytes_human, 1_048_576)
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="formatters")
 def test_bench_format_metrics_line(benchmark: BenchmarkFixture, sample_step: StepMetrics) -> None:
-    @benchmark
-    def _() -> str:
-        return format_metrics_line(sample_step)
+    benchmark(format_metrics_line, sample_step)
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="formatters")
 def test_bench_format_network_info(benchmark: BenchmarkFixture, sample_step: StepMetrics) -> None:
-    @benchmark
-    def _() -> str | None:
-        return format_network_info(sample_step)
+    benchmark(format_network_info, sample_step)
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="formatters")
 def test_bench_format_response_info(benchmark: BenchmarkFixture, sample_step: StepMetrics) -> None:
-    @benchmark
-    def _() -> str | None:
-        return format_response_info(sample_step)
+    benchmark(format_response_info, sample_step)
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="formatters")
 def test_bench_format_step_header(benchmark: BenchmarkFixture, sample_step: StepMetrics) -> None:
-    @benchmark
-    def _() -> str:
-        return format_step_header(sample_step)
+    benchmark(format_step_header, sample_step)
 
 
-# ---------------------------------------------------------------------------
-# Utils benchmarks
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="utils")
 def test_bench_mask_sensitive_value(benchmark: BenchmarkFixture) -> None:
-    @benchmark
-    def _() -> str:
-        return mask_sensitive_value("Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secret")
+    benchmark(mask_sensitive_value, "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secret")
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="utils")
 def test_bench_sanitize_headers(benchmark: BenchmarkFixture) -> None:
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "text/html",
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secret",
-        "X-Request-Id": "abc-123-def-456",
-        "Cookie": "session=s3cr3t_v4lu3; tracking=abc123",
-    }
+    benchmark.pedantic(
+        sanitize_headers,
+        setup=lambda: (
+            (),
+            {
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Accept": "text/html",
+                    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.secret",
+                    "X-Request-Id": "abc-123-def-456",
+                    "Cookie": "session=s3cr3t_v4lu3; tracking=abc123",
+                },
+            },
+        ),
+        warmup_rounds=1,
+        rounds=5,
+    )
 
-    @benchmark
-    def _() -> dict[str, str]:
-        return sanitize_headers(headers)
 
-
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="utils")
 def test_bench_parse_http_date(benchmark: BenchmarkFixture) -> None:
-    @benchmark
-    def _() -> datetime | None:
-        return parse_http_date("Mon, 22 Oct 2025 12:00:00 GMT")
+    benchmark(parse_http_date, "Mon, 22 Oct 2025 12:00:00 GMT")
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="utils")
 def test_bench_parse_certificate_date(benchmark: BenchmarkFixture) -> None:
-    @benchmark
-    def _() -> datetime | None:
-        return parse_certificate_date("Oct 22 12:00:00 2025 GMT")
+    benchmark(parse_certificate_date, "Oct 22 12:00:00 2025 GMT")
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="utils")
 def test_bench_validate_url_valid(benchmark: BenchmarkFixture) -> None:
-    @benchmark
-    def _() -> bool:
-        return validate_url("https://example.com/api/v1/data?key=value")
+    benchmark(validate_url, "https://example.com/api/v1/data?key=value")
 
 
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="utils")
 def test_bench_validate_url_invalid(benchmark: BenchmarkFixture) -> None:
-    @benchmark
-    def _() -> bool:
-        return validate_url("ftp://example.com/file")
+    benchmark(validate_url, "ftp://example.com/file")
 
 
-# ---------------------------------------------------------------------------
-# Exporter benchmarks
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="exporter")
 def test_bench_build_summary(benchmark: BenchmarkFixture, sample_step: StepMetrics) -> None:
-    steps = [sample_step] * 5
+    benchmark.pedantic(
+        JSONExporter._build_summary,
+        setup=lambda: (([sample_step] * 5, "https://example.com"), {}),
+        warmup_rounds=1,
+        rounds=5,
+    )
 
-    @benchmark
-    def _() -> dict[str, object]:
-        return JSONExporter._build_summary(steps, "https://example.com")
 
-
-@pytest.mark.benchmark
+@pytest.mark.benchmark(group="exporter")
 def test_bench_step_to_json(benchmark: BenchmarkFixture, sample_step: StepMetrics) -> None:
-    @benchmark
-    def _() -> str:
-        return json.dumps(sample_step.to_dict())
+    benchmark(lambda: json.dumps(sample_step.to_dict()))
