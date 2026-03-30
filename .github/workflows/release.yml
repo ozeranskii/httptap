@@ -24,10 +24,15 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   prepare:
     name: Prepare Release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
@@ -35,7 +40,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           ssh-key: ${{ secrets.DEPLOY_KEY }}
@@ -46,29 +51,29 @@ jobs:
           git config user.email "github-actions@github.com"
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version-file: "pyproject.toml"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: true
 
       - name: Update project version
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_BUMP: ${{ inputs.bump }}
         run: |
-          if [ -n "${{ inputs.version }}" ]; then
-            # Explicit version provided
-            VERSION="${{ inputs.version }}"
+          if [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
             echo "Using explicit version: ${VERSION}"
             uv version "${VERSION}"
           else
-            # Use bump semantics
-            BUMP="${{ inputs.bump }}"
+            BUMP="$INPUT_BUMP"
             echo "Bumping version: ${BUMP}"
             uv version --bump "${BUMP}"
-            # Get the new version
             VERSION=$(uv version --short)
           fi
 
@@ -84,12 +89,13 @@ jobs:
         run: touch ${CHANGELOG_FILE}
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@git-cliff
+        uses: taiki-e/install-action@1125859c32e957870377308157ca1b4b4ebb3b2d # git-cliff
 
       - name: Generate changelog entry
         id: notes
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
           # Generate full changelog and prepend to CHANGELOG.md
           git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --prepend ${CHANGELOG_FILE}
           # Extract notes for GitHub release (try --latest, fallback to --unreleased)
@@ -102,14 +108,16 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Commit release changes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           git add pyproject.toml uv.lock ${CHANGELOG_FILE}
           git commit -m "chore: release v${VERSION}"
 
       - name: Create and push tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
           git tag -a "${TAG}" -m "Release ${TAG}"
           git push origin HEAD
           git push origin "${TAG}"
@@ -117,16 +125,17 @@ jobs:
   build:
     name: Build Package
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: prepare
 
     steps:
       - name: Checkout tag
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ needs.prepare.outputs.tag }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: true
 
@@ -140,7 +149,7 @@ jobs:
         run: uv build
 
       - name: Upload dist artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: dist
           path: dist/
@@ -151,6 +160,7 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs:
       - prepare
       - build
@@ -162,17 +172,18 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: dist
           path: dist/
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.13.0
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
 
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs:
       - prepare
       - build
@@ -180,10 +191,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Download artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: dist
           path: dist/
@@ -191,9 +202,11 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          NOTES: ${{ needs.prepare.outputs.notes }}
         run: |-
-          gh release create ${{ needs.prepare.outputs.tag }} \
+          gh release create "$TAG" \
             dist/* \
-            --repo ${{ github.repository }} \
-            --title "${{ needs.prepare.outputs.tag }}" \
-            --notes '${{ needs.prepare.outputs.notes }}'
+            --repo "${{ github.repository }}" \
+            --title "$TAG" \
+            --notes "$NOTES"

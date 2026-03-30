@@ -19,9 +19,19 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
     ### {{ group | upper_first }}
     {% for commit in commits %}
-        - {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message | upper_first }}\
+        - {% if commit.breaking %}[**breaking**] {% endif %}\
+{% if commit.scope %}**{{ commit.scope }}:** {% endif %}\
+{{ commit.message | upper_first }} \
+([{{ commit.id | truncate(length=7, end="") }}](https://github.com/ozeranskii/httptap/commit/{{ commit.id }}))\
     {% endfor %}
 {% endfor %}
+{% if github.contributors | filter(attribute="is_first_time", value=true) | length != 0 %}
+    ### New Contributors
+    {% for contributor in github.contributors | filter(attribute="is_first_time", value=true) %}
+        - @{{ contributor.username }} made their first contribution\
+{% if contributor.pr_number %} in [#{{ contributor.pr_number }}](https://github.com/ozeranskii/httptap/pull/{{ contributor.pr_number }}){% endif %}\
+    {% endfor %}
+{% endif %}
 
 """
 # Template for the changelog footer
@@ -40,7 +50,8 @@ filter_unconventional = true
 split_commits = false
 # Regex for preprocessing the commit messages
 commit_preprocessors = [
-  { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/ozeranskii/httptap/issues/${2}))" },
+  { pattern = '^\s+', replace = "" },
+  { pattern = '\s*\((\w+\s)?#([0-9]+)\)', replace = "" },
 ]
 # Regex for parsing and grouping commits
 commit_parsers = [
@@ -51,28 +62,39 @@ commit_parsers = [
   { message = "^refactor", group = "Refactor" },
   { message = "^style", group = "Styling" },
   { message = "^test", group = "Testing" },
-  { message = "^chore\\(release\\): prepare for", skip = true },
-  { message = "^chore\\(deps\\)", skip = true },
+  { message = "^chore: release", skip = true },
+  { message = "^chore\\(deps", skip = true },
   { message = "^chore\\(pr\\)", skip = true },
   { message = "^chore\\(pull\\)", skip = true },
-  { message = "^chore|ci", group = "Miscellaneous Tasks" },
+  { message = "^(chore|ci)", group = "Miscellaneous Tasks" },
   { body = ".*security", group = "Security" },
   { message = "^revert", group = "Revert" },
 ]
 # Protect breaking changes from being skipped due to matching a skipping commit_parser
-protect_breaking_commits = false
+protect_breaking_commits = true
 # Filter out the commits that are not matched by commit parsers
-filter_commits = false
+filter_commits = true
 # Regex for matching git tags
 tag_pattern = "v[0-9].*"
-
 # Regex for skipping tags
-skip_tags = "v0.1.0-beta.1"
-# Regex for ignoring tags
-ignore_tags = ""
+skip_tags = "v0\\.1\\.0-beta\\.1"
 # Sort the tags topologically
 topo_order = false
 # Sort the commits inside sections by oldest/newest order
 sort_commits = "oldest"
-# Limit the number of commits included in the changelog.
-# limit_commits = 42
+# Parse issue/PR references from commit messages
+link_parsers = [
+  { pattern = "#(\\d+)", href = "https://github.com/ozeranskii/httptap/issues/$1" },
+]
+
+[bump]
+# A breaking change always bumps the major version
+breaking_always_bump_major = true
+# A feat commit always bumps the minor version
+features_always_bump_minor = true
+# Initial tag for the repository
+initial_tag = "0.1.0"
+
+[remote.github]
+owner = "ozeranskii"
+repo = "httptap"

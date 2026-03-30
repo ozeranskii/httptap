@@ -34,19 +34,15 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      # Group pytest-related packages
-      pytest:
-        patterns:
-          - "pytest*"
       # Group dev tools
       dev-tools:
         patterns:
           - "ruff"
           - "mypy"
-      # Group test dependencies
+      # Group test dependencies (pytest and related)
       test-dependencies:
         patterns:
-          - "pytest-*"
+          - "pytest*"
           - "faker"
       # Group httpx and related
       http-client:

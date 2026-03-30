@@ -1,11 +1,11 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.1
+    rev: v0.15.8
     hooks:
       - id: ruff-check
         args:
           - --fix
-          - -show-fixes
+          - --show-fixes
       - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.19.1
@@ -46,6 +46,6 @@ repos:
           - "--conf"
           - ".yamlfmt"
   - repo: https://github.com/crate-ci/typos
-    rev: v1.43.4
+    rev: v1.44.0
     hooks:
       - id: typos
