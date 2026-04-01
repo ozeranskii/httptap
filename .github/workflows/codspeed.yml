@@ -43,7 +43,7 @@ jobs:
         run: uv sync --locked --no-dev --group test
 
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4
+        uses: CodSpeedHQ/action@d872884a306dd4853acf0f584f4b706cf0cc72a2 # v4
         with:
           mode: simulation
           run: uv run --no-dev --group test pytest tests/test_benchmarks.py --codspeed
