@@ -89,7 +89,7 @@ jobs:
         run: touch ${CHANGELOG_FILE}
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@1125859c32e957870377308157ca1b4b4ebb3b2d # git-cliff
+        uses: taiki-e/install-action@de6f06126afb86b5250a16ff961c57360c5edccc # v2.72.0 git-cliff
 
       - name: Generate changelog entry
         id: notes
