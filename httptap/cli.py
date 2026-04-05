@@ -78,7 +78,7 @@ class RichArgumentParser(argparse.ArgumentParser):
                 title="[bold red]❌ Argument Error[/bold red]",
                 border_style="red",
                 padding=(1, 2),
-            )
+            ),
         )
         self.print_usage(sys.stderr)
         sys.exit(EXIT_USAGE_ERROR)
@@ -352,7 +352,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
                 title="[bold red]❌ Validation Error[/bold red]",
                 border_style="red",
                 padding=(1, 2),
-            )
+            ),
         )
         return False
 
@@ -369,7 +369,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
                 title="[bold red]❌ Validation Error[/bold red]",
                 border_style="red",
                 padding=(1, 2),
-            )
+            ),
         )
         return False
 
@@ -381,7 +381,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
                 str(exc),
                 title="[bold red]❌ Header Error[/bold red]",
                 border_style="red",
-            )
+            ),
         )
         return False
 
@@ -397,7 +397,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
                     title="[bold red]❌ Validation Error[/bold red]",
                     border_style="red",
                     padding=(1, 2),
-                )
+                ),
             )
             return False
         args.ca_bundle = str(Path(ca_bundle_str).expanduser().absolute())

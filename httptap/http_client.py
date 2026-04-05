@@ -308,7 +308,7 @@ _PROXY_URL_ENV_VARS: frozenset[str] = frozenset(
         "HTTPS_PROXY",
         "all_proxy",
         "ALL_PROXY",
-    }
+    },
 )
 
 
@@ -584,7 +584,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                 request_url += f"?{parsed_url.query}"
 
             with client.stream(
-                method.value, request_url, content=content, extensions={"trace": trace, "sni_hostname": host}
+                method.value, request_url, content=content, extensions={"trace": trace, "sni_hostname": host},
             ) as response:
                 timing_collector.mark_ttfb()
                 _populate_response_metadata(response, response_info)
@@ -697,6 +697,6 @@ def _extract_ssl_object(
     except Exception:  # pragma: no cover - defensive  # noqa: BLE001
         return None
 
-    if isinstance(ssl_candidate, (ssl.SSLSocket, ssl.SSLObject, SSLInfoProvider)):
+    if isinstance(ssl_candidate, ssl.SSLSocket | ssl.SSLObject | SSLInfoProvider):
         return ssl_candidate
     return None

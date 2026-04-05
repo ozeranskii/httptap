@@ -14,7 +14,7 @@ def test_http_client_executor_delegates_to_make_request(monkeypatch: pytest.Monk
     captured: dict[str, object] = {}
 
     def fake_make_request(
-        url: str, timeout: float, **kwargs: object
+        url: str, timeout: float, **kwargs: object,
     ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
         captured["url"] = url
         captured["timeout"] = timeout
@@ -61,7 +61,7 @@ def test_http_client_executor_with_socks5h_proxy(monkeypatch: pytest.MonkeyPatch
     captured: dict[str, object] = {}
 
     def fake_make_request(
-        url: str, timeout: float, **kwargs: object
+        url: str, timeout: float, **kwargs: object,
     ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
         captured["url"] = url
         captured["timeout"] = timeout
@@ -89,7 +89,7 @@ def test_http_client_executor_with_http_proxy(monkeypatch: pytest.MonkeyPatch) -
     captured: dict[str, object] = {}
 
     def fake_make_request(
-        url: str, timeout: float, **kwargs: object
+        url: str, timeout: float, **kwargs: object,
     ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
         captured["url"] = url
         captured["timeout"] = timeout
@@ -117,7 +117,7 @@ def test_http_client_executor_with_https_proxy(monkeypatch: pytest.MonkeyPatch) 
     captured: dict[str, object] = {}
 
     def fake_make_request(
-        url: str, timeout: float, **kwargs: object
+        url: str, timeout: float, **kwargs: object,
     ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
         captured["url"] = url
         captured["timeout"] = timeout
@@ -145,7 +145,7 @@ def test_http_client_executor_with_socks5_proxy(monkeypatch: pytest.MonkeyPatch)
     captured: dict[str, object] = {}
 
     def fake_make_request(
-        url: str, timeout: float, **kwargs: object
+        url: str, timeout: float, **kwargs: object,
     ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
         captured["url"] = url
         captured["timeout"] = timeout
@@ -173,7 +173,7 @@ def test_http_client_executor_with_authenticated_proxy(monkeypatch: pytest.Monke
     captured: dict[str, object] = {}
 
     def fake_make_request(
-        url: str, timeout: float, **kwargs: object
+        url: str, timeout: float, **kwargs: object,
     ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
         captured["url"] = url
         captured["timeout"] = timeout
@@ -201,7 +201,7 @@ def test_http_client_executor_without_proxy(monkeypatch: pytest.MonkeyPatch) -> 
     captured: dict[str, object] = {}
 
     def fake_make_request(
-        url: str, timeout: float, **kwargs: object
+        url: str, timeout: float, **kwargs: object,
     ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
         captured["url"] = url
         captured["timeout"] = timeout
