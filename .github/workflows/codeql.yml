@@ -23,16 +23,20 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
     timeout-minutes: 15
     permissions:
-      security-events: write
-      packages: read
-      actions: read
-      contents: read
+      security-events: write # Required for uploading CodeQL results
+      packages: read # Required for CodeQL analysis
+      actions: read # Required for CodeQL analysis of Actions
+      contents: read # Required for repository checkout
 
     strategy:
       fail-fast: false
@@ -46,6 +50,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4

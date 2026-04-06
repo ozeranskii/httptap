@@ -1,0 +1,38 @@
+name: zizmor
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    name: GitHub Actions Security Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      security-events: write # Required for uploading SARIF results
+      contents: read # Required for repository checkout
+      actions: read # Required for workflow analysis
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8 # v0.5.2
+        with:
+          persona: pedantic
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
