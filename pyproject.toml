@@ -194,6 +194,7 @@ exclude_lines = [
 
 [tool.typos.default.extend-words]
 certifi = "certifi"
+wrk = "wrk"
 
 [tool.typos.files]
 extend-exclude = [".gitignore"]
