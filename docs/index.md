@@ -3,6 +3,10 @@ title: httptap
 description: Rich-powered CLI that dissects an HTTP request into every meaningful phase
 ---
 
+<p align="center">
+  <img src="assets/httptap-banner.svg" alt="httptap" style="width: 100%; max-width: 1280px; height: auto;" />
+</p>
+
 # httptap
 
 <div style="text-align: center; margin-bottom: 2em;">
@@ -139,4 +143,5 @@ Built on the shoulders of fantastic libraries:
 
 - [httpx](https://www.python-httpx.org/) - Modern HTTP client
 - [httpcore](https://github.com/encode/httpcore) - Low-level HTTP protocol implementation
+- [dnspython](https://www.dnspython.org/) - DNS toolkit for Python
 - [Rich](https://github.com/Textualize/rich) - Beautiful terminal formatting

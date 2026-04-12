@@ -113,6 +113,7 @@ nav:
       - Basic Usage: usage/basic.md
       - Output Formats: usage/output-formats.md
       - Advanced Features: usage/advanced.md
+      - Troubleshooting & FAQ: troubleshooting.md
   - API Reference:
       - Overview: api/overview.md
       - Core Components: api/core.md
