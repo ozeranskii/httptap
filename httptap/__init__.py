@@ -43,6 +43,15 @@ from .models import (
 )
 from .render import OutputRenderer
 from .request_executor import HTTPClientRequestExecutor, RequestExecutor, RequestOptions, RequestOutcome
+from .slo import (
+    SLO_KEYS,
+    SLOResult,
+    SLOSpecError,
+    SLOViolation,
+    evaluate_slo,
+    parse_slo_spec,
+    select_step_for_evaluation,
+)
 from .visualizer import WaterfallVisualizer
 
 _package_info = get_package_info()
@@ -52,6 +61,7 @@ __author__ = _package_info.author
 __license__ = _package_info.license
 
 __all__ = [
+    "SLO_KEYS",
     "DNSResolutionError",
     "DNSResolver",
     "Exporter",
@@ -65,6 +75,9 @@ __all__ = [
     "RequestOptions",
     "RequestOutcome",
     "ResponseInfo",
+    "SLOResult",
+    "SLOSpecError",
+    "SLOViolation",
     "SocketTLSInspector",
     "StepMetrics",
     "SystemDNSResolver",
@@ -74,4 +87,7 @@ __all__ = [
     "TimingMetrics",
     "Visualizer",
     "WaterfallVisualizer",
+    "evaluate_slo",
+    "parse_slo_spec",
+    "select_step_for_evaluation",
 ]

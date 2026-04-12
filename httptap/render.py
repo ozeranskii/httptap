@@ -25,10 +25,12 @@ from .formatters import (
     format_metrics_line,
     format_network_info,
     format_response_info,
+    format_slo_panel,
     format_step_header,
 )
 from .interfaces import Exporter, Visualizer
 from .models import StepMetrics
+from .slo import SLOResult, select_step_for_evaluation
 from .visualizer import WaterfallVisualizer
 
 
@@ -76,7 +78,13 @@ class OutputRenderer:
         self.visualizer = visualizer or WaterfallVisualizer(self.console)
         self.exporter = exporter or JSONExporter(self.console)
 
-    def render_analysis(self, steps: Sequence[StepMetrics], initial_url: str) -> None:
+    def render_analysis(
+        self,
+        steps: Sequence[StepMetrics],
+        initial_url: str,
+        *,
+        slo_result: SLOResult | None = None,
+    ) -> None:
         """Render complete analysis output.
 
         Selects the output shape based on the flags the renderer was
@@ -92,14 +100,19 @@ class OutputRenderer:
         Args:
             steps: Sequence of step metrics to render.
             initial_url: Initial URL that was analyzed.
+            slo_result: Optional SLO evaluation result. When provided,
+                the result is rendered alongside the step output
+                (inline in metrics-only mode, as a Rich panel
+                otherwise).
 
         """
         if self.metrics_only:
-            self._render_metrics_only(steps)
+            self._render_metrics_only(steps, slo_result=slo_result)
             return
 
         if self.compact:
             self._render_compact(steps, initial_url)
+            self._print_slo_panel(slo_result)
             return
 
         self._print_header(initial_url)
@@ -112,6 +125,15 @@ class OutputRenderer:
 
         if len(steps) > 1:
             self._render_redirect_summary(steps)
+
+        self._print_slo_panel(slo_result)
+
+    def _print_slo_panel(self, slo_result: SLOResult | None) -> None:
+        """Print the SLO panel below the step output when SLO was evaluated."""
+        if slo_result is None:
+            return
+        self.console.print()
+        self.console.print(format_slo_panel(slo_result))
 
     def _render_compact(self, steps: Sequence[StepMetrics], initial_url: str) -> None:
         """Render one human-readable summary line per step.
@@ -137,6 +159,8 @@ class OutputRenderer:
         steps: Sequence[StepMetrics],
         initial_url: str,
         output_path: str,
+        *,
+        slo_result: SLOResult | None = None,
     ) -> None:
         """Export analysis data to JSON file.
 
@@ -144,9 +168,11 @@ class OutputRenderer:
             steps: Sequence of step metrics to export.
             initial_url: Initial URL that was analyzed.
             output_path: Path to output JSON file.
+            slo_result: Optional SLO evaluation result that will be
+                attached to the exported summary.
 
         """
-        self.exporter.export(steps, initial_url, output_path)
+        self.exporter.export(steps, initial_url, output_path, slo_result=slo_result)
 
     def _print_header(self, initial_url: str) -> None:
         """Print analysis header with Rich panel.
@@ -203,18 +229,33 @@ class OutputRenderer:
 
         self.visualizer.render(step)
 
-    def _render_metrics_only(self, steps: Sequence[StepMetrics]) -> None:
+    def _render_metrics_only(
+        self,
+        steps: Sequence[StepMetrics],
+        *,
+        slo_result: SLOResult | None = None,
+    ) -> None:
         """Render minimal machine-readable output.
+
+        The SLO result is attached to the **final successful step**
+        only, matching how SLOs are evaluated (against the final
+        request of the redirect chain).
 
         Args:
             steps: Sequence of step metrics.
+            slo_result: Evaluated SLO result, or ``None`` when no
+                ``--slo`` was supplied.
 
         """
+        slo_target = select_step_for_evaluation(steps) if slo_result is not None else None
+
         for step in steps:
             if step.has_error:
                 self.console.print(f"Step {step.step_number}: ERROR - {step.error}")
-            else:
-                self.console.print(format_metrics_line(step))
+                continue
+
+            step_slo = slo_result if step is slo_target else None
+            self.console.print(format_metrics_line(step, slo_result=step_slo))
 
     def _render_redirect_summary(self, steps: Sequence[StepMetrics]) -> None:
         """Render redirect chain summary table.

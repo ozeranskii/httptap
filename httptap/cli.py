@@ -27,6 +27,7 @@ from .analyzer import HTTPTapAnalyzer
 from .constants import (
     DEFAULT_TIMEOUT_SECONDS,
     EXIT_CODE_OK,
+    EXIT_CODE_SLO_VIOLATION,
     EXIT_CODE_SOFTWARE,
     EXIT_CODE_TEMPFAIL,
     EXIT_CODE_USAGE,
@@ -35,15 +36,24 @@ from .constants import (
 )
 from .models import StepMetrics
 from .render import OutputRenderer
+from .slo import (
+    SLO_KEYS,
+    SLOResult,
+    SLOSpecError,
+    evaluate_slo,
+    parse_slo_spec,
+    select_step_for_evaluation,
+)
 from .utils import read_request_data, validate_url
 
-# Exit codes (aligned with sysexits.h conventions)
+# Exit codes (aligned with sysexits.h conventions where possible)
 # Fall back to canonical numeric equivalents when running on platforms
 # that do not expose the EX_* constants (e.g., Windows).
 EXIT_SUCCESS = EXIT_CODE_OK
 EXIT_USAGE_ERROR = EXIT_CODE_USAGE
 EXIT_NETWORK_ERROR = EXIT_CODE_TEMPFAIL
 EXIT_FATAL_ERROR = EXIT_CODE_SOFTWARE
+EXIT_SLO_VIOLATION = EXIT_CODE_SLO_VIOLATION
 
 
 # Global console for error messages
@@ -149,6 +159,7 @@ Examples:
 
 Exit codes:
   {EXIT_SUCCESS:>3} (EX_OK)       : Success
+  {EXIT_SLO_VIOLATION:>3}              : SLO threshold violation (request succeeded but too slow)
   {EXIT_USAGE_ERROR:>3} (EX_USAGE)    : Invalid arguments
   {EXIT_FATAL_ERROR:>3} (EX_SOFTWARE) : Internal error
   {EXIT_NETWORK_ERROR:>3} (EX_TEMPFAIL) : Network/TLS error (partial output available)
@@ -265,6 +276,17 @@ Exit codes:
         metavar="PATH",
         help="Export the collected metrics, network, and response details to PATH.",
     )
+    slo_keys_hint = ", ".join(sorted(SLO_KEYS))
+    output_group.add_argument(
+        "--slo",
+        metavar="KEY=MS[,KEY=MS...]",
+        default=None,
+        help=(
+            "Check the final successful step against per-phase latency budgets "
+            "in milliseconds. On violation httptap still prints the full report "
+            f"but exits with code {EXIT_SLO_VIOLATION}. Valid keys: {slo_keys_hint}."
+        ),
+    )
 
     return parser
 
@@ -314,17 +336,51 @@ def _export_results(
     renderer: OutputRenderer,
     steps: list[StepMetrics],
     args: argparse.Namespace,
+    *,
+    slo_result: SLOResult | None = None,
 ) -> None:
     """Export analysis results when --json is provided."""
     if not args.json:
         return
 
     try:
-        renderer.export_json(steps, args.url, args.json)
+        renderer.export_json(steps, args.url, args.json, slo_result=slo_result)
     except OSError as export_error:
         console.print(
             f"[yellow]⚠ Warning:[/yellow] Failed to export JSON: {export_error}",
         )
+
+
+def _evaluate_slo(
+    steps: list[StepMetrics],
+    thresholds: Mapping[str, float],
+) -> SLOResult | None:
+    """Evaluate SLO thresholds against the final successful step.
+
+    Args:
+        steps: Analysis steps.
+        thresholds: Parsed ``--slo`` specification produced by
+            :func:`parse_slo_spec`. An empty mapping disables
+            evaluation.
+
+    Returns:
+        :class:`SLOResult` when thresholds were supplied and there is
+        at least one successful step to evaluate; ``None`` otherwise.
+
+    Raises:
+        SLOSpecError: Propagated from :func:`evaluate_slo` if
+            ``thresholds`` contains a key outside :data:`SLO_KEYS`.
+            The CLI pipeline validates input via
+            :func:`parse_slo_spec` earlier, so this should not happen
+            in practice.
+
+    """
+    if not thresholds:
+        return None
+    step = select_step_for_evaluation(steps)
+    if step is None:
+        return None
+    return evaluate_slo(step, thresholds)
 
 
 def validate_arguments(args: argparse.Namespace) -> bool:
@@ -402,14 +458,45 @@ def validate_arguments(args: argparse.Namespace) -> bool:
             return False
         args.ca_bundle = str(Path(ca_bundle_str).expanduser().absolute())
 
+    if args.slo is None:
+        args.slo_thresholds = {}
+    else:
+        try:
+            args.slo_thresholds = parse_slo_spec(args.slo)
+        except SLOSpecError as exc:
+            console.print(
+                Panel(
+                    f"[red]{exc}[/red]",
+                    title="[bold red]❌ SLO Error[/bold red]",
+                    border_style="red",
+                    padding=(1, 2),
+                )
+            )
+            return False
+
     return True
 
 
-def determine_exit_code(steps: list[StepMetrics]) -> int:
+def determine_exit_code(
+    steps: list[StepMetrics],
+    *,
+    slo_result: SLOResult | None = None,
+) -> int:
     """Determine appropriate exit code based on analysis results.
+
+    Precedence (highest-severity first):
+
+    1. No steps at all → ``EXIT_FATAL_ERROR``.
+    2. Network / TLS error → ``EXIT_NETWORK_ERROR`` (or
+       ``EXIT_FATAL_ERROR`` when there is also no partial data).
+    3. SLO violation on the final successful step →
+       ``EXIT_SLO_VIOLATION``.
+    4. Otherwise → ``EXIT_SUCCESS``.
 
     Args:
         steps: List of step metrics from analysis.
+        slo_result: Optional SLO evaluation result for the final
+            successful step.
 
     Returns:
         Appropriate exit code.
@@ -419,20 +506,24 @@ def determine_exit_code(steps: list[StepMetrics]) -> int:
         return EXIT_FATAL_ERROR
 
     has_errors = any(step.has_error for step in steps)
-    if not has_errors:
-        return EXIT_SUCCESS
+    if has_errors:
+        # Check if we have any partial data (network or response info)
+        has_partial_data = any(step.network.ip or step.response.status for step in steps)
+        return EXIT_NETWORK_ERROR if has_partial_data else EXIT_FATAL_ERROR
 
-    # Check if we have any partial data (network or response info)
-    has_partial_data = any(step.network.ip or step.response.status for step in steps)
+    if slo_result is not None and not slo_result.passed:
+        return EXIT_SLO_VIOLATION
 
-    return EXIT_NETWORK_ERROR if has_partial_data else EXIT_FATAL_ERROR
+    return EXIT_SUCCESS
 
 
 def main() -> int:
     """Run the CLI with Rich UI enhancements.
 
     Returns:
-        Exit code (0=success, 64=bad args, 75=network issue, 70=internal error).
+        Exit code: ``0`` on success, ``4`` on SLO threshold violation,
+        ``64`` on invalid arguments, ``70`` on internal error, and
+        ``75`` on network or TLS failure.
 
     """
     try:
@@ -485,10 +576,11 @@ def main() -> int:
         )
 
         steps = _execute_analysis(analyzer, args, method, content, headers_dict)
-        renderer.render_analysis(steps, args.url)
-        _export_results(renderer, steps, args)
+        slo_result = _evaluate_slo(steps, args.slo_thresholds)
+        renderer.render_analysis(steps, args.url, slo_result=slo_result)
+        _export_results(renderer, steps, args, slo_result=slo_result)
 
-        return determine_exit_code(steps)
+        return determine_exit_code(steps, slo_result=slo_result)
 
     except KeyboardInterrupt:
         console.print("\n[yellow]⚠ Interrupted by user[/yellow]")

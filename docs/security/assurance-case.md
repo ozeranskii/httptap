@@ -167,6 +167,13 @@ Supporting the release-integrity property (SR-5):
   PR.
 - **Dependency tracking**: SBOM in CycloneDX and SPDX formats is
   generated during release and attached as a GitHub Release asset.
+- **Exploitability disclosure**: an OpenVEX document
+  (`httptap-X.Y.Z.openvex.json`) ships alongside the SBOM, declaring
+  for each dependency CVE whether `httptap` is actually affected. The
+  source of truth is versioned in
+  [`.vex/httptap.openvex.json`](https://github.com/ozeranskii/httptap/blob/main/.vex/httptap.openvex.json);
+  scanners that consume VEX (Grype, Trivy, Snyk) use it to suppress
+  false-positive alerts on unreachable vulnerable code paths.
 
 Users can verify a downloaded artifact independently:
 

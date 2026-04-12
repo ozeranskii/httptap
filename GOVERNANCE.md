@@ -90,7 +90,11 @@ Releases are cut by the maintainer using the automated release workflow in
   Publishing (no long-lived API tokens).
 - **Supply chain:** releases are signed with Sigstore keyless signing and
   ship SLSA v1.0 build provenance attestations via
-  `actions/attest-build-provenance`.
+  `actions/attest-build-provenance`. Each release also attaches a
+  CycloneDX + SPDX SBOM and the current OpenVEX document from
+  [`.vex/httptap.openvex.json`](.vex/httptap.openvex.json) so that
+  downstream scanners can triage dependency CVEs against the actual
+  exploitability of `httptap`.
 - **Supported versions:** see [SECURITY.md](SECURITY.md).
 
 ## Continuity

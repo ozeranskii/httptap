@@ -17,9 +17,11 @@ from httptap.formatters import (
     format_metrics_line,
     format_network_info,
     format_response_info,
+    format_slo_panel,
     format_step_header,
 )
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
+from httptap.slo import SLOResult, SLOViolation
 
 
 def build_step(status: int) -> StepMetrics:
@@ -507,6 +509,41 @@ class TestFormatMetricsLine:
         assert "proxy=direct" in line
         assert "proxy_from" not in line
 
+    def test_format_metrics_line_slo_pass(self) -> None:
+        """A passing SLO appends ``slo=pass`` without a violations list."""
+        step = StepMetrics(step_number=1, response=ResponseInfo(status=200))
+        result = SLOResult(thresholds_ms={"total": 500.0}, violations=())
+
+        line = format_metrics_line(step, slo_result=result)
+
+        assert line.endswith("slo=pass")
+        assert "slo_violations" not in line
+
+    def test_format_metrics_line_slo_fail(self) -> None:
+        """A failing SLO appends ``slo=fail`` and violations list."""
+        step = StepMetrics(step_number=1, response=ResponseInfo(status=200))
+        violation = SLOViolation(key="total", threshold_ms=500.0, actual_ms=900.0)
+        result = SLOResult(thresholds_ms={"total": 500.0}, violations=(violation,))
+
+        line = format_metrics_line(step, slo_result=result)
+
+        assert "slo=fail" in line
+        assert "slo_violations=total" in line
+
+    def test_format_metrics_line_slo_multiple_violations(self) -> None:
+        """Multiple violations are joined by commas in stable order."""
+        step = StepMetrics(step_number=1, response=ResponseInfo(status=200))
+        violations = (
+            SLOViolation(key="connect", threshold_ms=100.0, actual_ms=150.0),
+            SLOViolation(key="total", threshold_ms=500.0, actual_ms=900.0),
+            SLOViolation(key="ttfb", threshold_ms=200.0, actual_ms=300.0),
+        )
+        result = SLOResult(thresholds_ms={}, violations=violations)
+
+        line = format_metrics_line(step, slo_result=result)
+
+        assert "slo_violations=connect,total,ttfb" in line
+
 
 class TestFormatCompactLine:
     """Human-readable single-line output for ``--compact``."""
@@ -546,7 +583,6 @@ class TestFormatCompactLine:
 
     def test_renders_human_readable_size(self) -> None:
         line = format_compact_line(self._make_step(bytes_=2048))
-        # 2048 B == 2.0 KB via format_bytes_human
         assert line.endswith("2.0 KB")
 
     def test_small_size_shows_bytes(self) -> None:
@@ -571,3 +607,49 @@ class TestFormatCompactLine:
     def test_single_line_no_newlines(self) -> None:
         line = format_compact_line(self._make_step())
         assert "\n" not in line
+
+
+class TestFormatSLOPanel:
+    """``format_slo_panel`` produces a Rich panel matching the SLO status."""
+
+    @staticmethod
+    def _panel_text(result: SLOResult) -> str:
+        from rich.console import Console
+
+        console = Console(record=True, width=120)
+        console.print(format_slo_panel(result))
+        return console.export_text()
+
+    def test_pass_panel_shows_thresholds(self) -> None:
+        result = SLOResult(
+            thresholds_ms={"total": 500.0, "ttfb": 200.0},
+            violations=(),
+        )
+        text = self._panel_text(result)
+
+        assert "SLO: pass" in text
+        assert "total≤500ms" in text
+        assert "ttfb≤200ms" in text
+        assert "Violations" not in text
+
+    def test_fail_panel_lists_violations(self) -> None:
+        violation = SLOViolation(key="total", threshold_ms=500.0, actual_ms=723.4)
+        result = SLOResult(
+            thresholds_ms={"total": 500.0},
+            violations=(violation,),
+        )
+        text = self._panel_text(result)
+
+        assert "SLO: fail" in text
+        assert "Violations" in text
+        assert "total" in text
+        assert "723.4" in text
+        assert "500" in text
+        assert "+223.4" in text
+
+    def test_panel_with_no_thresholds_shows_placeholder(self) -> None:
+        result = SLOResult(thresholds_ms={}, violations=())
+        text = self._panel_text(result)
+
+        assert "SLO: pass" in text
+        assert "(none)" in text

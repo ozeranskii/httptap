@@ -85,6 +85,7 @@ performance baselines.
   - [Redirects and JSON Export](#redirects-and-json-export)
   - [Output Modes](#output-modes)
   - [Advanced Usage](#advanced-usage)
+- [SLO Threshold Checking](#slo-threshold-checking)
 - [Environment Variables](#environment-variables)
 - [Exit Codes](#exit-codes)
 - [Releasing](#releasing)
@@ -109,6 +110,8 @@ performance baselines.
 - **TLS insights** – certificate CN, expiry countdown, cipher suite, and protocol version are captured automatically.
 - **Multiple output modes** – rich waterfall view, compact single-line summaries, or `--metrics-only` for scripting.
 - **JSON export** – persist full step data (including redirect chains) for later processing.
+- **SLO threshold checking** – `--slo total=500,ttfb=200` gates CI jobs, cron probes, and readiness checks on per-phase
+  latency budgets; non-zero exit on violation while still rendering the full report.
 - **Extensible** – clean Protocol interfaces for DNS, TLS, timing, visualization, and export so you can plug in custom
   behavior.
 
@@ -125,7 +128,7 @@ performance baselines.
 | Redirect chain with per-step timing      | ✅        | ❌                     | ❌                                              | ❌                |
 | JSON export (machine-readable)           | ✅        | ✅ (`-w '%{json}'`)    | ✅ (`--format json/jsonl`, v1 schema)           | ❌ (no metrics)   |
 | Metrics-only mode for scripting          | ✅        | ✅                     | ✅ (`--format json`)                            | ❌                |
-| SLO threshold checking                   | ❌        | ❌                     | ✅ (`--slo total=500,...`)                      | ❌                |
+| SLO threshold checking                   | ✅ (`--slo`) | ❌                  | ✅ (`--slo total=500,...`)                      | ❌                |
 | TLS certificate inspection (CN, expiry)  | ✅        | ⚠️ via `-v`            | ❌                                              | ❌                |
 | IPv4/IPv6 reporting                      | ✅ family | ⚠️ IP via `remote_ip`  | ⚠️ IP only (`remote_ip`/`remote_port`)          | ❌                |
 | HTTP/2 support                           | ✅        | ✅                     | ⚠️ via curl passthrough                         | ⚠️ plugin only    |
@@ -382,6 +385,49 @@ can confirm what path was used (e.g., `(from arg --proxy)`,
 
 ---
 
+## SLO Threshold Checking
+
+Gate CI jobs, cron probes, and Kubernetes readiness checks on per-phase
+latency budgets with `--slo KEY=MS[,KEY=MS...]`:
+
+```shell
+httptap --slo total=500,ttfb=200 https://api.example.com/health
+```
+
+- Exits `0` when every threshold passes.
+- Exits `4` when at least one threshold is exceeded on the **final
+  successful step** (intermediate redirects are not evaluated).
+- Exits `64` on malformed specification (unknown key, duplicate key,
+  non-positive value, bad syntax).
+- The full waterfall / compact / JSON output is always rendered so the
+  evidence for a regression is preserved.
+
+Supported keys: `dns`, `connect`, `tls`, `ttfb`, `wait`, `xfer`, `total`.
+
+Output extensions:
+
+- **Rich / compact** — a bordered panel after the waterfall lists the
+  thresholds and any violations (actual, threshold, overrun).
+- **`--metrics-only`** — the final successful step carries `slo=pass`
+  or `slo=fail slo_violations=<keys>` tokens.
+- **`--json`** — the `summary.slo` block contains `pass`,
+  `thresholds_ms`, and per-violation `{key, threshold_ms, actual_ms, delta_ms}`.
+
+```shell
+# CI gate — fail only on SLO violation, tolerate transient network errors
+httptap --slo total=2000,tls=300,ttfb=800 https://staging.example.com/
+case $? in
+  0) echo "healthy" ;;
+  4) echo "SLO violation"; exit 1 ;;
+  75) echo "network flake, retrying later" ;;
+esac
+```
+
+Full specification, evaluation rules, and recipes:
+[docs.httptap.dev/usage/slo](https://docs.httptap.dev/usage/slo/).
+
+---
+
 ## Environment Variables
 
 httptap reads the following environment variables at runtime. All of them are
@@ -412,6 +458,7 @@ shell pipelines, CI jobs, and systemd services.
 | Code  | Symbol                  | Meaning                                                    |
 |:-----:|-------------------------|------------------------------------------------------------|
 | `0`   | `EX_OK`                 | Success.                                                   |
+| `4`   | —                       | SLO threshold violation (request succeeded but too slow).  |
 | `64`  | `EX_USAGE`              | Invalid command-line arguments.                            |
 | `70`  | `EX_SOFTWARE`           | Internal error (unexpected exception, bug).                |
 | `75`  | `EX_TEMPFAIL`           | Network / TLS error (partial output may still be rendered). |
@@ -450,8 +497,9 @@ fi
    - Run full test suite on the tagged version
    - Build wheel and source distribution
    - Generate SBOM in CycloneDX and SPDX formats via Syft
+   - Attach the current OpenVEX document (`.vex/httptap.openvex.json`)
    - Publish to PyPI via Trusted Publishing (OIDC)
-   - Create GitHub Release with wheel, sdist, and SBOM assets
+   - Create GitHub Release with wheel, sdist, SBOM, and VEX assets
 
 ---
 

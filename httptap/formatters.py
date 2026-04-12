@@ -21,6 +21,7 @@ from .constants import (
     PROXY_SOURCE_NO_PROXY,
 )
 from .models import StepMetrics
+from .slo import SLOResult
 
 
 def format_step_header(step: StepMetrics) -> str:
@@ -195,18 +196,27 @@ def format_bytes_human(num_bytes: int) -> str:
     return f"{size_kib / BYTES_PER_KIB:.1f} MB"
 
 
-def format_metrics_line(step: StepMetrics) -> str:
+def format_metrics_line(
+    step: StepMetrics,
+    *,
+    slo_result: SLOResult | None = None,
+) -> str:
     """Format step metrics as machine-readable line.
 
     Args:
         step: Step metrics to format.
+        slo_result: Evaluated SLO result. When provided, appends
+            ``slo=pass`` or ``slo=fail slo_violations=<keys>`` to the
+            output so downstream tooling can branch on a single line.
 
     Returns:
         Space-separated key=value pairs.
 
     Examples:
         >>> format_metrics_line(step)
-        'dns=1.5 connect=45.2 tls=67.8 ttfb=156.4 total=234.7 status=200 bytes=1256'
+        'Step 1: dns=1.5 ... total=234.7 status=200 bytes=1256 proxy=direct'
+        >>> format_metrics_line(step, slo_result)
+        'Step 1: ... proxy=direct slo=fail slo_violations=total,ttfb'
 
     """
     parts = [
@@ -238,6 +248,14 @@ def format_metrics_line(step: StepMetrics) -> str:
         parts.append("proxy=direct proxy_from=no_scheme_match")
     else:
         parts.append("proxy=direct")
+
+    if slo_result is not None:
+        if slo_result.passed:
+            parts.append("slo=pass")
+        else:
+            violated = ",".join(v.key for v in slo_result.violations)
+            parts.append("slo=fail")
+            parts.append(f"slo_violations={violated}")
 
     return f"Step {step.step_number}: {' '.join(parts)}"
 
@@ -279,3 +297,43 @@ def format_compact_line(step: StepMetrics) -> str:
     size = format_bytes_human(step.response.bytes)
 
     return f"Step {step.step_number}: {status} {method} {step.url} | {timings} | {size}"
+
+
+def format_slo_panel(result: SLOResult) -> Panel:
+    """Render SLO thresholds and any violations as a Rich panel.
+
+    Args:
+        result: Evaluated SLO result.
+
+    Returns:
+        A Rich ``Panel`` suitable for printing after the waterfall.
+
+    """
+    title = "[bold green]✓ SLO: pass[/bold green]" if result.passed else "[bold red]✗ SLO: fail[/bold red]"
+    border = "green" if result.passed else "red"
+
+    body = Text()
+    body.append("Thresholds: ", style="bold")
+    if result.thresholds_ms:
+        parts = [f"{key}≤{value:g}ms" for key, value in sorted(result.thresholds_ms.items())]
+        body.append(", ".join(parts))
+    else:
+        body.append("(none)", style="dim")
+
+    if not result.passed:
+        body.append("\n")
+        body.append("Violations:\n", style="bold red")
+        for violation in result.violations:
+            body.append(
+                f"  • {violation.key}: "
+                f"{violation.actual_ms:.1f}ms > {violation.threshold_ms:g}ms "
+                f"(+{violation.delta_ms:.1f}ms)\n",
+                style="red",
+            )
+
+    return Panel(
+        body,
+        title=title,
+        border_style=border,
+        padding=(0, 1),
+    )

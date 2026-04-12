@@ -1,0 +1,10 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/ozeranskii/httptap/.vex/httptap.openvex.json",
+  "author": "Sergei Ozeranskii",
+  "role": "project maintainer",
+  "timestamp": "2026-04-12T00:00:00Z",
+  "version": 1,
+  "tooling": "manual",
+  "statements": []
+}
