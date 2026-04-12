@@ -99,7 +99,9 @@ jobs:
         run: touch ${CHANGELOG_FILE}
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@7a562dfa955aa2e4d5b0fd6ebd57ff9715c07b0b # v2.72.0 git-cliff
+        uses: taiki-e/install-action@7a562dfa955aa2e4d5b0fd6ebd57ff9715c07b0b # v2.72.0
+        with:
+          tool: git-cliff
 
       - name: Generate changelog entry
         id: notes
@@ -108,9 +110,11 @@ jobs:
         run: |
           # Generate full changelog and prepend to CHANGELOG.md
           git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --prepend ${CHANGELOG_FILE}
-          # Extract notes for GitHub release (try --latest, fallback to --unreleased)
-          NOTES=$(git cliff --config .release/git-cliff.toml --tag "${TAG}" --latest --strip header 2>/dev/null || \
-                  git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --strip header)
+          # Extract release notes for the new version.
+          # We cannot use --latest here because the tag does not exist in git
+          # yet (it is created in a later step); --latest would fall back to
+          # the previous release and embed stale notes in the GitHub release.
+          NOTES=$(git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --strip header)
           {
             echo "text<<EOF"
             echo "${NOTES}"
