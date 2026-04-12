@@ -632,6 +632,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../usage/slo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SLO Threshold Checking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../usage/advanced/" class="md-nav__link">
         
   
@@ -1859,6 +1887,13 @@ upstream.</p>
   PR.</li>
 <li><strong>Dependency tracking</strong>: SBOM in CycloneDX and SPDX formats is
   generated during release and attached as a GitHub Release asset.</li>
+<li><strong>Exploitability disclosure</strong>: an OpenVEX document
+  (<code>httptap-X.Y.Z.openvex.json</code>) ships alongside the SBOM, declaring
+  for each dependency CVE whether <code>httptap</code> is actually affected. The
+  source of truth is versioned in
+  <a href="https://github.com/ozeranskii/httptap/blob/main/.vex/httptap.openvex.json"><code>.vex/httptap.openvex.json</code></a>;
+  scanners that consume VEX (Grype, Trivy, Snyk) use it to suppress
+  false-positive alerts on unreachable vulnerable code paths.</li>
 </ul>
 <p>Users can verify a downloaded artifact independently:</p>
 <div class="language-shell highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>dist/httptap-X.Y.Z-py3-none-any.whl<span class="w"> </span><span class="se">\</span>

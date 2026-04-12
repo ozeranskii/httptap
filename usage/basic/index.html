@@ -831,6 +831,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#-slo-keymskeyms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --slo KEY=MS[,KEY=MS...]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#-version" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1058,6 +1069,34 @@
     
   
     Output Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../slo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SLO Threshold Checking
   
 
     
@@ -1824,6 +1863,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#-slo-keymskeyms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --slo KEY=MS[,KEY=MS...]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#-version" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2179,10 +2229,21 @@ output, see <code>--metrics-only</code>.</p>
 <li>Network information (IP address, TLS details, certificate info)</li>
 <li>Response metadata (status, headers, body size)</li>
 <li>Complete redirect chain (when using <code>--follow</code>)</li>
+<li>SLO evaluation (when <code>--slo</code> is supplied)</li>
 </ul>
+<h4 id="-slo-keymskeyms"><code>--slo KEY=MS[,KEY=MS...]</code><a class="headerlink" href="#-slo-keymskeyms" title="Permanent link">&para;</a></h4>
+<p>Check the final successful step against per-phase latency budgets. On
+violation <code>httptap</code> still renders the full report but exits with code
+<code>4</code> so the result can gate CI jobs, cron probes, or Kubernetes
+readiness checks.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>httptap<span class="w"> </span>--slo<span class="w"> </span><span class="nv">total</span><span class="o">=</span><span class="m">500</span>,ttfb<span class="o">=</span><span class="m">200</span><span class="w"> </span>https://httpbin.io/get
+</span></code></pre></div>
+<p>Supported keys: <code>dns</code>, <code>connect</code>, <code>tls</code>, <code>ttfb</code>, <code>wait</code>, <code>xfer</code>,
+<code>total</code>. See the dedicated <a href="../slo/">SLO Threshold Checking</a> page for
+the full specification, exit-code precedence, and CI/cron recipes.</p>
 <h4 id="-version"><code>--version</code><a class="headerlink" href="#-version" title="Permanent link">&para;</a></h4>
 <p>Display the httptap version and exit.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>httptap<span class="w"> </span>--version
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>httptap<span class="w"> </span>--version
 </span></code></pre></div>
 <h2 id="http-methods">HTTP Methods<a class="headerlink" href="#http-methods" title="Permanent link">&para;</a></h2>
 <p>httptap supports all standard HTTP methods:</p>
@@ -2203,24 +2264,24 @@ output, see <code>--metrics-only</code>.</p>
 </ol>
 <h3 id="examples-by-use-case">Examples by Use Case<a class="headerlink" href="#examples-by-use-case" title="Permanent link">&para;</a></h3>
 <p><strong>API Testing:</strong>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Create resource</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>httptap<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;title&quot;: &quot;New Post&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/post
-</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
-</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="c1"># Update resource</span>
-</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>httptap<span class="w"> </span>--method<span class="w"> </span>PUT<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;title&quot;: &quot;Updated&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/put
-</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>
-</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="c1"># Partial update</span>
-</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>httptap<span class="w"> </span>--method<span class="w"> </span>PATCH<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;status&quot;: &quot;published&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/patch
-</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>
-</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="c1"># Delete resource</span>
-</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>httptap<span class="w"> </span>--method<span class="w"> </span>DELETE<span class="w"> </span>https://httpbin.io/delete
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># Create resource</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>httptap<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;title&quot;: &quot;New Post&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/post
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="c1"># Update resource</span>
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>httptap<span class="w"> </span>--method<span class="w"> </span>PUT<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;title&quot;: &quot;Updated&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/put
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="c1"># Partial update</span>
+</span><span id="__span-20-8"><a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>httptap<span class="w"> </span>--method<span class="w"> </span>PATCH<span class="w"> </span>--data<span class="w"> </span><span class="s1">&#39;{&quot;status&quot;: &quot;published&quot;}&#39;</span><span class="w"> </span>https://httpbin.io/patch
+</span><span id="__span-20-9"><a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>
+</span><span id="__span-20-10"><a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="c1"># Delete resource</span>
+</span><span id="__span-20-11"><a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a>httptap<span class="w"> </span>--method<span class="w"> </span>DELETE<span class="w"> </span>https://httpbin.io/delete
 </span></code></pre></div></p>
 <p><strong>Health Checks:</strong>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># Quick check (headers only)</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>httptap<span class="w"> </span>--method<span class="w"> </span>HEAD<span class="w"> </span>https://httpbin.io/status/200
-</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>
-</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="c1"># Full response</span>
-</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>httptap<span class="w"> </span>https://httpbin.io/status/200
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Quick check (headers only)</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>httptap<span class="w"> </span>--method<span class="w"> </span>HEAD<span class="w"> </span>https://httpbin.io/status/200
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="c1"># Full response</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>httptap<span class="w"> </span>https://httpbin.io/status/200
 </span></code></pre></div></p>
 <h2 id="request-flow">Request Flow<a class="headerlink" href="#request-flow" title="Permanent link">&para;</a></h2>
 <p>Every httptap request follows these phases:</p>
@@ -2259,22 +2320,22 @@ output, see <code>--metrics-only</code>.</p>
 </ul>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <h3 id="basic-health-check">Basic Health Check<a class="headerlink" href="#basic-health-check" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>httptap<span class="w"> </span>https://httpbin.io/status/200
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>httptap<span class="w"> </span>https://httpbin.io/status/200
 </span></code></pre></div>
 <h3 id="api-request-with-authentication">API Request with Authentication<a class="headerlink" href="#api-request-with-authentication" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>httptap<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="si">${</span><span class="nv">API_TOKEN</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Accept: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">  </span>https://httpbin.io/bearer
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>httptap<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="si">${</span><span class="nv">API_TOKEN</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Accept: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span>https://httpbin.io/bearer
 </span></code></pre></div>
 <h3 id="follow-redirect-chain">Follow Redirect Chain<a class="headerlink" href="#follow-redirect-chain" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/3
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/3
 </span></code></pre></div>
 <h3 id="export-for-analysis">Export for Analysis<a class="headerlink" href="#export-for-analysis" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>httptap<span class="w"> </span>--json<span class="w"> </span>analysis.json<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/2
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>httptap<span class="w"> </span>--json<span class="w"> </span>analysis.json<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/2
 </span></code></pre></div>
 <h3 id="log-to-file">Log to File<a class="headerlink" href="#log-to-file" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>httptap<span class="w"> </span>--metrics-only<span class="w"> </span>https://httpbin.io/delay/1<span class="w"> </span>&gt;&gt;<span class="w"> </span>api-latency.log
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>httptap<span class="w"> </span>--metrics-only<span class="w"> </span>https://httpbin.io/delay/1<span class="w"> </span>&gt;&gt;<span class="w"> </span>api-latency.log
 </span></code></pre></div>
 <hr />
 <h2 id="whats-next">What's Next?<a class="headerlink" href="#whats-next" title="Permanent link">&para;</a></h2>

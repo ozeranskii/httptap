@@ -6,37 +6,37 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Common issues, error messages, and diagnostics when running httptap.">
+        <meta name="description" content="Use --slo to gate requests on per-phase latency budgets in CI, cron, and uptime checks.">
       
       
         <meta name="author" content="Sergei Ozeranskii">
       
       
-        <link rel="canonical" href="https://httptap.dev/troubleshooting/">
+        <link rel="canonical" href="https://httptap.dev/usage/slo/">
       
       
-        <link rel="prev" href="../usage/advanced/">
+        <link rel="prev" href="../output-formats/">
       
       
-        <link rel="next" href="../security/assurance-case/">
+        <link rel="next" href="../advanced/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Troubleshooting & FAQ - httptap Documentation</title>
+        <title>SLO Threshold Checking - httptap Documentation</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -55,7 +55,7 @@
       
     
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -63,17 +63,17 @@
     
   
 <meta property="og:type" content="website" />
-<meta property="og:title" content="Troubleshooting & FAQ - httptap Documentation" />
-<meta property="og:description" content="Common issues, error messages, and diagnostics when running httptap." />
-<meta property="og:image" content="https://httptap.dev/assets/images/social/troubleshooting.png" />
+<meta property="og:title" content="SLO Threshold Checking - httptap Documentation" />
+<meta property="og:description" content="Use --slo to gate requests on per-phase latency budgets in CI, cron, and uptime checks." />
+<meta property="og:image" content="https://httptap.dev/assets/images/social/usage/slo.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:url" content="https://httptap.dev/troubleshooting/" />
+<meta property="og:url" content="https://httptap.dev/usage/slo/" />
 <meta property="twitter:card" content="summary_large_image" />
-<meta property="twitter:title" content="Troubleshooting & FAQ - httptap Documentation" />
-<meta property="twitter:description" content="Common issues, error messages, and diagnostics when running httptap." />
-<meta property="twitter:image" content="https://httptap.dev/assets/images/social/troubleshooting.png" />
+<meta property="twitter:title" content="SLO Threshold Checking - httptap Documentation" />
+<meta property="twitter:description" content="Use --slo to gate requests on per-phase latency budgets in CI, cron, and uptime checks." />
+<meta property="twitter:image" content="https://httptap.dev/assets/images/social/usage/slo.png" />
 </head>
   
   
@@ -93,7 +93,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#troubleshooting-faq" class="md-skip">
+        <a href="#slo-threshold-checking" class="md-skip">
           Skip to content
         </a>
       
@@ -205,7 +205,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="httptap Documentation" class="md-header__button md-logo" aria-label="httptap Documentation" data-md-component="logo">
+    <a href="../.." title="httptap Documentation" class="md-header__button md-logo" aria-label="httptap Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
@@ -225,7 +225,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Troubleshooting & FAQ
+              SLO Threshold Checking
             
           </span>
         </div>
@@ -348,7 +348,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="httptap Documentation" class="md-nav__button md-logo" aria-label="httptap Documentation" data-md-component="logo">
+    <a href="../.." title="httptap Documentation" class="md-nav__button md-logo" aria-label="httptap Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
@@ -378,7 +378,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -459,7 +459,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/installation/" class="md-nav__link">
+      <a href="../../getting-started/installation/" class="md-nav__link">
         
   
   
@@ -487,7 +487,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/quick-start/" class="md-nav__link">
+      <a href="../../getting-started/quick-start/" class="md-nav__link">
         
   
   
@@ -576,7 +576,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/basic/" class="md-nav__link">
+      <a href="../basic/" class="md-nav__link">
         
   
   
@@ -604,7 +604,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../usage/output-formats/" class="md-nav__link">
+      <a href="../output-formats/" class="md-nav__link">
         
   
   
@@ -612,62 +612,6 @@
     
   
     Output Formats
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../usage/slo/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    SLO Threshold Checking
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../usage/advanced/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Advanced Features
   
 
     
@@ -704,7 +648,7 @@
   <span class="md-ellipsis">
     
   
-    Troubleshooting & FAQ
+    SLO Threshold Checking
   
 
     
@@ -722,7 +666,7 @@
   <span class="md-ellipsis">
     
   
-    Troubleshooting & FAQ
+    SLO Threshold Checking
   
 
     
@@ -748,22 +692,33 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#tls-and-certificates" class="md-nav__link">
+  <a href="#quick-example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        TLS and certificates
+        Quick Example
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="TLS and certificates">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#specification-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Specification Syntax
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Specification Syntax">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#tls-handshake-failed-certificate_verify_failed" class="md-nav__link">
+  <a href="#supported-keys" class="md-nav__link">
     <span class="md-ellipsis">
       
-        TLS handshake failed: CERTIFICATE_VERIFY_FAILED
+        Supported keys
       
     </span>
   </a>
@@ -771,21 +726,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#certificate-shows-cert_days_left-null-or-negative" class="md-nav__link">
+  <a href="#malformed-specifications" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Certificate shows cert_days_left: null or negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#-ignore-ssl-still-fails-with-dh_key_too_small-wrong_version_number" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        --ignore-ssl still fails with DH_KEY_TOO_SMALL / WRONG_VERSION_NUMBER
+        Malformed specifications
       
     </span>
   </a>
@@ -798,22 +742,44 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proxies" class="md-nav__link">
+  <a href="#evaluation-rules" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Proxies
+        Evaluation Rules
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Proxies">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exit-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exit Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Formats
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output Formats">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#-proxy-is-ignored" class="md-nav__link">
+  <a href="#rich-default" class="md-nav__link">
     <span class="md-ellipsis">
       
-        --proxy is ignored
+        Rich (default)
       
     </span>
   </a>
@@ -821,10 +787,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#no_proxy-pattern-reference" class="md-nav__link">
+  <a href="#compact" class="md-nav__link">
     <span class="md-ellipsis">
       
-        NO_PROXY pattern reference
+        Compact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metrics-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics-only
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#json-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JSON Export
       
     </span>
   </a>
@@ -837,22 +825,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#http2" class="md-nav__link">
+  <a href="#recipes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HTTP/2
+        Recipes
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="HTTP/2">
+    <nav class="md-nav" aria-label="Recipes">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#server-responds-with-http11-even-though-no-http2-wasnt-passed" class="md-nav__link">
+  <a href="#cron-based-synthetic-monitoring" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Server responds with HTTP/1.1 even though --no-http2 wasn't passed
+        Cron-based synthetic monitoring
       
     </span>
   </a>
@@ -860,10 +848,43 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#how-do-i-force-http11" class="md-nav__link">
+  <a href="#ci-gate-after-deploy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How do I force HTTP/1.1?
+        CI gate after deploy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kubernetes-readiness-probe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kubernetes readiness probe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#regression-bar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Regression bar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-host-canary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-host canary
       
     </span>
   </a>
@@ -876,188 +897,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#timing" class="md-nav__link">
+  <a href="#tips" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Timing
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Timing">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#timingis_estimated-true-what-does-it-mean" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        timing.is_estimated: true — what does it mean?
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-do-two-consecutive-runs-show-wildly-different-dns_ms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why do two consecutive runs show wildly different dns_ms?
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ttfb_ms-is-zero-or-lower-than-connect_ms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ttfb_ms is zero or lower than connect_ms
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#output" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Output
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Output">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#no-colors-in-my-terminal" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        No colors in my terminal
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#-metrics-only-stopped-showing-a-proxy-field" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        --metrics-only stopped showing a proxy= field
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#scripting-ci" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Scripting &amp; CI
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Scripting &amp; CI">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#what-exit-codes-should-i-check" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What exit codes should I check?
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#my-slo-budget-is-never-triggered-even-though-the-request-is-slow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        My --slo budget is never triggered even though the request is slow.
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#can-httptap-emit-prometheus-metrics" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Can httptap emit Prometheus metrics?
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#python-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Python API
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Python API">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#importerror-cannot-import-name-httpmethod-from-httptap" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ImportError: cannot import name 'HTTPMethod' from 'httptap'
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#my-custom-resolver-isnt-being-called" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        My custom resolver isn't being called
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#still-stuck" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Still stuck?
+        Tips
       
     </span>
   </a>
@@ -1068,6 +911,62 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting & FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1141,7 +1040,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../security/assurance-case/" class="md-nav__link">
+      <a href="../../security/assurance-case/" class="md-nav__link">
         
   
   
@@ -1230,7 +1129,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/overview/" class="md-nav__link">
+      <a href="../../api/overview/" class="md-nav__link">
         
   
   
@@ -1258,7 +1157,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/core/" class="md-nav__link">
+      <a href="../../api/core/" class="md-nav__link">
         
   
   
@@ -1286,7 +1185,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/interfaces/" class="md-nav__link">
+      <a href="../../api/interfaces/" class="md-nav__link">
         
   
   
@@ -1375,7 +1274,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/contributing/" class="md-nav__link">
+      <a href="../../development/contributing/" class="md-nav__link">
         
   
   
@@ -1403,7 +1302,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/release/" class="md-nav__link">
+      <a href="../../development/release/" class="md-nav__link">
         
   
   
@@ -1492,7 +1391,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../about/license/" class="md-nav__link">
+      <a href="../../about/license/" class="md-nav__link">
         
   
   
@@ -1520,7 +1419,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../about/changelog/" class="md-nav__link">
+      <a href="../../about/changelog/" class="md-nav__link">
         
   
   
@@ -1575,22 +1474,33 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#tls-and-certificates" class="md-nav__link">
+  <a href="#quick-example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        TLS and certificates
+        Quick Example
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="TLS and certificates">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#specification-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Specification Syntax
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Specification Syntax">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#tls-handshake-failed-certificate_verify_failed" class="md-nav__link">
+  <a href="#supported-keys" class="md-nav__link">
     <span class="md-ellipsis">
       
-        TLS handshake failed: CERTIFICATE_VERIFY_FAILED
+        Supported keys
       
     </span>
   </a>
@@ -1598,21 +1508,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#certificate-shows-cert_days_left-null-or-negative" class="md-nav__link">
+  <a href="#malformed-specifications" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Certificate shows cert_days_left: null or negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#-ignore-ssl-still-fails-with-dh_key_too_small-wrong_version_number" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        --ignore-ssl still fails with DH_KEY_TOO_SMALL / WRONG_VERSION_NUMBER
+        Malformed specifications
       
     </span>
   </a>
@@ -1625,22 +1524,44 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#proxies" class="md-nav__link">
+  <a href="#evaluation-rules" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Proxies
+        Evaluation Rules
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Proxies">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exit-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exit Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Formats
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output Formats">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#-proxy-is-ignored" class="md-nav__link">
+  <a href="#rich-default" class="md-nav__link">
     <span class="md-ellipsis">
       
-        --proxy is ignored
+        Rich (default)
       
     </span>
   </a>
@@ -1648,10 +1569,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#no_proxy-pattern-reference" class="md-nav__link">
+  <a href="#compact" class="md-nav__link">
     <span class="md-ellipsis">
       
-        NO_PROXY pattern reference
+        Compact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metrics-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics-only
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#json-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JSON Export
       
     </span>
   </a>
@@ -1664,22 +1607,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#http2" class="md-nav__link">
+  <a href="#recipes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        HTTP/2
+        Recipes
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="HTTP/2">
+    <nav class="md-nav" aria-label="Recipes">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#server-responds-with-http11-even-though-no-http2-wasnt-passed" class="md-nav__link">
+  <a href="#cron-based-synthetic-monitoring" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Server responds with HTTP/1.1 even though --no-http2 wasn't passed
+        Cron-based synthetic monitoring
       
     </span>
   </a>
@@ -1687,10 +1630,43 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#how-do-i-force-http11" class="md-nav__link">
+  <a href="#ci-gate-after-deploy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How do I force HTTP/1.1?
+        CI gate after deploy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kubernetes-readiness-probe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kubernetes readiness probe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#regression-bar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Regression bar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-host-canary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-host canary
       
     </span>
   </a>
@@ -1703,188 +1679,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#timing" class="md-nav__link">
+  <a href="#tips" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Timing
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Timing">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#timingis_estimated-true-what-does-it-mean" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        timing.is_estimated: true — what does it mean?
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-do-two-consecutive-runs-show-wildly-different-dns_ms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why do two consecutive runs show wildly different dns_ms?
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ttfb_ms-is-zero-or-lower-than-connect_ms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ttfb_ms is zero or lower than connect_ms
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#output" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Output
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Output">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#no-colors-in-my-terminal" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        No colors in my terminal
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#-metrics-only-stopped-showing-a-proxy-field" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        --metrics-only stopped showing a proxy= field
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#scripting-ci" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Scripting &amp; CI
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Scripting &amp; CI">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#what-exit-codes-should-i-check" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What exit codes should I check?
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#my-slo-budget-is-never-triggered-even-though-the-request-is-slow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        My --slo budget is never triggered even though the request is slow.
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#can-httptap-emit-prometheus-metrics" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Can httptap emit Prometheus metrics?
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#python-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Python API
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Python API">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#importerror-cannot-import-name-httpmethod-from-httptap" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ImportError: cannot import name 'HTTPMethod' from 'httptap'
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#my-custom-resolver-isnt-being-called" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        My custom resolver isn't being called
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#still-stuck" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Still stuck?
+        Tips
       
     </span>
   </a>
@@ -1911,144 +1709,256 @@
   
 
 
-<h1 id="troubleshooting-faq">Troubleshooting &amp; FAQ<a class="headerlink" href="#troubleshooting-faq" title="Permanent link">&para;</a></h1>
-<p>This page collects the most common questions and errors users hit when running
-<code>httptap</code>. If your issue isn't listed, please
-<a href="https://github.com/ozeranskii/httptap/issues">open an issue</a> with the exact
-command, the JSON export (if any), and the relevant terminal output.</p>
-<h2 id="tls-and-certificates">TLS and certificates<a class="headerlink" href="#tls-and-certificates" title="Permanent link">&para;</a></h2>
-<h3 id="tls-handshake-failed-certificate_verify_failed"><code>TLS handshake failed: CERTIFICATE_VERIFY_FAILED</code><a class="headerlink" href="#tls-handshake-failed-certificate_verify_failed" title="Permanent link">&para;</a></h3>
-<p>The server presented a certificate your trust store doesn't recognize.</p>
-<ul>
-<li><strong>Self-signed or expired cert on a non-production host</strong> — add <code>--ignore-ssl</code>
-  (disables validation, use on trusted networks only).</li>
-<li><strong>Internal CA</strong> — point <code>--cacert</code> (alias <code>--ca-bundle</code>) at your PEM bundle.</li>
-<li><strong>System trust store out of date</strong> — update <code>ca-certificates</code> on Linux, or
-  refresh <code>certifi</code> in your Python environment (<code>uv pip install --upgrade certifi</code>).</li>
-</ul>
-<p>The JSON export shows <code>network.tls_verified: false</code> and, when <code>--cacert</code> is
-used, <code>network.tls_custom_ca: true</code>.</p>
-<h3 id="certificate-shows-cert_days_left-null-or-negative">Certificate shows <code>cert_days_left: null</code> or negative<a class="headerlink" href="#certificate-shows-cert_days_left-null-or-negative" title="Permanent link">&para;</a></h3>
-<p><code>cert_days_left</code> is parsed from the leaf certificate's <code>notAfter</code> field. A
-<code>null</code> value means the inspector couldn't fetch/parse the certificate (usually
-TLS aborted before a cert was received). A <strong>negative</strong> value means the
-certificate is already expired.</p>
-<h3 id="-ignore-ssl-still-fails-with-dh_key_too_small-wrong_version_number"><code>--ignore-ssl</code> still fails with <code>DH_KEY_TOO_SMALL</code> / <code>WRONG_VERSION_NUMBER</code><a class="headerlink" href="#-ignore-ssl-still-fails-with-dh_key_too_small-wrong_version_number" title="Permanent link">&para;</a></h3>
-<p>Modern OpenSSL builds drop some ciphers and DH parameters for safety.
-<code>--ignore-ssl</code> relaxes verification and protocol constraints but can't bring
-back cipher suites (RC4, 3DES, weak DH) that were removed from the binary.
-Workarounds: use an older curl, a proxy that terminates TLS, or rebuild OpenSSL.</p>
-<h2 id="proxies">Proxies<a class="headerlink" href="#proxies" title="Permanent link">&para;</a></h2>
-<h3 id="-proxy-is-ignored"><code>--proxy</code> is ignored<a class="headerlink" href="#-proxy-is-ignored" title="Permanent link">&para;</a></h3>
-<p>The explicit <code>-x/--proxy</code> flag always wins over environment variables. Check:</p>
-<ol>
-<li>You didn't pass an empty string by mistake — <code>--proxy ""</code> <strong>explicitly
-   disables</strong> env-based proxies and forces direct connection.</li>
-<li>The scheme matches the target — <code>HTTPS_PROXY</code> is used for <code>https://</code> URLs,
-   <code>HTTP_PROXY</code> for <code>http://</code>.</li>
-<li>The target host isn't matched by <code>NO_PROXY</code>. Check the <code>proxy_source</code> field
-   in the JSON export; if it says <code>env:no_proxy</code>, your host is excluded.</li>
-</ol>
-<h3 id="no_proxy-pattern-reference"><code>NO_PROXY</code> pattern reference<a class="headerlink" href="#no_proxy-pattern-reference" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Exact host: <code>api.internal.example</code></li>
-<li>Domain suffix: <code>.internal.example</code> (matches <code>foo.internal.example</code>)</li>
-<li>Wildcard: <code>*</code> (excludes everything)</li>
-<li>Multiple entries: comma-separated, whitespace trimmed</li>
-</ul>
-<p>IP/CIDR matching is <strong>not</strong> supported — this follows the widely-adopted curl
-behavior.</p>
-<h2 id="http2">HTTP/2<a class="headerlink" href="#http2" title="Permanent link">&para;</a></h2>
-<h3 id="server-responds-with-http11-even-though-no-http2-wasnt-passed">Server responds with HTTP/1.1 even though <code>--no-http2</code> wasn't passed<a class="headerlink" href="#server-responds-with-http11-even-though-no-http2-wasnt-passed" title="Permanent link">&para;</a></h3>
-<p>HTTP/2 requires ALPN negotiation during the TLS handshake. If:</p>
-<ul>
-<li>the server does not advertise <code>h2</code> in ALPN, <strong>or</strong></li>
-<li>the target uses plain <code>http://</code> (h2c is not supported),</li>
-</ul>
-<p>httptap falls back to HTTP/1.1. Check <code>network.http_version</code> in the JSON
-export.</p>
-<h3 id="how-do-i-force-http11">How do I force HTTP/1.1?<a class="headerlink" href="#how-do-i-force-http11" title="Permanent link">&para;</a></h3>
-<p>Use <code>--no-http2</code> (curl-compatible alias <code>--http1.1</code>). This disables ALPN h2
-negotiation entirely.</p>
-<h2 id="timing">Timing<a class="headerlink" href="#timing" title="Permanent link">&para;</a></h2>
-<h3 id="timingis_estimated-true-what-does-it-mean"><code>timing.is_estimated: true</code> — what does it mean?<a class="headerlink" href="#timingis_estimated-true-what-does-it-mean" title="Permanent link">&para;</a></h3>
-<p>httptap normally gets phase timings from <code>httpcore</code> trace hooks. When those
-hooks are unavailable (e.g., a custom <code>RequestExecutor</code> that bypasses them,
-or certain HTTP/2 connection-reuse paths), httptap falls back to splitting the
-total elapsed time using heuristics. The breakdown is still directionally
-correct but less precise than the default path.</p>
-<h3 id="why-do-two-consecutive-runs-show-wildly-different-dns_ms">Why do two consecutive runs show wildly different <code>dns_ms</code>?<a class="headerlink" href="#why-do-two-consecutive-runs-show-wildly-different-dns_ms" title="Permanent link">&para;</a></h3>
-<p>The system resolver caches entries. The first request pays the full RTT to
-your DNS server; subsequent requests hit the cache (often sub-millisecond).
-To bypass caches, supply a custom resolver via the Python API or flush the
-local cache (e.g., <code>sudo dscacheutil -flushcache</code> on macOS, <code>resolvectl flush-caches</code>
-on systemd).</p>
-<h3 id="ttfb_ms-is-zero-or-lower-than-connect_ms"><code>ttfb_ms</code> is zero or lower than <code>connect_ms</code><a class="headerlink" href="#ttfb_ms-is-zero-or-lower-than-connect_ms" title="Permanent link">&para;</a></h3>
-<p>On connection reuse (keep-alive for subsequent redirect steps, HTTP/2 stream
-multiplexing) there's no new TCP connect for that step — <code>connect_ms</code> will be
-<code>0</code> or very small. <code>ttfb_ms</code> measures time until the first response byte on
-that specific request; comparing it to <code>connect_ms</code> across steps is expected
-to look odd.</p>
-<h2 id="output">Output<a class="headerlink" href="#output" title="Permanent link">&para;</a></h2>
-<h3 id="no-colors-in-my-terminal">No colors in my terminal<a class="headerlink" href="#no-colors-in-my-terminal" title="Permanent link">&para;</a></h3>
-<p>httptap honors the <a href="https://no-color.org"><code>NO_COLOR</code></a> convention and Rich's
-TTY detection:</p>
-<ul>
-<li>Unset <code>NO_COLOR</code> if it's set.</li>
-<li>Piping stdout to a file or another process disables colors; set
-  <code>FORCE_COLOR=1</code> to override.</li>
-<li><code>TERM=dumb</code> also disables rendering.</li>
-</ul>
-<h3 id="-metrics-only-stopped-showing-a-proxy-field"><code>--metrics-only</code> stopped showing a <code>proxy=</code> field<a class="headerlink" href="#-metrics-only-stopped-showing-a-proxy-field" title="Permanent link">&para;</a></h3>
-<p>It didn't — the field is always present. Old screenshots/examples may predate
-the change. Expected format:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
+<h1 id="slo-threshold-checking">SLO Threshold Checking<a class="headerlink" href="#slo-threshold-checking" title="Permanent link">&para;</a></h1>
+<p><code>httptap --slo</code> checks measured timings against per-phase latency
+budgets and exits with a non-zero code when any budget is exceeded.
+This turns a single request into a pass/fail probe suitable for CI
+gates, cron-based synthetic monitoring, uptime checks, and
+post-deployment smoke tests — without writing a custom shell parser.</p>
+<h2 id="quick-example">Quick Example<a class="headerlink" href="#quick-example" title="Permanent link">&para;</a></h2>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>httptap<span class="w"> </span>--slo<span class="w"> </span><span class="nv">total</span><span class="o">=</span><span class="m">500</span>,ttfb<span class="o">=</span><span class="m">200</span><span class="w"> </span>https://api.example.com/health
 </span></code></pre></div>
-<p>Sources for <code>proxy</code>: <code>direct</code>, <code>none</code> (NO_PROXY hit), <code>disabled</code> (<code>--proxy ""</code>),
-<code>&lt;url&gt;</code> with a <code>proxy_from=...</code> hint.</p>
-<h2 id="scripting-ci">Scripting &amp; CI<a class="headerlink" href="#scripting-ci" title="Permanent link">&para;</a></h2>
-<h3 id="what-exit-codes-should-i-check">What exit codes should I check?<a class="headerlink" href="#what-exit-codes-should-i-check" title="Permanent link">&para;</a></h3>
-<p>See the <a href="https://github.com/ozeranskii/httptap#exit-codes">Exit Codes</a> section
-in the README. Typical CI pattern: treat <code>75</code> (network / TLS, transient) as
-retryable, fail hard on <code>64</code> (usage), <code>70</code> (bug), and <code>4</code> (SLO violation if
-you supplied <code>--slo</code>).</p>
-<h3 id="my-slo-budget-is-never-triggered-even-though-the-request-is-slow">My <code>--slo</code> budget is never triggered even though the request is slow.<a class="headerlink" href="#my-slo-budget-is-never-triggered-even-though-the-request-is-slow" title="Permanent link">&para;</a></h3>
-<p>Check three things:</p>
-<ol>
-<li>The key you set maps to an actual timing phase. Valid keys are
-   <code>dns</code>, <code>connect</code>, <code>tls</code>, <code>ttfb</code>, <code>wait</code>, <code>xfer</code>, <code>total</code> — anything
-   else rejects the command with exit <code>64</code> (SLO Error panel).</li>
-<li>SLO is evaluated on the <strong>final successful step</strong>, not intermediate
-   redirects. If <code>--follow</code> bounced through several hops and the last
-   step was fast, the overall chain total isn't compared. Use <code>total</code>
-   against the terminal request's budget, or aggregate manually from
-   <code>--json</code> if you need per-step guarantees.</li>
-<li>If every step errored, SLO is skipped entirely — the exit code
-   reflects the network failure (usually <code>75</code>). No <code>slo=</code> token
-   appears in <code>--metrics-only</code> output in that case.</li>
-</ol>
-<h3 id="can-httptap-emit-prometheus-metrics">Can httptap emit Prometheus metrics?<a class="headerlink" href="#can-httptap-emit-prometheus-metrics" title="Permanent link">&para;</a></h3>
-<p>Not out of the box. Use <code>--metrics-only</code> and post-process with <code>awk</code>/<code>jq</code>, or
-parse the <code>--json</code> export. A dedicated exporter is on the roadmap — track
-<a href="https://github.com/ozeranskii/httptap/issues">issue tracker</a> for updates.</p>
-<h2 id="python-api">Python API<a class="headerlink" href="#python-api" title="Permanent link">&para;</a></h2>
-<h3 id="importerror-cannot-import-name-httpmethod-from-httptap"><code>ImportError: cannot import name 'HTTPMethod' from 'httptap'</code><a class="headerlink" href="#importerror-cannot-import-name-httpmethod-from-httptap" title="Permanent link">&para;</a></h3>
-<p><code>HTTPMethod</code> lives in <code>httptap.constants</code>, not the top-level namespace:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">httptap</span><span class="w"> </span><span class="kn">import</span> <span class="n">HTTPTapAnalyzer</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">httptap.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">HTTPMethod</span>
-</span></code></pre></div>
-<h3 id="my-custom-resolver-isnt-being-called">My custom resolver isn't being called<a class="headerlink" href="#my-custom-resolver-isnt-being-called" title="Permanent link">&para;</a></h3>
-<p><code>HTTPTapAnalyzer</code> uses the injected resolver only for the diagnostic DNS lookup
-timing. Actual connection resolution is still performed by <code>httpx</code>/<code>httpcore</code>.
-To route the real connection through your resolver, implement a custom
-<code>RequestExecutor</code> as well.</p>
-<hr />
-<h2 id="still-stuck">Still stuck?<a class="headerlink" href="#still-stuck" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Run with <code>--metrics-only</code> and include the full output in your report.</li>
-<li>Run with <code>--json report.json</code> and attach the report (redact auth headers).</li>
-<li>Confirm the version — <code>httptap --version</code> — we only support the latest
-  minor.</li>
+<li>Exits with <code>0</code> when <code>total_ms ≤ 500</code> <strong>and</strong> <code>ttfb_ms ≤ 200</code>.</li>
+<li>Exits with <code>4</code> when any budget is exceeded.</li>
+<li>Continues to print the full waterfall and JSON export regardless of
+  the outcome, so investigations are never blocked by the gate.</li>
+</ul>
+<h2 id="specification-syntax">Specification Syntax<a class="headerlink" href="#specification-syntax" title="Permanent link">&para;</a></h2>
+<p>Pass a comma-separated list of <code>KEY=MS</code> pairs to <code>--slo</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>--slo KEY=MS[,KEY=MS]*
+</span></code></pre></div>
+<ul>
+<li><code>KEY</code> is one of the supported timing phases (case-insensitive).</li>
+<li><code>MS</code> is a positive finite number of milliseconds (integer or float).</li>
+<li>Whitespace around keys and values is tolerated.</li>
+</ul>
+<h3 id="supported-keys">Supported keys<a class="headerlink" href="#supported-keys" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dns</code></td>
+<td>DNS resolution time</td>
+</tr>
+<tr>
+<td><code>connect</code></td>
+<td>TCP connection establishment</td>
+</tr>
+<tr>
+<td><code>tls</code></td>
+<td>TLS handshake (<code>0</code> for plain HTTP)</td>
+</tr>
+<tr>
+<td><code>ttfb</code></td>
+<td>Time to first byte (DNS + connect + TLS + server wait)</td>
+</tr>
+<tr>
+<td><code>wait</code></td>
+<td>Server processing time (<code>ttfb - (dns + connect + tls)</code>)</td>
+</tr>
+<tr>
+<td><code>xfer</code></td>
+<td>Response body transfer time (<code>total - ttfb</code>)</td>
+</tr>
+<tr>
+<td><code>total</code></td>
+<td>End-to-end request duration</td>
+</tr>
+</tbody>
+</table>
+<h3 id="malformed-specifications">Malformed specifications<a class="headerlink" href="#malformed-specifications" title="Permanent link">&para;</a></h3>
+<p><code>--slo</code> rejects the following and exits with <code>64</code> (usage error):</p>
+<ul>
+<li>Empty specification (<code>--slo ""</code>).</li>
+<li>Unknown key (<code>--slo foo=500</code> → <code>Unknown SLO key 'foo'</code>).</li>
+<li>Duplicate key (<code>--slo total=500,total=600</code>).</li>
+<li>Non-numeric value (<code>--slo total=fast</code>).</li>
+<li>Zero, negative, or non-finite value (<code>--slo total=0</code>, <code>total=nan</code>,
+  <code>total=inf</code>).</li>
+<li>Missing <code>=</code> (<code>--slo total500</code>).</li>
+</ul>
+<p>The specific error is printed in a Rich-formatted panel for
+interactive use, and in plain text under <code>--metrics-only</code>.</p>
+<h2 id="evaluation-rules">Evaluation Rules<a class="headerlink" href="#evaluation-rules" title="Permanent link">&para;</a></h2>
+<p>SLO thresholds are evaluated against the <strong>final successful step</strong> of
+a request chain:</p>
+<ul>
+<li>Single request → checked against that request.</li>
+<li>Redirect chain (<code>--follow</code>) → checked against the terminal response,
+  not the intermediate redirects. The assumption is that users care
+  about what actually served their request.</li>
+<li>All steps errored → SLO is skipped entirely; the exit code reflects
+  the network failure (see below).</li>
+</ul>
+<p>A threshold passes when <code>actual ≤ threshold</code>. Equality does <strong>not</strong>
+count as a violation. Violations are reported in alphabetical order of
+their key for deterministic output.</p>
+<h2 id="exit-codes">Exit Codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h2>
+<p><code>--slo</code> integrates with the overall exit-code precedence of <code>httptap</code>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Priority</th>
+<th>Condition</th>
+<th style="text-align: center;">Exit code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">1</td>
+<td>Invalid arguments (bad <code>--slo</code> spec)</td>
+<td style="text-align: center;"><code>64</code></td>
+</tr>
+<tr>
+<td style="text-align: center;">2</td>
+<td>Network / TLS failure on any step</td>
+<td style="text-align: center;"><code>75</code></td>
+</tr>
+<tr>
+<td style="text-align: center;">3</td>
+<td>Internal error</td>
+<td style="text-align: center;"><code>70</code></td>
+</tr>
+<tr>
+<td style="text-align: center;">4</td>
+<td>SLO violation on final successful step</td>
+<td style="text-align: center;"><code>4</code></td>
+</tr>
+<tr>
+<td style="text-align: center;">5</td>
+<td>Success</td>
+<td style="text-align: center;"><code>0</code></td>
+</tr>
+</tbody>
+</table>
+<p>Network errors always take precedence over SLO violations, so a
+failing host does not masquerade as a latency regression in a CI log.</p>
+<h2 id="output-formats">Output Formats<a class="headerlink" href="#output-formats" title="Permanent link">&para;</a></h2>
+<h3 id="rich-default">Rich (default)<a class="headerlink" href="#rich-default" title="Permanent link">&para;</a></h3>
+<p>After the waterfall and any redirect summary, <code>httptap</code> prints a panel
+summarising the SLO evaluation:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>╭───────────────── ✗ SLO: fail ─────────────────╮
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>│ Thresholds: total≤500ms, ttfb≤200ms            │
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>│ Violations:                                    │
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>│   • total: 723.4ms &gt; 500ms (+223.4ms)          │
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>│   • ttfb:  315.2ms &gt; 200ms (+115.2ms)          │
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>╰────────────────────────────────────────────────╯
+</span></code></pre></div>
+<p>The panel border and icon match the status: green <code>✓</code> for pass, red
+<code>✗</code> for fail.</p>
+<h3 id="compact">Compact<a class="headerlink" href="#compact" title="Permanent link">&para;</a></h3>
+<p><code>--compact</code> prints one human-readable line per step followed by the
+same Rich SLO panel shown under the default mode:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Step 1: 200 GET https://api.example.com | dns=3.3ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=900.0ms | 1.2 KB
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>╭───────────────── ✗ SLO: fail ─────────────────╮
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>│ Thresholds: total≤500ms                        │
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>│ Violations:                                    │
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>│   • total: 900.0ms &gt; 500ms (+400.0ms)          │
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>╰────────────────────────────────────────────────╯
+</span></code></pre></div>
+<h3 id="metrics-only">Metrics-only<a class="headerlink" href="#metrics-only" title="Permanent link">&para;</a></h3>
+<p><code>--metrics-only</code> appends SLO tokens to the standard <code>key=value</code> line
+of the final successful step:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=900.0 ... slo=fail slo_violations=total,ttfb
+</span></code></pre></div>
+<p>Pass case:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Step 1: ... proxy=direct slo=pass
+</span></code></pre></div>
+<p>Intermediate redirect steps do <strong>not</strong> carry SLO tokens, keeping the
+line count unchanged.</p>
+<h3 id="json-export">JSON Export<a class="headerlink" href="#json-export" title="Permanent link">&para;</a></h3>
+<p><code>--json PATH</code> extends the <code>summary</code> block with an <code>slo</code> object:</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">&quot;summary&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">&quot;total_time_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">900.0</span><span class="p">,</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="nt">&quot;final_status&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">200</span><span class="p">,</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="nt">&quot;final_url&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://api.example.com/health&quot;</span><span class="p">,</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="nt">&quot;final_bytes&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">128</span><span class="p">,</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="nt">&quot;errors&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="nt">&quot;slo&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">      </span><span class="nt">&quot;pass&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">      </span><span class="nt">&quot;thresholds_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;total&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">500.0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;ttfb&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">200.0</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">      </span><span class="nt">&quot;violations&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">        </span><span class="p">{</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">          </span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;total&quot;</span><span class="p">,</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">          </span><span class="nt">&quot;threshold_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">500.0</span><span class="p">,</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">          </span><span class="nt">&quot;actual_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">900.0</span><span class="p">,</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">          </span><span class="nt">&quot;delta_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">400.0</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">      </span><span class="p">]</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Each violation carries the key, the user-supplied threshold, the
+measured value, and the overrun. <code>delta_ms</code> is strictly positive and
+can be used to rank violations by severity.</p>
+<p>When no <code>--slo</code> flag is passed the <code>slo</code> key is absent — the summary
+shape is backward compatible with existing consumers.</p>
+<h2 id="recipes">Recipes<a class="headerlink" href="#recipes" title="Permanent link">&para;</a></h2>
+<h3 id="cron-based-synthetic-monitoring">Cron-based synthetic monitoring<a class="headerlink" href="#cron-based-synthetic-monitoring" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>* * * * * httptap --slo total=1000,ttfb=500 https://api.example.com/health \
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>  || curl -X POST https://alerts.example.com/page/oncall
+</span></code></pre></div>
+<h3 id="ci-gate-after-deploy">CI gate after deploy<a class="headerlink" href="#ci-gate-after-deploy" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Smoke-test staging latency</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="no">httptap --slo total=2000,tls=300,ttfb=800 \</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">      </span><span class="no">https://staging.example.com/</span>
+</span></code></pre></div>
+<p>The step fails only on exit <code>4</code> or <code>64</code>. Network errors (exit <code>75</code>)
+can be handled separately:</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Smoke-test staging latency</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smoke</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="nt">continue-on-error</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">httptap --slo total=2000 https://staging.example.com/</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Fail CI only on SLO violation</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">  </span><span class="nt">if</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">steps.smoke.outcome == &#39;failure&#39; &amp;&amp; steps.smoke.conclusion != &#39;success&#39;</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">    </span><span class="no">if [ &quot;${{ steps.smoke.outputs.exit_code }}&quot; = &quot;4&quot; ]; then</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">      </span><span class="no">echo &quot;SLO violation — failing build.&quot;</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">      </span><span class="no">exit 1</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">    </span><span class="no">fi</span>
+</span></code></pre></div>
+<h3 id="kubernetes-readiness-probe">Kubernetes readiness probe<a class="headerlink" href="#kubernetes-readiness-probe" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">readinessProbe</span><span class="p">:</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">exec</span><span class="p">:</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="nt">command</span><span class="p">:</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">httptap</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">--slo</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">total=5000</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:8080/healthz</span>
+</span></code></pre></div>
+<h3 id="regression-bar">Regression bar<a class="headerlink" href="#regression-bar" title="Permanent link">&para;</a></h3>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>httptap<span class="w"> </span>--slo<span class="w"> </span><span class="nv">total</span><span class="o">=</span><span class="m">500</span>,ttfb<span class="o">=</span><span class="m">200</span><span class="w"> </span>--json<span class="w"> </span>regression.json<span class="w"> </span>https://prod.example.com/
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>jq<span class="w"> </span><span class="s1">&#39;.summary.slo.violations&#39;</span><span class="w"> </span>regression.json
+</span></code></pre></div>
+<h3 id="multi-host-canary">Multi-host canary<a class="headerlink" href="#multi-host-canary" title="Permanent link">&para;</a></h3>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">for</span><span class="w"> </span>host<span class="w"> </span><span class="k">in</span><span class="w"> </span>prod-eu<span class="w"> </span>prod-us<span class="w"> </span>prod-ap<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span>httptap<span class="w"> </span>--slo<span class="w"> </span><span class="nv">total</span><span class="o">=</span><span class="m">1500</span><span class="w"> </span><span class="s2">&quot;https://</span><span class="si">${</span><span class="nv">host</span><span class="si">}</span><span class="s2">.example.com/health&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">host</span><span class="si">}</span><span class="s2">: SLO miss&quot;</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">done</span>
+</span></code></pre></div>
+<h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Start with <code>--slo total=&lt;P95 latency&gt;</code> and add per-phase budgets
+  once you have baseline data from <code>--json</code> exports.</li>
+<li><code>xfer</code> and <code>wait</code> are derived metrics; their sum is bounded by
+  <code>total</code>. If you set a <code>total</code> budget the individual phases are
+  implicitly capped.</li>
+<li>Combine with <code>--timeout</code>: <code>--slo</code> checks latency <em>after</em> the
+  request completed; <code>--timeout</code> hard-kills a request that hangs. You
+  usually want both.</li>
+<li>SLO output mirrors
+  <a href="https://github.com/reorx/httpstat#slo-thresholds"><code>httpstat</code>'s <code>--slo</code></a>
+  format (<code>slo=pass</code> / <code>slo=fail</code> tokens, exit code <code>4</code>), so scripts
+  can be used interchangeably.</li>
 </ul>
 
 
@@ -2143,10 +2053,10 @@ To route the real connection through your resolver, implement a custom
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

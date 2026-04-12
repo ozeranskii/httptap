@@ -60,4 +60,8 @@
          <loc>https://httptap.dev/usage/output-formats/</loc>
          <lastmod>2026-04-12</lastmod>
     </url>
+    <url>
+         <loc>https://httptap.dev/usage/slo/</loc>
+         <lastmod>2026-04-12</lastmod>
+    </url>
 </urlset>

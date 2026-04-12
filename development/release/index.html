@@ -632,6 +632,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../usage/slo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SLO Threshold Checking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../usage/advanced/" class="md-nav__link">
         
   
@@ -2224,6 +2252,7 @@ building, and publishing to PyPI.</p>
 <li>Runs full test suite</li>
 <li>Builds wheel and sdist</li>
 <li>Generates SBOM in CycloneDX and SPDX JSON formats via <a href="https://github.com/anchore/syft">Syft</a></li>
+<li>Copies the versioned OpenVEX document from <code>.vex/httptap.openvex.json</code> into the <code>sbom/</code> directory as <code>httptap-X.Y.Z.openvex.json</code></li>
 <li>Uploads <code>dist/</code> and <code>sbom/</code> artifacts separately</li>
 </ul>
 <h4 id="3-publish-to-pypi">3. Publish to PyPI<a class="headerlink" href="#3-publish-to-pypi" title="Permanent link">&para;</a></h4>
@@ -2235,7 +2264,7 @@ building, and publishing to PyPI.</p>
 <ul>
 <li>Downloads <code>dist/</code> and <code>sbom/</code> artifacts</li>
 <li>Creates GitHub release with changelog notes</li>
-<li>Attaches wheel, sdist, and SBOM (<code>*.cdx.json</code>, <code>*.spdx.json</code>) assets</li>
+<li>Attaches wheel, sdist, SBOM (<code>*.cdx.json</code>, <code>*.spdx.json</code>), and VEX (<code>*.openvex.json</code>) assets</li>
 </ul>
 <h2 id="changelog-generation">Changelog Generation<a class="headerlink" href="#changelog-generation" title="Permanent link">&para;</a></h2>
 <p>Changelogs are automatically generated using <a href="https://git-cliff.org/">git-cliff</a> based on conventional commits.</p>

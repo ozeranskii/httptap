@@ -18,7 +18,7 @@
         <link rel="prev" href="../basic/">
       
       
-        <link rel="next" href="../advanced/">
+        <link rel="next" href="../slo/">
       
       
         
@@ -936,6 +936,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#slo-threshold-overlay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLO Threshold Overlay
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#whats-next" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -950,6 +961,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../slo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SLO Threshold Checking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1785,6 +1824,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#slo-threshold-overlay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLO Threshold Overlay
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#whats-next" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2010,6 +2060,28 @@ summary table.</p>
 <p class="admonition-title">Note</p>
 <p>When both <code>--json</code> and display modes (<code>--compact</code>, <code>--metrics-only</code>) are used together, the display mode shows on stdout while JSON is written to the file.</p>
 </div>
+<hr />
+<h2 id="slo-threshold-overlay">SLO Threshold Overlay<a class="headerlink" href="#slo-threshold-overlay" title="Permanent link">&para;</a></h2>
+<p><code>--slo KEY=MS[,KEY=MS...]</code> augments every output mode with a pass/fail
+verdict evaluated against the final successful request.</p>
+<ul>
+<li><strong>Rich mode</strong> — a framed panel is printed after the waterfall.
+  The border is green for pass, red for fail, and each violation is
+  listed with actual, threshold, and overrun in milliseconds.</li>
+<li><strong>Compact mode</strong> — behaves as Rich mode above; the SLO panel is
+  still printed after the one-line step summaries.</li>
+<li><strong>Metrics-only</strong> — the line for the final successful step gains
+  <code>slo=pass</code> or <code>slo=fail slo_violations=&lt;keys&gt;</code> tokens. Intermediate
+  redirect steps remain unchanged.</li>
+<li><strong>JSON</strong> — <code>summary.slo</code> contains <code>pass</code>, <code>thresholds_ms</code>, and
+  <code>violations[]</code> (each with <code>key</code>, <code>threshold_ms</code>, <code>actual_ms</code>,
+  <code>delta_ms</code>). Absent when <code>--slo</code> is not supplied.</li>
+</ul>
+<p>A violation makes <code>httptap</code> exit with code <code>4</code> while still rendering
+the full output, so the evidence is preserved for post-mortem.</p>
+<p>See the dedicated <a href="../slo/">SLO Threshold Checking</a> page for the
+specification grammar, evaluation rules, exit-code precedence, and
+CI / cron recipes.</p>
 <hr />
 <h2 id="whats-next">What's Next?<a class="headerlink" href="#whats-next" title="Permanent link">&para;</a></h2>
 <div class="grid cards">
