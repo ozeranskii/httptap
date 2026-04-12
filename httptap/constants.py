@@ -36,6 +36,9 @@ CERT_EXPIRY_WARNING_DAYS = 90
 UNIX_SIGNAL_EXIT_OFFSET = 128
 BYTES_PER_KIB = 1024
 
+# Exit codes aligned with sysexits.h. Sourced from ``os`` when available
+# (POSIX platforms) with canonical numeric fallbacks for environments
+# that do not expose ``os.EX_*`` constants (notably Windows).
 _EX_OK_FALLBACK = 0
 _EX_USAGE_FALLBACK = 64
 _EX_TEMPFAIL_FALLBACK = 75
@@ -45,6 +48,11 @@ EXIT_CODE_OK = getattr(os, "EX_OK", _EX_OK_FALLBACK)
 EXIT_CODE_USAGE = getattr(os, "EX_USAGE", _EX_USAGE_FALLBACK)
 EXIT_CODE_TEMPFAIL = getattr(os, "EX_TEMPFAIL", _EX_TEMPFAIL_FALLBACK)
 EXIT_CODE_SOFTWARE = getattr(os, "EX_SOFTWARE", _EX_SOFTWARE_FALLBACK)
+
+# Project-specific exit codes (no sysexits.h equivalent).
+# SLO threshold violation — chosen to match the de-facto convention
+# established by httpstat so the same CI gate works for both tools.
+EXIT_CODE_SLO_VIOLATION = 4
 
 HTTP_SUCCESS_MIN = HTTPStatus.OK.value
 HTTP_SUCCESS_MAX = HTTPStatus.MULTIPLE_CHOICES.value - 1

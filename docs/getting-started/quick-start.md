@@ -142,6 +142,26 @@ The JSON file will contain:
 - Network information (IP, TLS version, certificate details)
 - Response metadata (status, headers, body size)
 - Full redirect chain (if `--follow` is used)
+- SLO evaluation (if `--slo` is supplied)
+
+## SLO Threshold Checking
+
+Gate CI jobs, cron probes, or Kubernetes readiness checks on per-phase
+latency budgets with `--slo`:
+
+```bash
+httptap --slo total=500,ttfb=200 https://httpbin.io/get
+```
+
+Exit code is `0` when every budget passes and `4` when any threshold
+is violated. The full waterfall is still rendered so you can see *why*
+the check failed.
+
+!!! tip "Supported SLO keys"
+    `dns`, `connect`, `tls`, `ttfb`, `wait`, `xfer`, `total` — each
+    maps to a timing phase. See the dedicated
+    [SLO Threshold Checking](../usage/slo.md) page for the full
+    specification and recipes.
 
 ## Common Use Cases
 

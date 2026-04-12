@@ -255,6 +255,48 @@ exporter = JSONExporter(Console())
 exporter.export(steps, "https://httpbin.io", "output.json")
 ```
 
+## SLO Evaluation
+
+The SLO module is exposed at the package root so programmatic callers
+can parse, evaluate, and serialize latency budgets the same way the
+CLI does.
+
+```python
+from httptap import HTTPTapAnalyzer, evaluate_slo, parse_slo_spec, select_step_for_evaluation
+
+analyzer = HTTPTapAnalyzer(follow_redirects=True)
+steps = analyzer.analyze_url("https://api.example.com/health")
+
+thresholds = parse_slo_spec("total=500,ttfb=200")
+target = select_step_for_evaluation(steps)
+if target is not None:
+    result = evaluate_slo(target, thresholds)
+    if not result.passed:
+        for violation in result.violations:
+            print(
+                f"{violation.key}: {violation.actual_ms:.1f}ms "
+                f"> {violation.threshold_ms:g}ms "
+                f"(+{violation.delta_ms:.1f}ms)"
+            )
+```
+
+Key symbols (all importable from `httptap`):
+
+| Symbol                        | Kind       | Purpose                                                    |
+|-------------------------------|------------|------------------------------------------------------------|
+| `SLO_KEYS`                    | frozenset  | Valid phase keys: `dns/connect/tls/ttfb/wait/xfer/total`.  |
+| `parse_slo_spec(raw)`         | function   | Parse `"total=500,ttfb=200"` → `dict[str, float]`.         |
+| `evaluate_slo(step, th)`      | function   | Run thresholds against one `StepMetrics`, return `SLOResult`. |
+| `select_step_for_evaluation(steps)` | function | Pick the final successful step of a chain.              |
+| `SLOSpecError`                | exception  | `ValueError` subclass raised on malformed specifications.  |
+| `SLOResult`                   | dataclass  | `pass`, frozen `thresholds_ms`, tuple of `violations`.     |
+| `SLOViolation`                | dataclass  | `key`, `threshold_ms`, `actual_ms`, `delta_ms`.            |
+
+`SLOResult` is a frozen dataclass; both `thresholds_ms` (read-only
+mapping view) and `violations` (tuple) are immutable. `SLOResult.to_dict()`
+produces the same structure as the `summary.slo` key in the JSON
+export.
+
 ## Request Executor
 
 For fully customized HTTP behavior, implement the `RequestExecutor` protocol.

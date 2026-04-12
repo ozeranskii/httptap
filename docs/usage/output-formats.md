@@ -249,6 +249,32 @@ httptap --follow --json chain.json --metrics-only https://bit.ly/example
 
 ---
 
+## SLO Threshold Overlay
+
+`--slo KEY=MS[,KEY=MS...]` augments every output mode with a pass/fail
+verdict evaluated against the final successful request.
+
+- **Rich mode** — a framed panel is printed after the waterfall.
+  The border is green for pass, red for fail, and each violation is
+  listed with actual, threshold, and overrun in milliseconds.
+- **Compact mode** — behaves as Rich mode above; the SLO panel is
+  still printed after the one-line step summaries.
+- **Metrics-only** — the line for the final successful step gains
+  `slo=pass` or `slo=fail slo_violations=<keys>` tokens. Intermediate
+  redirect steps remain unchanged.
+- **JSON** — `summary.slo` contains `pass`, `thresholds_ms`, and
+  `violations[]` (each with `key`, `threshold_ms`, `actual_ms`,
+  `delta_ms`). Absent when `--slo` is not supplied.
+
+A violation makes `httptap` exit with code `4` while still rendering
+the full output, so the evidence is preserved for post-mortem.
+
+See the dedicated [SLO Threshold Checking](slo.md) page for the
+specification grammar, evaluation rules, exit-code precedence, and
+CI / cron recipes.
+
+---
+
 ## What's Next?
 
 <div class="grid cards" markdown>

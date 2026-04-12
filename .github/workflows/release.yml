@@ -202,6 +202,16 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
 
+      - name: Attach VEX document
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          # OpenVEX is kept in-tree under .vex/ so every commit tracks
+          # the current exploitability assessment. Rename-copy the file
+          # with the release version embedded so the published artifact
+          # is self-identifying.
+          cp .vex/httptap.openvex.json "sbom/${PACKAGE_NAME}-${VERSION}.openvex.json"
+
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

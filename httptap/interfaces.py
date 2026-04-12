@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from .models import NetworkInfo, StepMetrics, TimingMetrics
+    from .slo import SLOResult
 
 
 class Visualizer(Protocol):
@@ -77,6 +78,8 @@ class Exporter(Protocol):
         steps: Sequence[StepMetrics],
         initial_url: str,
         output_path: str,
+        *,
+        slo_result: SLOResult | None = None,
     ) -> None:
         """Persist the collected steps using the chosen representation.
 
@@ -84,6 +87,8 @@ class Exporter(Protocol):
             steps: Sequence of step metrics to export.
             initial_url: The initial URL that was analyzed.
             output_path: Path to output file where results should be written.
+            slo_result: Optional SLO evaluation result that concrete
+                exporters may embed alongside the step data.
 
         Raises:
             IOError: If file cannot be written or path is invalid.

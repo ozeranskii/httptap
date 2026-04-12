@@ -7,6 +7,7 @@ from rich.console import Console
 
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
 from httptap.render import OutputRenderer
+from httptap.slo import SLOResult, SLOViolation
 from httptap.visualizer import WaterfallVisualizer
 
 if TYPE_CHECKING:
@@ -195,6 +196,7 @@ class TestOutputRenderer:
             [step],
             "https://example.com",
             str(output_path),
+            slo_result=None,
         )
 
     def test_print_header(self) -> None:
@@ -220,6 +222,61 @@ class TestOutputRenderer:
         output = console.export_text()
         assert "ERROR" in output
         assert "DNS failed" in output
+
+    def test_render_metrics_only_attaches_slo_to_final_success(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """SLO is printed only on the last successful step of a chain.
+
+        Capturing ``console.print`` directly avoids flakiness from
+        Rich's terminal-width-dependent line wrapping.
+        """
+        console = Console()
+        renderer = OutputRenderer(metrics_only=True, console=console)
+        steps = [
+            build_step("http://example.com", 301, 50.0, step_number=1),
+            build_step("https://example.com", 200, 120.0, step_number=2),
+        ]
+        violation = SLOViolation(key="total", threshold_ms=100.0, actual_ms=120.0)
+        result = SLOResult(thresholds_ms={"total": 100.0}, violations=(violation,))
+
+        printed: list[str] = []
+        monkeypatch.setattr(console, "print", lambda msg: printed.append(str(msg)))
+
+        renderer._render_metrics_only(steps, slo_result=result)
+
+        step1_line = next(line for line in printed if line.startswith("Step 1"))
+        step2_line = next(line for line in printed if line.startswith("Step 2"))
+        assert "slo=" not in step1_line
+        assert "slo=fail" in step2_line
+        assert "slo_violations=total" in step2_line
+
+    def test_render_metrics_only_skips_slo_when_all_failed(self) -> None:
+        """SLO output is suppressed when every step errored out."""
+        console = Console(record=True, width=120)
+        renderer = OutputRenderer(metrics_only=True, console=console)
+        step = build_step("https://example.com", 0, 0.0, error="DNS failed")
+        result = SLOResult(thresholds_ms={"total": 100.0}, violations=())
+
+        renderer._render_metrics_only([step], slo_result=result)
+
+        output = console.export_text()
+        assert "slo=" not in output
+
+    def test_render_analysis_prints_slo_panel(self) -> None:
+        """Non-metrics mode renders an SLO panel after the waterfall."""
+        console = Console(record=True, width=120)
+        renderer = OutputRenderer(console=console)
+        step = build_step("https://example.com", 200, 120.0)
+        violation = SLOViolation(key="total", threshold_ms=100.0, actual_ms=120.0)
+        result = SLOResult(thresholds_ms={"total": 100.0}, violations=(violation,))
+
+        renderer.render_analysis([step], "https://example.com", slo_result=result)
+
+        output = console.export_text()
+        assert "SLO: fail" in output
+        assert "total" in output
 
     def test_build_redirect_table_structure(self) -> None:
         """Test redirect table structure."""

@@ -135,7 +135,24 @@ Sources for `proxy`: `direct`, `none` (NO_PROXY hit), `disabled` (`--proxy ""`),
 
 See the [Exit Codes](https://github.com/ozeranskii/httptap#exit-codes) section
 in the README. Typical CI pattern: treat `75` (network / TLS, transient) as
-retryable, fail hard on `64` (usage) and `70` (bug).
+retryable, fail hard on `64` (usage), `70` (bug), and `4` (SLO violation if
+you supplied `--slo`).
+
+### My `--slo` budget is never triggered even though the request is slow.
+
+Check three things:
+
+1. The key you set maps to an actual timing phase. Valid keys are
+   `dns`, `connect`, `tls`, `ttfb`, `wait`, `xfer`, `total` — anything
+   else rejects the command with exit `64` (SLO Error panel).
+2. SLO is evaluated on the **final successful step**, not intermediate
+   redirects. If `--follow` bounced through several hops and the last
+   step was fast, the overall chain total isn't compared. Use `total`
+   against the terminal request's budget, or aggregate manually from
+   `--json` if you need per-step guarantees.
+3. If every step errored, SLO is skipped entirely — the exit code
+   reflects the network failure (usually `75`). No `slo=` token
+   appears in `--metrics-only` output in that case.
 
 ### Can httptap emit Prometheus metrics?
 

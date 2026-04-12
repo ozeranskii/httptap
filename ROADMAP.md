@@ -45,6 +45,9 @@ materialize when the maintainer or a contributor actually picks them up.
 - **Output formats** — additional machine-readable exporters (e.g.,
   Prometheus text format, OpenTelemetry traces) when driven by a concrete
   user need.
+- **SLO extensions** — relative budgets (e.g., `total=+20%` against a
+  baseline), SLO-file loading (`--slo-file slo.yaml`), soft vs hard
+  SLO distinction. Core `--slo` key=ms checker already shipped.
 - **Protocol support** — minor improvements to HTTP/1.1 and HTTP/2 behavior
   as upstream (`httpx`, `httpcore`) gains features; potential support for
   HTTP/3 if and when stable Python support lands.

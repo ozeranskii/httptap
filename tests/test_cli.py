@@ -16,6 +16,7 @@ else:
 from httptap.cli import (
     EXIT_FATAL_ERROR,
     EXIT_NETWORK_ERROR,
+    EXIT_SLO_VIOLATION,
     EXIT_SUCCESS,
     EXIT_USAGE_ERROR,
     _export_results,
@@ -28,6 +29,7 @@ from httptap.cli import (
 )
 from httptap.constants import UNIX_SIGNAL_EXIT_OFFSET, HTTPMethod
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
+from httptap.slo import SLOResult, SLOViolation
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -124,7 +126,13 @@ class RendererStub:
     def __init__(self) -> None:
         self.rendered: list[tuple[list[StepMetrics], str]] = []
 
-    def render_analysis(self, steps: list[StepMetrics], initial_url: str) -> None:
+    def render_analysis(
+        self,
+        steps: list[StepMetrics],
+        initial_url: str,
+        slo_result: object | None = None,
+    ) -> None:
+        del slo_result
         self.rendered.append((steps, initial_url))
 
     def export_json(
@@ -132,8 +140,10 @@ class RendererStub:
         _steps: list[StepMetrics],
         _initial_url: str,
         _path: str,
+        *,
+        slo_result: object | None = None,
     ) -> None:
-        return None
+        del slo_result
 
 
 def test_main_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -287,6 +297,7 @@ def test_validate_arguments_cacert_valid_path(tmp_path: Path) -> None:
         json=None,
         ignore_ssl=False,
         ca_bundle=str(ca_bundle),
+        slo=None,
     )
     result = validate_arguments(args)
 
@@ -305,6 +316,7 @@ def test_validate_arguments_cacert_empty_string(
         json=None,
         ignore_ssl=False,
         ca_bundle="   ",  # Empty/whitespace only
+        slo=None,
     )
 
     result = validate_arguments(args)
@@ -323,6 +335,7 @@ def test_validate_arguments_cacert_expanduser() -> None:
         json=None,
         ignore_ssl=False,
         ca_bundle="~/ca-bundle.pem",
+        slo=None,
     )
     result = validate_arguments(args)
 
@@ -688,3 +701,238 @@ def test_no_auto_post_when_method_explicitly_specified(
     # Verify WARNING log about uncommon usage
     captured_output = capsys.readouterr()
     # Note: logger.warning goes to stderr, not stdout
+
+
+# ---------------------------------------------------------------------------
+# SLO integration tests
+# ---------------------------------------------------------------------------
+
+
+class _SLOAnalyzerStub:
+    """Minimal analyzer that returns one step with caller-specified timing."""
+
+    def __init__(self, total_ms: float, *, error: str | None = None) -> None:
+        self._total_ms = total_ms
+        self._error = error
+
+    def analyze_url(
+        self,
+        url: str,
+        *,
+        method: HTTPMethod = HTTPMethod.GET,
+        content: bytes | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> list[StepMetrics]:
+        del method, content, headers
+        timing = TimingMetrics(
+            dns_ms=5.0,
+            connect_ms=10.0,
+            tls_ms=20.0,
+            ttfb_ms=50.0,
+            total_ms=self._total_ms,
+        )
+        timing.calculate_derived()
+        network = NetworkInfo(ip="203.0.113.1", ip_family="IPv4")
+        response = ResponseInfo(status=200, bytes=128)
+        return [
+            StepMetrics(
+                url=url,
+                step_number=1,
+                timing=timing,
+                network=network,
+                response=response,
+                error=self._error,
+            )
+        ]
+
+
+def _install_slo_analyzer_stub(
+    monkeypatch: pytest.MonkeyPatch,
+    analyzer: _SLOAnalyzerStub,
+) -> None:
+    monkeypatch.setattr(
+        "httptap.cli.HTTPTapAnalyzer",
+        lambda *_args, **_kwargs: analyzer,
+    )
+
+
+def test_main_slo_pass_returns_success(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=120.0))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["httptap", "--metrics-only", "--slo", "total=500", "https://example.test"],
+    )
+
+    exit_code = main()
+    stdout = capsys.readouterr().out
+
+    assert exit_code == EXIT_SUCCESS
+    assert "slo=pass" in stdout
+    assert "slo=fail" not in stdout
+
+
+def test_main_slo_fail_returns_slo_violation(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=900.0))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["httptap", "--metrics-only", "--slo", "total=500", "https://example.test"],
+    )
+
+    exit_code = main()
+    stdout = capsys.readouterr().out
+
+    assert exit_code == EXIT_SLO_VIOLATION
+    assert "slo=fail" in stdout
+    assert "slo_violations=total" in stdout
+
+
+def test_main_slo_multiple_violations_are_comma_joined(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=900.0))
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "httptap",
+            "--metrics-only",
+            "--slo",
+            "total=500,ttfb=10",
+            "https://example.test",
+        ],
+    )
+
+    exit_code = main()
+    stdout = capsys.readouterr().out
+
+    assert exit_code == EXIT_SLO_VIOLATION
+    # Violations sorted alphabetically.
+    assert "slo_violations=total,ttfb" in stdout
+
+
+def test_main_slo_invalid_spec_returns_usage_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=100.0))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["httptap", "--slo", "bogus", "https://example.test"],
+    )
+
+    exit_code = main()
+    stderr = capsys.readouterr().err
+
+    assert exit_code == EXIT_USAGE_ERROR
+    assert "SLO Error" in stderr
+
+
+def test_main_slo_network_error_beats_slo_violation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A network failure takes precedence over an SLO failure."""
+    analyzer = _SLOAnalyzerStub(total_ms=900.0, error="connection refused")
+    _install_slo_analyzer_stub(monkeypatch, analyzer)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["httptap", "--slo", "total=500", "https://example.test"],
+    )
+
+    exit_code = main()
+
+    assert exit_code == EXIT_NETWORK_ERROR
+
+
+def test_main_slo_json_export_contains_slo_summary(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=900.0))
+    output_path = tmp_path / "report.json"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "httptap",
+            "--metrics-only",
+            "--slo",
+            "total=500",
+            "--json",
+            str(output_path),
+            "https://example.test",
+        ],
+    )
+
+    exit_code = main()
+
+    assert exit_code == EXIT_SLO_VIOLATION
+    payload = json.loads(output_path.read_text())
+    slo_block = payload["summary"]["slo"]
+    assert slo_block["pass"] is False
+    assert slo_block["thresholds_ms"] == {"total": 500.0}
+    assert slo_block["violations"] == [
+        {
+            "key": "total",
+            "threshold_ms": 500.0,
+            "actual_ms": 900.0,
+            "delta_ms": 400.0,
+        }
+    ]
+
+
+def test_main_without_slo_flag_has_no_slo_in_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=100.0))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["httptap", "--metrics-only", "https://example.test"],
+    )
+
+    exit_code = main()
+    stdout = capsys.readouterr().out
+
+    assert exit_code == EXIT_SUCCESS
+    assert "slo=" not in stdout
+
+
+def test_determine_exit_code_slo_pass_returns_success() -> None:
+    step = StepMetrics(
+        url="https://example.test",
+        timing=TimingMetrics(total_ms=100.0),
+        network=NetworkInfo(ip="203.0.113.1"),
+        response=ResponseInfo(status=200),
+    )
+    result = SLOResult(thresholds_ms={"total": 500.0}, violations=())
+    assert determine_exit_code([step], slo_result=result) == EXIT_SUCCESS
+
+
+def test_determine_exit_code_slo_fail_returns_slo_violation() -> None:
+    step = StepMetrics(
+        url="https://example.test",
+        timing=TimingMetrics(total_ms=900.0),
+        network=NetworkInfo(ip="203.0.113.1"),
+        response=ResponseInfo(status=200),
+    )
+    violation = SLOViolation(key="total", threshold_ms=500.0, actual_ms=900.0)
+    result = SLOResult(thresholds_ms={"total": 500.0}, violations=(violation,))
+    assert determine_exit_code([step], slo_result=result) == EXIT_SLO_VIOLATION
+
+
+def test_determine_exit_code_network_error_overrides_slo() -> None:
+    step = StepMetrics(
+        url="https://example.test",
+        timing=TimingMetrics(total_ms=900.0),
+        network=NetworkInfo(ip="203.0.113.1"),
+        response=ResponseInfo(status=None),
+        error="connection refused",
+    )
+    violation = SLOViolation(key="total", threshold_ms=500.0, actual_ms=900.0)
+    result = SLOResult(thresholds_ms={"total": 500.0}, violations=(violation,))
+    assert determine_exit_code([step], slo_result=result) == EXIT_NETWORK_ERROR

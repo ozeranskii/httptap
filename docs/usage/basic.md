@@ -211,6 +211,22 @@ The JSON file contains:
 - Network information (IP address, TLS details, certificate info)
 - Response metadata (status, headers, body size)
 - Complete redirect chain (when using `--follow`)
+- SLO evaluation (when `--slo` is supplied)
+
+#### `--slo KEY=MS[,KEY=MS...]`
+
+Check the final successful step against per-phase latency budgets. On
+violation `httptap` still renders the full report but exits with code
+`4` so the result can gate CI jobs, cron probes, or Kubernetes
+readiness checks.
+
+```bash
+httptap --slo total=500,ttfb=200 https://httpbin.io/get
+```
+
+Supported keys: `dns`, `connect`, `tls`, `ttfb`, `wait`, `xfer`,
+`total`. See the dedicated [SLO Threshold Checking](slo.md) page for
+the full specification, exit-code precedence, and CI/cron recipes.
 
 #### `--version`
 

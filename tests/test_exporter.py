@@ -8,6 +8,7 @@ from rich.console import Console
 
 from httptap.exporter import JSONExporter
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
+from httptap.slo import SLOResult, SLOViolation
 
 PathType = pathlib.Path
 
@@ -127,3 +128,66 @@ def test_exporter_with_empty_request_headers(tmp_path: PathType) -> None:
     assert data["steps"][0]["request"]["headers"] == {}
     assert data["steps"][0]["request"]["method"] == "GET"
     assert data["steps"][0]["request"]["body_bytes"] == 0
+
+
+def test_exporter_omits_slo_when_not_provided(tmp_path: PathType) -> None:
+    """The ``slo`` key is absent from the summary unless explicitly set."""
+    exporter = JSONExporter(Console(record=True))
+    step = build_step("https://example.test", 200, 100.0)
+    output_path = tmp_path / "no-slo.json"
+
+    exporter.export([step], "https://example.test", str(output_path))
+
+    data = json.loads(output_path.read_text())
+    assert "slo" not in data["summary"]
+
+
+def test_exporter_includes_slo_pass(tmp_path: PathType) -> None:
+    """A passing SLO is embedded as ``summary.slo`` with an empty violations list."""
+    exporter = JSONExporter(Console(record=True))
+    step = build_step("https://example.test", 200, 100.0)
+    result = SLOResult(thresholds_ms={"total": 500.0}, violations=())
+    output_path = tmp_path / "slo-pass.json"
+
+    exporter.export(
+        [step],
+        "https://example.test",
+        str(output_path),
+        slo_result=result,
+    )
+
+    data = json.loads(output_path.read_text())
+    assert data["summary"]["slo"] == {
+        "pass": True,
+        "thresholds_ms": {"total": 500.0},
+        "violations": [],
+    }
+
+
+def test_exporter_includes_slo_fail(tmp_path: PathType) -> None:
+    """A failing SLO lists violations with ``key``, thresholds, actual, delta."""
+    exporter = JSONExporter(Console(record=True))
+    step = build_step("https://example.test", 200, 900.0)
+    violation = SLOViolation(key="total", threshold_ms=500.0, actual_ms=900.0)
+    result = SLOResult(thresholds_ms={"total": 500.0}, violations=(violation,))
+    output_path = tmp_path / "slo-fail.json"
+
+    exporter.export(
+        [step],
+        "https://example.test",
+        str(output_path),
+        slo_result=result,
+    )
+
+    data = json.loads(output_path.read_text())
+    slo = data["summary"]["slo"]
+    assert slo["pass"] is False
+    assert slo["thresholds_ms"] == {"total": 500.0}
+    assert slo["violations"] == [
+        {
+            "key": "total",
+            "threshold_ms": 500.0,
+            "actual_ms": 900.0,
+            "delta_ms": 400.0,
+        }
+    ]

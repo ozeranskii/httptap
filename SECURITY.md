@@ -101,10 +101,24 @@ When a security vulnerability is fixed:
 2. **Security Advisory**: We create a GitHub Security Advisory
 3. **Patch Release**: We release a new version with the fix
 4. **Changelog Update**: We document the fix in CHANGELOG.md
-5. **User Notification**: We notify users via:
+5. **VEX Update**: We revise `.vex/httptap.openvex.json` so scanners reflect the latest exploitability assessment (see below)
+6. **User Notification**: We notify users via:
    - GitHub Release notes
    - Security Advisory
    - Dependabot alerts (for users using our package)
+
+## VEX (Vulnerability Exploitability eXchange)
+
+Alongside the SBOM, every GitHub Release ships an
+[OpenVEX](https://github.com/openvex/spec) document
+(`httptap-X.Y.Z.openvex.json`). It records, for every CVE that affects
+one of our dependencies, whether `httptap` is actually exploitable —
+so automated scanners can suppress false-positive alerts when the
+vulnerable code path is unreachable from this project.
+
+The source of truth is [`.vex/httptap.openvex.json`](.vex/httptap.openvex.json);
+see [`.vex/README.md`](.vex/README.md) for the update workflow and the
+OpenVEX status/justification vocabulary we use.
 
 ## Security Best Practices for Users
 

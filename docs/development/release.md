@@ -101,6 +101,7 @@ The release workflow is defined in `.github/workflows/release.yml`:
 - Runs full test suite
 - Builds wheel and sdist
 - Generates SBOM in CycloneDX and SPDX JSON formats via [Syft](https://github.com/anchore/syft)
+- Copies the versioned OpenVEX document from `.vex/httptap.openvex.json` into the `sbom/` directory as `httptap-X.Y.Z.openvex.json`
 - Uploads `dist/` and `sbom/` artifacts separately
 
 #### 3. Publish to PyPI
@@ -112,7 +113,7 @@ The release workflow is defined in `.github/workflows/release.yml`:
 
 - Downloads `dist/` and `sbom/` artifacts
 - Creates GitHub release with changelog notes
-- Attaches wheel, sdist, and SBOM (`*.cdx.json`, `*.spdx.json`) assets
+- Attaches wheel, sdist, SBOM (`*.cdx.json`, `*.spdx.json`), and VEX (`*.openvex.json`) assets
 
 ## Changelog Generation
 
