@@ -88,6 +88,13 @@ jobs:
       - name: Refresh lockfile
         run: uv lock
 
+      - name: Update CITATION.cff metadata
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          yq -i ".version = \"${VERSION}\" | .\"date-released\" = \"${DATE}\"" CITATION.cff
+
       - name: Ensure changelog exists
         run: touch ${CHANGELOG_FILE}
 
@@ -114,7 +121,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          git add pyproject.toml uv.lock ${CHANGELOG_FILE}
+          git add pyproject.toml uv.lock CITATION.cff ${CHANGELOG_FILE}
           git commit -m "chore: release v${VERSION}"
 
       - name: Create and push tag

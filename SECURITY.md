@@ -6,10 +6,10 @@ We release patches for security vulnerabilities in the following versions:
 
 | Version | Supported          |
 |---------|--------------------|
-| 0.1.x   | :white_check_mark: |
-| < 0.1   | :x:                |
+| 0.4.x   | :white_check_mark: |
+| < 0.4   | :x:                |
 
-**Note:** As this project is in early development (0.1.x), we recommend always using the latest release.
+**Note:** This project is still pre-1.0. Security patches are only backported to the latest minor series; always use the most recent release.
 
 ## Reporting a Vulnerability
 
