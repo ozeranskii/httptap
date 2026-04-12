@@ -2152,11 +2152,16 @@
 <h3 id="output-options">Output Options<a class="headerlink" href="#output-options" title="Permanent link">&para;</a></h3>
 <h4 id="-compact"><code>--compact</code><a class="headerlink" href="#-compact" title="Permanent link">&para;</a></h4>
 <p>Display results in a compact single-line format, suitable for logging.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>httptap<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>httptap<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io/get
 </span></code></pre></div>
 <p>Output:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>Step 1: dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms status=200 bytes=389
+<div class="language-text highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>Step 1: 200 GET https://httpbin.io/get | dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms | 389 B
 </span></code></pre></div>
+<p><code>--compact</code> prints one human-readable line per step (suitable for
+logs and redirect-chain tracing) while still rendering the analysis
+header and <code>Redirect Chain Summary</code> table. Response size is shown
+with the appropriate unit (<code>B</code>, <code>KB</code>, <code>MB</code>). For machine-parseable
+output, see <code>--metrics-only</code>.</p>
 <h4 id="-metrics-only"><code>--metrics-only</code><a class="headerlink" href="#-metrics-only" title="Permanent link">&para;</a></h4>
 <p>Output raw metrics without formatting, ideal for scripting and automation.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>httptap<span class="w"> </span>--metrics-only<span class="w"> </span>https://httpbin.io

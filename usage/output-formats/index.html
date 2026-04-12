@@ -1838,25 +1838,29 @@ table in your terminal.</p>
 <li>Presentation of timing data to stakeholders</li>
 </ul>
 <h2 id="compact-mode">Compact Mode<a class="headerlink" href="#compact-mode" title="Permanent link">&para;</a></h2>
-<p>Single-line output format ideal for logging and quick comparisons.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>httptap<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io
+<p>One human-readable line per step, designed for terminal logs and
+redirect-chain tracing.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>httptap<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io/get
 </span></code></pre></div>
 <h3 id="example-output">Example Output<a class="headerlink" href="#example-output" title="Permanent link">&para;</a></h3>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Step 1: dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms status=200 bytes=389
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Step 1: 200 GET https://httpbin.io/get | dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms | 389 B
 </span></code></pre></div>
 <h3 id="features_1">Features<a class="headerlink" href="#features_1" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Single line per request</strong> step</li>
-<li><strong>Human-readable</strong> timing values</li>
-<li><strong>Essential metrics</strong> only</li>
-<li><strong>Easy to grep</strong> and filter</li>
+<li><strong>Single line per step</strong> — HTTP status first, then method and URL, then
+  per-phase timings, then human-readable body size.</li>
+<li><strong>Timings carry <code>ms</code> suffix</strong> so they read naturally alongside prose
+  log entries.</li>
+<li><strong>Response size</strong> is formatted with the appropriate unit (<code>B</code>, <code>KB</code>, <code>MB</code>).</li>
+<li><strong>Redirect summary table</strong> is still printed after the per-step lines
+  so the overall shape of the chain stays visible.</li>
 </ul>
 <h3 id="when-to-use_1">When to Use<a class="headerlink" href="#when-to-use_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Append to log files</li>
 <li>Quick performance comparisons</li>
-<li>CI/CD pipeline output</li>
-<li>Terminal-friendly summaries</li>
+<li>CI / CD pipeline output where you still want to see the URL and status</li>
+<li>Terminal-friendly summaries when the full waterfall is too noisy</li>
 </ul>
 <h2 id="metrics-only-mode">Metrics-Only Mode<a class="headerlink" href="#metrics-only-mode" title="Permanent link">&para;</a></h2>
 <p>Raw metrics without formatting, optimized for parsing by other tools.</p>
@@ -1981,13 +1985,14 @@ table in your terminal.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>https://httpbin.io/redirect/3
 </span></code></pre></div>
 <h3 id="compact-mode_1">Compact Mode<a class="headerlink" href="#compact-mode_1" title="Permanent link">&para;</a></h3>
-<p>Outputs one line per redirect step.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io/redirect/3
+<p>Outputs one line per redirect step, followed by the redirect chain
+summary table.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io/redirect/2
 </span></code></pre></div>
 <p>Output:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>Step 1: dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms status=302 bytes=0
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>Step 2: dns=2.7ms connect=97.5ms tls=194.0ms ttfb=400.2ms total=400.6ms status=302 bytes=0
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>Step 3: dns=2.6ms connect=97.4ms tls=197.3ms ttfb=403.2ms total=404.0ms status=200 bytes=389
+<div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>Step 1: 302 GET https://httpbin.io/redirect/2 | dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms | 0 B
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>Step 2: 302 GET https://httpbin.io/relative-redirect/1 | dns=2.7ms connect=97.5ms tls=194.0ms ttfb=400.2ms total=400.6ms | 0 B
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>Step 3: 200 GET https://httpbin.io/get | dns=2.6ms connect=97.4ms tls=197.3ms ttfb=403.2ms total=404.0ms | 389 B
 </span></code></pre></div>
 <h3 id="json-export_1">JSON Export<a class="headerlink" href="#json-export_1" title="Permanent link">&para;</a></h3>
 <p>Includes all steps in the <code>steps</code> array with complete timing and metadata.</p>

@@ -1651,12 +1651,20 @@
 </span></code></pre></div>
 <p>This will show timing information for each step in the redirect chain.</p>
 <h2 id="compact-output">Compact Output<a class="headerlink" href="#compact-output" title="Permanent link">&para;</a></h2>
-<p>For single-line output suitable for logging:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>httptap<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io
+<p>For a single human-readable line per step — suitable for terminal
+logs and tailing through <code>grep</code> / <code>tee</code>:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>httptap<span class="w"> </span>--compact<span class="w"> </span>https://httpbin.io/get
 </span></code></pre></div>
 <p>Output example:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>Step 1: dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms status=200 bytes=389
+<div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>Step 1: 200 GET https://httpbin.io/get | dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms | 389 B
 </span></code></pre></div>
+<p>The line leads with the HTTP status so failures stand out; timings
+carry the <code>ms</code> suffix and the response size is rendered with an
+appropriate unit (<code>B</code>, <code>KB</code>, <code>MB</code>). Redirect chains still end with
+the full <code>Redirect Chain Summary</code> table so the overall shape of the
+request stays visible.</p>
+<p>For machine-parseable <code>key=value</code> output (no units, IP/family/TLS
+fields included), use <code>--metrics-only</code> below.</p>
 <h2 id="metrics-only-mode">Metrics-Only Mode<a class="headerlink" href="#metrics-only-mode" title="Permanent link">&para;</a></h2>
 <p>Get raw metrics without formatting, perfect for scripts:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>httptap<span class="w"> </span>--metrics-only<span class="w"> </span>https://httpbin.io
