@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-04-12
+
+### Features
+
+- **cli:** Add --slo threshold checking ([5fae63e](https://github.com/ozeranskii/httptap/commit/5fae63eea9772dda85ea3c6ee53d27bbdd79db01))
+
+
 ## [0.4.9] - 2026-04-12
 
 ### Bug Fixes
