@@ -113,6 +113,7 @@ lint = [
 
 docs = [
     "mkdocs-material[imaging]>=9.7.1",
+    "pymdown-extensions>=10.21.2",
 ]
 precommit = [
     "pre-commit>=4.5.1",
