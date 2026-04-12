@@ -100,7 +100,8 @@ The release workflow is defined in `.github/workflows/release.yml`:
 - Checks out the tagged version
 - Runs full test suite
 - Builds wheel and sdist
-- Uploads artifacts
+- Generates SBOM in CycloneDX and SPDX JSON formats via [Syft](https://github.com/anchore/syft)
+- Uploads `dist/` and `sbom/` artifacts separately
 
 #### 3. Publish to PyPI
 
@@ -109,9 +110,9 @@ The release workflow is defined in `.github/workflows/release.yml`:
 
 #### 4. Create GitHub Release
 
-- Downloads artifacts
+- Downloads `dist/` and `sbom/` artifacts
 - Creates GitHub release with changelog notes
-- Attaches wheel and sdist
+- Attaches wheel, sdist, and SBOM (`*.cdx.json`, `*.spdx.json`) assets
 
 ## Changelog Generation
 

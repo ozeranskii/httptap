@@ -192,5 +192,8 @@ exclude_lines = [
     "class .+Protocol",
 ]
 
+[tool.typos.default.extend-words]
+certifi = "certifi"
+
 [tool.typos.files]
 extend-exclude = [".gitignore"]

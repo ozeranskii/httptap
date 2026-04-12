@@ -1,0 +1,39 @@
+# YAML 1.2
+# Citation File Format v1.2.0 — https://citation-file-format.github.io/
+cff-version: 1.2.0
+message: "If you use httptap in your research or tooling, please cite it using these metadata."
+title: httptap
+abstract: >-
+  httptap is a rich-powered CLI that dissects an HTTP request into every
+  meaningful phase — DNS, TCP connect, TLS handshake, server wait, and
+  body transfer — and renders the results as a timeline table, compact
+  summary, or machine-friendly metrics. It is designed for interactive
+  troubleshooting, regression analysis, and recording of performance
+  baselines.
+type: software
+authors:
+  - family-names: Ozeranskii
+    given-names: Sergei
+    alias: ozeranskii
+version: 0.4.7
+date-released: "2026-03-30"
+license: Apache-2.0
+url: "https://github.com/ozeranskii/httptap"
+repository-code: "https://github.com/ozeranskii/httptap"
+repository-artifact: "https://pypi.org/project/httptap/"
+keywords:
+  - http
+  - https
+  - performance
+  - timing
+  - dns
+  - tls
+  - ssl
+  - networking
+  - monitoring
+  - diagnostics
+  - waterfall
+  - curl
+  - httpx
+  - python
+  - cli

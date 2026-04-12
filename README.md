@@ -26,6 +26,9 @@
       <a href="https://github.com/ozeranskii/httptap/actions/workflows/codeql.yml">
         <img src="https://github.com/ozeranskii/httptap/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" />
       </a><br />
+      <a href="https://scorecard.dev/viewer/?uri=github.com/ozeranskii/httptap">
+        <img src="https://api.scorecard.dev/projects/github.com/ozeranskii/httptap/badge" alt="OpenSSF Scorecard" />
+      </a><br />
       <a href="https://codecov.io/github/ozeranskii/httptap">
         <img src="https://codecov.io/github/ozeranskii/httptap/graph/badge.svg?token=OFOHOI1X5J" alt="Coverage" />
       </a><br />
@@ -54,6 +57,39 @@ performance baselines.
 
 ---
 
+## Table of Contents
+
+- [Highlights](#highlights)
+- [How it compares](#how-it-compares)
+- [Requirements](#requirements)
+- [Installation](#installation)
+  - [Using Homebrew (macOS/Linux)](#using-homebrew-macoslinux)
+  - [Using `uv`](#using-uv)
+  - [Using `pip`](#using-pip)
+  - [From source](#from-source)
+  - [Shell completions](#shell-completions)
+- [Quick Start](#quick-start)
+  - [Basic GET Request](#basic-get-request)
+  - [POST Request with Data](#post-request-with-data)
+  - [Other HTTP Methods](#other-http-methods)
+  - [Custom Headers](#custom-headers)
+  - [Redirects and JSON Export](#redirects-and-json-export)
+  - [Output Modes](#output-modes)
+  - [Advanced Usage](#advanced-usage)
+- [Environment Variables](#environment-variables)
+- [Exit Codes](#exit-codes)
+- [Releasing](#releasing)
+- [Sample Output](#sample-output)
+- [JSON Export Structure](#json-export-structure)
+- [Metrics-only scripting](#metrics-only-scripting)
+- [Advanced Usage](#advanced-usage-1)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgements](#acknowledgements)
+
+---
+
 ## Highlights
 
 - **Phase-by-phase timing** – precise measurements built from httpcore trace hooks (with sane fallbacks when metal-level
@@ -68,6 +104,33 @@ performance baselines.
   behavior.
 
 > 📣 <strong>Exclusive for httptap users:</strong> Save 50% on <a href="https://gitkraken.cello.so/vY8yybnplsZ"><strong>GitKraken Pro</strong></a>. Bundle GitKraken Client, GitLens for VS Code, and powerful CLI tools to accelerate every repo workflow.
+
+---
+
+## How it compares
+
+| Feature                                  | `httptap` | `curl -w`              | [`httpstat`](https://github.com/reorx/httpstat) | `httpie`          |
+|------------------------------------------|:---------:|:----------------------:|:-----------------------------------------------:|:-----------------:|
+| Phase-by-phase timing (DNS/TCP/TLS/TTFB) | ✅        | ✅ (format str)        | ✅                                              | ❌                |
+| Rich waterfall visualization             | ✅        | ❌                     | ⚠️ text bars                                    | ❌                |
+| Redirect chain with per-step timing      | ✅        | ❌                     | ❌                                              | ❌                |
+| JSON export (machine-readable)           | ✅        | ✅ (`-w '%{json}'`)    | ✅ (`--format json/jsonl`, v1 schema)           | ❌ (no metrics)   |
+| Metrics-only mode for scripting          | ✅        | ✅                     | ✅ (`--format json`)                            | ❌                |
+| SLO threshold checking                   | ❌        | ❌                     | ✅ (`--slo total=500,...`)                      | ❌                |
+| TLS certificate inspection (CN, expiry)  | ✅        | ⚠️ via `-v`            | ❌                                              | ❌                |
+| IPv4/IPv6 reporting                      | ✅ family | ⚠️ IP via `remote_ip`  | ⚠️ IP only (`remote_ip`/`remote_port`)          | ❌                |
+| HTTP/2 support                           | ✅        | ✅                     | ⚠️ via curl passthrough                         | ⚠️ plugin only    |
+| Proxy with source attribution            | ✅        | ⚠️ no attribution      | ⚠️ via curl passthrough                         | ⚠️ no attribution |
+| Custom CA bundle                         | ✅        | ✅                     | ⚠️ via curl passthrough                         | ✅                |
+| Extensible Python API                    | ✅        | ❌ (pycurl ≠ same API) | ❌                                              | ⚠️ via requests   |
+| Curl-compatible flags                    | ✅        | —                      | ✅ (passes through)                             | ❌                |
+| Zero system dependencies                 | ✅        | ✅                      | needs curl                                      | ✅                |
+
+**When to pick what:**
+- **`httptap`** — interactive troubleshooting, regression analysis, and scripted baselines with structured JSON.
+- **`curl -w`** — one-off shell checks where curl is already the dependency.
+- **`httpstat`** — quick visual breakdown on top of an existing curl install.
+- **`httpie`** — general-purpose request/response exploration, not latency profiling.
 
 ---
 
@@ -310,6 +373,54 @@ can confirm what path was used (e.g., `(from arg --proxy)`,
 
 ---
 
+## Environment Variables
+
+httptap reads the following environment variables at runtime. All of them are
+overridable via CLI flags, and the actual source used for each request is
+recorded in the output and JSON export.
+
+| Variable                              | Purpose                                                                                                      | Overridden by         |
+|---------------------------------------|--------------------------------------------------------------------------------------------------------------|-----------------------|
+| `HTTP_PROXY` / `http_proxy`           | Proxy URL used for `http://` targets.                                                                        | `-x/--proxy`          |
+| `HTTPS_PROXY` / `https_proxy`         | Proxy URL used for `https://` targets.                                                                       | `-x/--proxy`          |
+| `ALL_PROXY` / `all_proxy`             | Fallback proxy URL when scheme-specific variables are unset.                                                 | `-x/--proxy`          |
+| `NO_PROXY` / `no_proxy`               | Comma-separated exclusion list (supports `*`, leading `.`, exact matches). Bypassed entries connect direct.  | `--proxy ""`          |
+| `NO_COLOR`                            | Disables ANSI colors in all Rich output (honors the [NO_COLOR](https://no-color.org) convention).            | —                     |
+| `FORCE_COLOR`                         | Forces colored output even when stdout is not a TTY (Rich convention).                                       | —                     |
+| `TERM=dumb`                           | Rich downgrades to plain-text rendering.                                                                     | —                     |
+
+> Precedence for proxy configuration: explicit `-x/--proxy` → `--proxy ""`
+> (disables env) → `HTTPS_PROXY`/`HTTP_PROXY`/`ALL_PROXY` (scheme-matching) →
+> `NO_PROXY` exclusion → direct connection.
+
+---
+
+## Exit Codes
+
+httptap follows the BSD `sysexits.h` convention so it integrates cleanly with
+shell pipelines, CI jobs, and systemd services.
+
+| Code  | Symbol                  | Meaning                                                    |
+|:-----:|-------------------------|------------------------------------------------------------|
+| `0`   | `EX_OK`                 | Success.                                                   |
+| `64`  | `EX_USAGE`              | Invalid command-line arguments.                            |
+| `70`  | `EX_SOFTWARE`           | Internal error (unexpected exception, bug).                |
+| `75`  | `EX_TEMPFAIL`           | Network / TLS error (partial output may still be rendered). |
+| `128 + N` | Signal offset       | Killed by signal `N` (e.g., `130` for `SIGINT` / Ctrl-C).  |
+
+Example — fail a CI job only on usage errors, tolerating transient network
+issues:
+
+```shell
+httptap --metrics-only https://api.example.com/health
+rc=$?
+if [ "$rc" = 64 ] || [ "$rc" = 70 ]; then
+  exit "$rc"
+fi
+```
+
+---
+
 
 ## Releasing
 
@@ -329,8 +440,9 @@ can confirm what path was used (e.g., `(from arg --proxy)`,
    - Commit changes and create a git tag
    - Run full test suite on the tagged version
    - Build wheel and source distribution
+   - Generate SBOM in CycloneDX and SPDX formats via Syft
    - Publish to PyPI via Trusted Publishing (OIDC)
-   - Create GitHub Release with generated notes
+   - Create GitHub Release with wheel, sdist, and SBOM assets
 
 ---
 

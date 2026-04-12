@@ -161,6 +161,35 @@ jobs:
           compression-level: 6
           if-no-files-found: error
 
+      - name: Prepare SBOM directory
+        run: mkdir -p sbom
+
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          artifact-name: ${{ env.PACKAGE_NAME }}-${{ needs.prepare.outputs.version }}.cdx.json
+          format: cyclonedx-json
+          output-file: sbom/${{ env.PACKAGE_NAME }}-${{ needs.prepare.outputs.version }}.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Generate SBOM (SPDX)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          artifact-name: ${{ env.PACKAGE_NAME }}-${{ needs.prepare.outputs.version }}.spdx.json
+          format: spdx-json
+          output-file: sbom/${{ env.PACKAGE_NAME }}-${{ needs.prepare.outputs.version }}.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: sbom
+          path: sbom/
+          retention-days: 7
+          if-no-files-found: error
+
   publish-pypi:
     name: Publish to PyPI
     runs-on: ubuntu-latest
@@ -201,11 +230,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Download artifacts
+      - name: Download dist artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: dist
           path: dist/
+
+      - name: Download SBOM artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: sbom
+          path: sbom/
 
       - name: Create GitHub Release
         env:
@@ -215,7 +250,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |-
           gh release create "$TAG" \
-            dist/* \
+            dist/* sbom/* \
             --repo "$REPO" \
             --title "$TAG" \
             --notes "$NOTES"
