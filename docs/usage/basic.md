@@ -168,14 +168,20 @@ Mutually exclusive with `--ignore-ssl`.
 Display results in a compact single-line format, suitable for logging.
 
 ```bash
-httptap --compact https://httpbin.io
+httptap --compact https://httpbin.io/get
 ```
 
 Output:
 
 ```
-Step 1: dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms status=200 bytes=389
+Step 1: 200 GET https://httpbin.io/get | dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms | 389 B
 ```
+
+`--compact` prints one human-readable line per step (suitable for
+logs and redirect-chain tracing) while still rendering the analysis
+header and `Redirect Chain Summary` table. Response size is shown
+with the appropriate unit (`B`, `KB`, `MB`). For machine-parseable
+output, see `--metrics-only`.
 
 #### `--metrics-only`
 
