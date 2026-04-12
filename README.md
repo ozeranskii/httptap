@@ -7,7 +7,8 @@
 <table>
   <tr>
     <th>Releases</th>
-    <th>CI &amp; Analysis</th>
+    <th>CI &amp; Quality</th>
+    <th>Security</th>
     <th>Project Info</th>
   </tr>
   <tr>
@@ -23,17 +24,25 @@
       <a href="https://github.com/ozeranskii/httptap/actions/workflows/ci.yml">
         <img src="https://github.com/ozeranskii/httptap/actions/workflows/ci.yml/badge.svg" alt="CI" />
       </a><br />
+      <a href="https://codecov.io/github/ozeranskii/httptap">
+        <img src="https://codecov.io/github/ozeranskii/httptap/graph/badge.svg?token=OFOHOI1X5J" alt="Coverage" />
+      </a><br />
+      <a href="https://codspeed.io/ozeranskii/httptap?utm_source=badge">
+        <img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed Badge" />
+      </a>
+    </td>
+    <td>
       <a href="https://github.com/ozeranskii/httptap/actions/workflows/codeql.yml">
         <img src="https://github.com/ozeranskii/httptap/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" />
       </a><br />
       <a href="https://scorecard.dev/viewer/?uri=github.com/ozeranskii/httptap">
         <img src="https://api.scorecard.dev/projects/github.com/ozeranskii/httptap/badge" alt="OpenSSF Scorecard" />
       </a><br />
-      <a href="https://codecov.io/github/ozeranskii/httptap">
-        <img src="https://codecov.io/github/ozeranskii/httptap/graph/badge.svg?token=OFOHOI1X5J" alt="Coverage" />
+      <a href="https://www.bestpractices.dev/projects/12474">
+        <img src="https://www.bestpractices.dev/projects/12474/badge" alt="OpenSSF Best Practices" />
       </a><br />
-      <a href="https://codspeed.io/ozeranskii/httptap?utm_source=badge">
-        <img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed Badge" />
+      <a href="https://www.bestpractices.dev/projects/12474">
+        <img src="https://www.bestpractices.dev/projects/12474/baseline" alt="OpenSSF Baseline" />
       </a>
     </td>
     <td>
