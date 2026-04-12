@@ -40,6 +40,9 @@
       </a><br />
       <a href="https://www.bestpractices.dev/projects/12474">
         <img src="https://www.bestpractices.dev/projects/12474/badge" alt="OpenSSF Best Practices" />
+      </a><br />
+      <a href="https://www.bestpractices.dev/projects/12474">
+        <img src="https://www.bestpractices.dev/projects/12474/baseline" alt="OpenSSF Baseline" />
       </a>
     </td>
     <td>
