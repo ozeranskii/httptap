@@ -28,31 +28,35 @@ httptap https://httpbin.io
 
 ## Compact Mode
 
-Single-line output format ideal for logging and quick comparisons.
+One human-readable line per step, designed for terminal logs and
+redirect-chain tracing.
 
 ```bash
-httptap --compact https://httpbin.io
+httptap --compact https://httpbin.io/get
 ```
 
 ### Example Output
 
 ```
-Step 1: dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms status=200 bytes=389
+Step 1: 200 GET https://httpbin.io/get | dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms | 389 B
 ```
 
 ### Features
 
-- **Single line per request** step
-- **Human-readable** timing values
-- **Essential metrics** only
-- **Easy to grep** and filter
+- **Single line per step** — HTTP status first, then method and URL, then
+  per-phase timings, then human-readable body size.
+- **Timings carry `ms` suffix** so they read naturally alongside prose
+  log entries.
+- **Response size** is formatted with the appropriate unit (`B`, `KB`, `MB`).
+- **Redirect summary table** is still printed after the per-step lines
+  so the overall shape of the chain stays visible.
 
 ### When to Use
 
 - Append to log files
 - Quick performance comparisons
-- CI/CD pipeline output
-- Terminal-friendly summaries
+- CI / CD pipeline output where you still want to see the URL and status
+- Terminal-friendly summaries when the full waterfall is too noisy
 
 ## Metrics-Only Mode
 
@@ -205,18 +209,19 @@ httptap --follow https://httpbin.io/redirect/3
 
 ### Compact Mode
 
-Outputs one line per redirect step.
+Outputs one line per redirect step, followed by the redirect chain
+summary table.
 
 ```bash
-httptap --follow --compact https://httpbin.io/redirect/3
+httptap --follow --compact https://httpbin.io/redirect/2
 ```
 
 Output:
 
 ```
-Step 1: dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms status=302 bytes=0
-Step 2: dns=2.7ms connect=97.5ms tls=194.0ms ttfb=400.2ms total=400.6ms status=302 bytes=0
-Step 3: dns=2.6ms connect=97.4ms tls=197.3ms ttfb=403.2ms total=404.0ms status=200 bytes=389
+Step 1: 302 GET https://httpbin.io/redirect/2 | dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms | 0 B
+Step 2: 302 GET https://httpbin.io/relative-redirect/1 | dns=2.7ms connect=97.5ms tls=194.0ms ttfb=400.2ms total=400.6ms | 0 B
+Step 3: 200 GET https://httpbin.io/get | dns=2.6ms connect=97.4ms tls=197.3ms ttfb=403.2ms total=404.0ms | 389 B
 ```
 
 ### JSON Export

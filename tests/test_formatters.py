@@ -12,6 +12,7 @@ from httptap.constants import (
 )
 from httptap.formatters import (
     format_bytes_human,
+    format_compact_line,
     format_error,
     format_metrics_line,
     format_network_info,
@@ -505,3 +506,68 @@ class TestFormatMetricsLine:
 
         assert "proxy=direct" in line
         assert "proxy_from" not in line
+
+
+class TestFormatCompactLine:
+    """Human-readable single-line output for ``--compact``."""
+
+    def _make_step(
+        self,
+        *,
+        status: int | None = 200,
+        bytes_: int = 1234,
+        method: str = "GET",
+        url: str = "https://example.com",
+        total_ms: float = 234.7,
+    ) -> StepMetrics:
+        timing = TimingMetrics(
+            dns_ms=1.5,
+            connect_ms=45.2,
+            tls_ms=67.8,
+            ttfb_ms=156.4,
+            total_ms=total_ms,
+        )
+        return StepMetrics(
+            url=url,
+            step_number=1,
+            timing=timing,
+            response=ResponseInfo(status=status, bytes=bytes_),
+            request_method=method,
+        )
+
+    def test_contains_all_phase_timings_with_ms_suffix(self) -> None:
+        line = format_compact_line(self._make_step())
+        for phase in ("dns=1.5ms", "connect=45.2ms", "tls=67.8ms", "ttfb=156.4ms", "total=234.7ms"):
+            assert phase in line
+
+    def test_leads_with_status_and_method(self) -> None:
+        line = format_compact_line(self._make_step(status=200, method="GET"))
+        assert line.startswith("Step 1: 200 GET https://example.com")
+
+    def test_renders_human_readable_size(self) -> None:
+        line = format_compact_line(self._make_step(bytes_=2048))
+        # 2048 B == 2.0 KB via format_bytes_human
+        assert line.endswith("2.0 KB")
+
+    def test_small_size_shows_bytes(self) -> None:
+        line = format_compact_line(self._make_step(bytes_=500))
+        assert line.endswith("500 B")
+
+    def test_missing_status_rendered_as_dash(self) -> None:
+        step = self._make_step(status=None)
+        line = format_compact_line(step)
+        assert line.startswith("Step 1: — ")
+
+    def test_defaults_method_to_get_when_absent(self) -> None:
+        step = StepMetrics(
+            step_number=1,
+            url="https://example.com",
+            timing=TimingMetrics(total_ms=100.0),
+            response=ResponseInfo(status=200, bytes=0),
+        )
+        line = format_compact_line(step)
+        assert " GET " in line
+
+    def test_single_line_no_newlines(self) -> None:
+        line = format_compact_line(self._make_step())
+        assert "\n" not in line

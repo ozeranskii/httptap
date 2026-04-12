@@ -20,6 +20,7 @@ from .constants import (
 )
 from .exporter import JSONExporter
 from .formatters import (
+    format_compact_line,
     format_error,
     format_metrics_line,
     format_network_info,
@@ -78,6 +79,16 @@ class OutputRenderer:
     def render_analysis(self, steps: Sequence[StepMetrics], initial_url: str) -> None:
         """Render complete analysis output.
 
+        Selects the output shape based on the flags the renderer was
+        constructed with:
+
+        * ``metrics_only`` — one ``key=value`` line per step for
+          scripting.
+        * ``compact`` — one human-readable line per step for logs, with
+          the Rich analysis header and redirect summary still rendered
+          so redirect chains remain legible.
+        * default — full Rich panels, waterfall, and redirect summary.
+
         Args:
             steps: Sequence of step metrics to render.
             initial_url: Initial URL that was analyzed.
@@ -87,6 +98,10 @@ class OutputRenderer:
             self._render_metrics_only(steps)
             return
 
+        if self.compact:
+            self._render_compact(steps, initial_url)
+            return
+
         self._print_header(initial_url)
 
         for index, step in enumerate(steps):
@@ -94,6 +109,25 @@ class OutputRenderer:
             if index < len(steps) - 1:
                 self.console.print(Rule(style="dim"))
                 self.console.print()
+
+        if len(steps) > 1:
+            self._render_redirect_summary(steps)
+
+    def _render_compact(self, steps: Sequence[StepMetrics], initial_url: str) -> None:
+        """Render one human-readable summary line per step.
+
+        Args:
+            steps: Sequence of step metrics.
+            initial_url: Initial URL that was analyzed.
+
+        """
+        self._print_header(initial_url)
+
+        for step in steps:
+            if step.has_error:
+                self.console.print(f"Step {step.step_number}: ERROR - {step.error}")
+            else:
+                self.console.print(format_compact_line(step))
 
         if len(steps) > 1:
             self._render_redirect_summary(steps)
@@ -167,9 +201,7 @@ class OutputRenderer:
         if response_line:
             self.console.print(response_line)
 
-        # Waterfall (unless compact mode)
-        if not self.compact:
-            self.visualizer.render(step)
+        self.visualizer.render(step)
 
     def _render_metrics_only(self, steps: Sequence[StepMetrics]) -> None:
         """Render minimal machine-readable output.

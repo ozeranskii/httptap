@@ -131,17 +131,28 @@ class TestOutputRenderer:
         assert "Redirect Chain Summary" in output
         assert "Total" in output
 
-    def test_render_analysis_compact_mode_skips_waterfall(self) -> None:
-        """Test that compact mode doesn't render waterfall."""
-        console = Console(record=True, width=120)
+    def test_render_analysis_compact_mode_emits_single_line_per_step(self) -> None:
+        """Compact mode renders one human-readable line per step."""
+        console = Console(record=True, width=200)
         renderer = OutputRenderer(compact=True, console=console)
-        step = build_step("https://example.com", 200, 100.0)
+        steps = [
+            build_step("http://example.com/", 301, 50.0, step_number=1),
+            build_step("https://example.com/", 200, 100.0, step_number=2),
+        ]
 
-        renderer.render_analysis([step], "https://example.com")
+        renderer.render_analysis(steps, "http://example.com/")
 
         output = console.export_text()
-        # Should not contain waterfall timeline
+        # Per-step human-readable lines present.
+        assert "Step 1: 301 GET http://example.com/" in output
+        assert "Step 2: 200 GET https://example.com/" in output
+        # Phase timings carry ms suffix.
+        assert "total=100.0ms" in output
+        # Waterfall bar chart and network/response panels are suppressed.
         assert "Request Timeline" not in output
+        assert "Expires:" not in output
+        # Redirect chain summary is still rendered for multi-step runs.
+        assert "Redirect Chain Summary" in output
 
     def test_render_analysis_metrics_only_mode(self) -> None:
         """Test metrics-only mode output."""
@@ -330,20 +341,31 @@ class TestOutputRenderer:
 
         mock_render.assert_called_once_with(step)
 
-    def test_render_step_skips_visualizer_in_compact_mode(
+    def test_compact_mode_never_calls_visualizer(
         self,
         mocker: MockerFixture,
     ) -> None:
-        """Test that render_step skips visualizer in compact mode."""
-        console = Console(record=True, width=120)
+        """render_analysis in compact mode bypasses the waterfall visualizer."""
+        console = Console(record=True, width=200)
         renderer = OutputRenderer(console=console, compact=True)
         step = build_step("https://example.com", 200, 100.0)
 
         mock_render = mocker.patch.object(renderer.visualizer, "render")
 
-        renderer._render_step(step)
+        renderer.render_analysis([step], "https://example.com")
 
         mock_render.assert_not_called()
+
+    def test_compact_mode_reports_errors_on_per_step_line(self) -> None:
+        """Failed steps surface as ``Step N: ERROR - ...`` in compact mode."""
+        console = Console(record=True, width=200)
+        renderer = OutputRenderer(compact=True, console=console)
+        step = build_step("https://bad.example", 0, 0.0, error="DNS lookup failed")
+
+        renderer.render_analysis([step], "https://bad.example")
+
+        output = console.export_text()
+        assert "Step 1: ERROR - DNS lookup failed" in output
 
     def test_render_analysis_separates_steps_with_rules(self) -> None:
         """Test that multiple steps are separated with rules."""

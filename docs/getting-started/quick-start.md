@@ -92,17 +92,27 @@ This will show timing information for each step in the redirect chain.
 
 ## Compact Output
 
-For single-line output suitable for logging:
+For a single human-readable line per step — suitable for terminal
+logs and tailing through `grep` / `tee`:
 
 ```bash
-httptap --compact https://httpbin.io
+httptap --compact https://httpbin.io/get
 ```
 
 Output example:
 
 ```
-Step 1: dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms status=200 bytes=389
+Step 1: 200 GET https://httpbin.io/get | dns=8.9ms connect=97.0ms tls=194.6ms ttfb=446.0ms total=447.3ms | 389 B
 ```
+
+The line leads with the HTTP status so failures stand out; timings
+carry the `ms` suffix and the response size is rendered with an
+appropriate unit (`B`, `KB`, `MB`). Redirect chains still end with
+the full `Redirect Chain Summary` table so the overall shape of the
+request stays visible.
+
+For machine-parseable `key=value` output (no units, IP/family/TLS
+fields included), use `--metrics-only` below.
 
 ## Metrics-Only Mode
 

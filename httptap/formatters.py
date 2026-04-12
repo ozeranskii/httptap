@@ -240,3 +240,42 @@ def format_metrics_line(step: StepMetrics) -> str:
         parts.append("proxy=direct")
 
     return f"Step {step.step_number}: {' '.join(parts)}"
+
+
+def format_compact_line(step: StepMetrics) -> str:
+    """Format step metrics as a human-readable single-line summary.
+
+    Unlike :func:`format_metrics_line` (which targets scripting and
+    emits ``key=value`` tokens with no units), this format is meant
+    for terminal logs and pipelines where a person will read the line:
+    timings carry ``ms`` suffixes, response size is rendered with an
+    appropriate unit, and the line leads with the HTTP status so
+    failures stand out when grepping.
+
+    Args:
+        step: Step metrics to format.
+
+    Returns:
+        Space-separated, human-readable summary on a single line.
+
+    Examples:
+        >>> format_compact_line(step)
+        'Step 1: 200 GET https://example.com | dns=1.5ms connect=45.2ms tls=67.8ms ttfb=156.4ms total=234.7ms | 1.2 KB'
+
+    """
+    status = step.response.status if step.response.status is not None else "—"
+    method = step.request_method or "GET"
+
+    timings = " ".join(
+        [
+            f"dns={step.timing.dns_ms:.1f}ms",
+            f"connect={step.timing.connect_ms:.1f}ms",
+            f"tls={step.timing.tls_ms:.1f}ms",
+            f"ttfb={step.timing.ttfb_ms:.1f}ms",
+            f"total={step.timing.total_ms:.1f}ms",
+        ]
+    )
+
+    size = format_bytes_human(step.response.bytes)
+
+    return f"Step {step.step_number}: {status} {method} {step.url} | {timings} | {size}"
