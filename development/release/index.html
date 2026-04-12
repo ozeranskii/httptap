@@ -653,6 +653,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting & FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -692,7 +720,7 @@
   <span class="md-ellipsis">
     
   
-    API Reference
+    Security
   
 
     
@@ -705,6 +733,95 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/assurance-case/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assurance Case
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -827,10 +944,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -848,8 +965,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1418,10 +1535,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
             
   
   
@@ -1439,8 +1556,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2106,7 +2223,8 @@ building, and publishing to PyPI.</p>
 <li>Checks out the tagged version</li>
 <li>Runs full test suite</li>
 <li>Builds wheel and sdist</li>
-<li>Uploads artifacts</li>
+<li>Generates SBOM in CycloneDX and SPDX JSON formats via <a href="https://github.com/anchore/syft">Syft</a></li>
+<li>Uploads <code>dist/</code> and <code>sbom/</code> artifacts separately</li>
 </ul>
 <h4 id="3-publish-to-pypi">3. Publish to PyPI<a class="headerlink" href="#3-publish-to-pypi" title="Permanent link">&para;</a></h4>
 <ul>
@@ -2115,9 +2233,9 @@ building, and publishing to PyPI.</p>
 </ul>
 <h4 id="4-create-github-release">4. Create GitHub Release<a class="headerlink" href="#4-create-github-release" title="Permanent link">&para;</a></h4>
 <ul>
-<li>Downloads artifacts</li>
+<li>Downloads <code>dist/</code> and <code>sbom/</code> artifacts</li>
 <li>Creates GitHub release with changelog notes</li>
-<li>Attaches wheel and sdist</li>
+<li>Attaches wheel, sdist, and SBOM (<code>*.cdx.json</code>, <code>*.spdx.json</code>) assets</li>
 </ul>
 <h2 id="changelog-generation">Changelog Generation<a class="headerlink" href="#changelog-generation" title="Permanent link">&para;</a></h2>
 <p>Changelogs are automatically generated using <a href="https://git-cliff.org/">git-cliff</a> based on conventional commits.</p>

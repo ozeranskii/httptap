@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="HTTP request visualizer with detailed timing breakdown">
+        <meta name="description" content="Threat model, trust boundaries, applied secure-design principles, and countered implementation weaknesses for httptap.">
       
       
         <meta name="author" content="Sergei Ozeranskii">
       
       
-        <link rel="canonical" href="https://httptap.dev/getting-started/installation/">
+        <link rel="canonical" href="https://httptap.dev/security/assurance-case/">
       
       
-        <link rel="prev" href="../..">
+        <link rel="prev" href="../../troubleshooting/">
       
       
-        <link rel="next" href="../quick-start/">
+        <link rel="next" href="../../api/overview/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Installation - httptap Documentation</title>
+        <title>Security Assurance Case - httptap Documentation</title>
       
     
     
@@ -63,17 +63,17 @@
     
   
 <meta property="og:type" content="website" />
-<meta property="og:title" content="Installation - httptap Documentation" />
-<meta property="og:description" content="HTTP request visualizer with detailed timing breakdown" />
-<meta property="og:image" content="https://httptap.dev/assets/images/social/getting-started/installation.png" />
+<meta property="og:title" content="Security Assurance Case - httptap Documentation" />
+<meta property="og:description" content="Threat model, trust boundaries, applied secure-design principles, and countered implementation weaknesses for httptap." />
+<meta property="og:image" content="https://httptap.dev/assets/images/social/security/assurance-case.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:url" content="https://httptap.dev/getting-started/installation/" />
+<meta property="og:url" content="https://httptap.dev/security/assurance-case/" />
 <meta property="twitter:card" content="summary_large_image" />
-<meta property="twitter:title" content="Installation - httptap Documentation" />
-<meta property="twitter:description" content="HTTP request visualizer with detailed timing breakdown" />
-<meta property="twitter:image" content="https://httptap.dev/assets/images/social/getting-started/installation.png" />
+<meta property="twitter:title" content="Security Assurance Case - httptap Documentation" />
+<meta property="twitter:description" content="Threat model, trust boundaries, applied secure-design principles, and countered implementation weaknesses for httptap." />
+<meta property="twitter:image" content="https://httptap.dev/assets/images/social/security/assurance-case.png" />
 </head>
   
   
@@ -93,7 +93,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#installation" class="md-skip">
+        <a href="#security-assurance-case" class="md-skip">
           Skip to content
         </a>
       
@@ -225,7 +225,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Installation
+              Security Assurance Case
             
           </span>
         </div>
@@ -402,8 +402,6 @@
       
   
   
-    
-  
   
   
     
@@ -416,11 +414,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
         
           
           <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
@@ -441,7 +441,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -456,37 +456,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Installation
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
         
   
   
@@ -502,220 +475,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Requirements
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installing-via-homebrew" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installing via Homebrew
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installing-from-pypi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installing from PyPI
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installing-from-source" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installing from Source
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Installing from Source">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#clone-the-repository" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Clone the repository
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#install-with-uv" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Install with uv
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#install-with-pip" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Install with pip
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verifying-installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verifying Installation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#upgrading" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Upgrading
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#uninstalling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Uninstalling
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#shell-completions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shell Completions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Shell Completions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#homebrew-installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Homebrew Installation
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#python-package-installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Python Package Installation
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Python Package Installation">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#activation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Activation
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Usage
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#whats-next" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What's Next?
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -728,7 +487,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../quick-start/" class="md-nav__link">
+      <a href="../../getting-started/quick-start/" class="md-nav__link">
         
   
   
@@ -933,8 +692,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -945,13 +706,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
           <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
@@ -972,7 +731,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -987,10 +746,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../security/assurance-case/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assurance Case
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1006,6 +792,153 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-httptap-is" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What httptap Is
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trust-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trust Boundaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threat-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threat Model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Threat Model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#out-of-scope-threats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Out-of-scope threats
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#applied-secure-design-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Applied Secure-Design Principles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#countered-common-implementation-weaknesses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Countered Common Implementation Weaknesses
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supply-chain-assurance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supply-Chain Assurance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-residual-risks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known Residual Risks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#change-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Change History
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1424,10 +1357,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
+  <a href="#what-httptap-is" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Requirements
+        What httptap Is
       
     </span>
   </a>
@@ -1435,10 +1368,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#installing-via-homebrew" class="md-nav__link">
+  <a href="#security-requirements" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installing via Homebrew
+        Security Requirements
       
     </span>
   </a>
@@ -1446,10 +1379,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#installing-from-pypi" class="md-nav__link">
+  <a href="#trust-boundaries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installing from PyPI
+        Trust Boundaries
       
     </span>
   </a>
@@ -1457,44 +1390,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#installing-from-source" class="md-nav__link">
+  <a href="#threat-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installing from Source
+        Threat Model
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Installing from Source">
+    <nav class="md-nav" aria-label="Threat Model">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#clone-the-repository" class="md-nav__link">
+  <a href="#out-of-scope-threats" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Clone the repository
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#install-with-uv" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Install with uv
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#install-with-pip" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Install with pip
+        Out-of-scope threats
       
     </span>
   </a>
@@ -1507,10 +1418,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#verifying-installation" class="md-nav__link">
+  <a href="#applied-secure-design-principles" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verifying Installation
+        Applied Secure-Design Principles
       
     </span>
   </a>
@@ -1518,10 +1429,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#upgrading" class="md-nav__link">
+  <a href="#countered-common-implementation-weaknesses" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Upgrading
+        Countered Common Implementation Weaknesses
       
     </span>
   </a>
@@ -1529,10 +1440,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#uninstalling" class="md-nav__link">
+  <a href="#supply-chain-assurance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Uninstalling
+        Supply-Chain Assurance
       
     </span>
   </a>
@@ -1540,77 +1451,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#shell-completions" class="md-nav__link">
+  <a href="#known-residual-risks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Shell Completions
+        Known Residual Risks
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Shell Completions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#homebrew-installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Homebrew Installation
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#python-package-installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Python Package Installation
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Python Package Installation">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#activation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Activation
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Usage
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#whats-next" class="md-nav__link">
+  <a href="#change-history" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What's Next?
+        Change History
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
       
     </span>
   </a>
@@ -1637,209 +1503,423 @@
   
 
 
-<h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
-<h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
-<p>Before installing httptap, ensure you have:</p>
+<h1 id="security-assurance-case">Security Assurance Case<a class="headerlink" href="#security-assurance-case" title="Permanent link">&para;</a></h1>
+<p>This document is httptap's security assurance case. It explains <strong>why</strong> the
+project believes its security properties hold, not just <strong>what</strong> those
+properties are. It is structured according to the OpenSSF Best Practices
+silver-level <code>assurance_case</code> criterion.</p>
+<p><strong>Last reviewed:</strong> 2026-04-12 for httptap 0.4.7.</p>
+<p>The assurance case is a living document; it is reviewed at every major
+release and whenever the threat landscape or feature set changes
+materially. Proposals for amendments are accepted as pull requests against
+this file.</p>
+<h2 id="what-httptap-is">What httptap Is<a class="headerlink" href="#what-httptap-is" title="Permanent link">&para;</a></h2>
+<p>httptap is a command-line diagnostic tool. A developer supplies a single
+URL (and optionally headers, a body, a proxy, a CA bundle, etc.) and
+httptap performs one HTTP request (or a short redirect chain) and renders
+per-phase timing and TLS information. It does <strong>not</strong>:</p>
 <ul>
-<li><strong>Python 3.10 or higher</strong> (CPython recommended)</li>
-<li><strong>pip</strong> or <strong>uv</strong> package manager</li>
-<li><strong>macOS, Linux, or Windows</strong> operating system</li>
+<li>accept network input from untrusted peers (it is not a server);</li>
+<li>manage user accounts, sessions, or long-lived credentials;</li>
+<li>execute remote code or evaluate server-supplied scripts;</li>
+<li>persist secrets or user data beyond the optional <code>--json</code> export.</li>
 </ul>
-<p>No system dependencies beyond standard networking are required.</p>
-<h2 id="installing-via-homebrew">Installing via Homebrew<a class="headerlink" href="#installing-via-homebrew" title="Permanent link">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">macOS</label><label for="__tabbed_1_2">Linux</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>brew<span class="w"> </span>install<span class="w"> </span>httptap
+<h2 id="security-requirements">Security Requirements<a class="headerlink" href="#security-requirements" title="Permanent link">&para;</a></h2>
+<p>The project commits to the following observable security properties. Each
+is mapped to supporting arguments in the sections below.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Requirement</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SR-1</td>
+<td>TLS certificate verification is enabled by default for every HTTPS target.</td>
+<td>Prevents passive and active MITM by default.</td>
+</tr>
+<tr>
+<td>SR-2</td>
+<td>Plaintext HTTP, weakened TLS, or custom CA bundles require an explicit user opt-in.</td>
+<td>Ensures insecure configurations are always deliberate.</td>
+</tr>
+<tr>
+<td>SR-3</td>
+<td>Credentials supplied by the user (e.g., <code>Authorization</code> headers) are forwarded only to the original URL and are not leaked to redirect targets on different hosts.</td>
+<td>Prevents credential theft via open redirects.</td>
+</tr>
+<tr>
+<td>SR-4</td>
+<td>The tool does not execute content served by the remote host.</td>
+<td>No code-execution primitive from the server.</td>
+</tr>
+<tr>
+<td>SR-5</td>
+<td>Release artifacts are signed and their build provenance is verifiable.</td>
+<td>Protects users from tampered distributions.</td>
+</tr>
+<tr>
+<td>SR-6</td>
+<td>All CI workflow tokens follow least privilege and are pinned by SHA.</td>
+<td>Reduces the attack surface of the build pipeline.</td>
+</tr>
+<tr>
+<td>SR-7</td>
+<td>Supply chain (dependencies, GitHub Actions, Docker images) is monitored for known vulnerabilities.</td>
+<td>Timely patching of upstream weaknesses.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="trust-boundaries">Trust Boundaries<a class="headerlink" href="#trust-boundaries" title="Permanent link">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   ┌─────────────────────┐
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   │ CLI user            │   trusted
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   │ (argv, stdin, env)  │
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   └──────────┬──────────┘
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>              │
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>              ▼
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   ┌─────────────────────┐
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   │ httptap process     │   trusted
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   │ (Python 3.10+)      │
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   └──────────┬──────────┘
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>              │  TLS/HTTP  ◄─── untrusted: network, proxy, remote host
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>              ▼
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>   ┌─────────────────────┐
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>   │ Remote HTTP server  │   untrusted
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>   └─────────────────────┘
 </span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>brew<span class="w"> </span>install<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<div class="admonition tip">
-<p class="admonition-title">Recommended for macOS/Linux users</p>
-<p>Homebrew installation is the simplest method and includes automatic shell completion setup.</p>
-</div>
-<h2 id="installing-from-pypi">Installing from PyPI<a class="headerlink" href="#installing-from-pypi" title="Permanent link">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Using uv (recommended)</label><label for="__tabbed_2_2">Using pip</label><label for="__tabbed_2_3">Using pipx</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>httptap
-</span></code></pre></div>
-<p>Or install as a global tool:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<p>For isolated CLI tool installation:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pipx<span class="w"> </span>install<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<h2 id="installing-from-source">Installing from Source<a class="headerlink" href="#installing-from-source" title="Permanent link">&para;</a></h2>
-<h3 id="clone-the-repository">Clone the repository<a class="headerlink" href="#clone-the-repository" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/ozeranskii/httptap.git
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">cd</span><span class="w"> </span>httptap
-</span></code></pre></div>
-<h3 id="install-with-uv">Install with uv<a class="headerlink" href="#install-with-uv" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>uv<span class="w"> </span>sync
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
-</span></code></pre></div>
-<h3 id="install-with-pip">Install with pip<a class="headerlink" href="#install-with-pip" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate<span class="w">  </span><span class="c1"># On Windows: .venv\Scripts\activate</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
-</span></code></pre></div>
-<h2 id="verifying-installation">Verifying Installation<a class="headerlink" href="#verifying-installation" title="Permanent link">&para;</a></h2>
-<p>After installation, verify that httptap is correctly installed:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>httptap<span class="w"> </span>--version
-</span></code></pre></div>
-<p>You should see output similar to:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>httptap X.Y.Z
-</span></code></pre></div>
-<h2 id="upgrading">Upgrading<a class="headerlink" href="#upgrading" title="Permanent link">&para;</a></h2>
-<p>To upgrade httptap to the latest version:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="3:3"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><input id="__tabbed_3_3" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Using Homebrew</label><label for="__tabbed_3_2">Using uv</label><label for="__tabbed_3_3">Using pip</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>brew<span class="w"> </span>upgrade<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<h2 id="uninstalling">Uninstalling<a class="headerlink" href="#uninstalling" title="Permanent link">&para;</a></h2>
-<p>To remove httptap from your system:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="4:4"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><input id="__tabbed_4_3" name="__tabbed_4" type="radio" /><input id="__tabbed_4_4" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Using Homebrew</label><label for="__tabbed_4_2">Using uv</label><label for="__tabbed_4_3">Using pip</label><label for="__tabbed_4_4">Using pipx</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>brew<span class="w"> </span>uninstall<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>uv<span class="w"> </span>pip<span class="w"> </span>uninstall<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>pip<span class="w"> </span>uninstall<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>pipx<span class="w"> </span>uninstall<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<hr />
-<h2 id="shell-completions">Shell Completions<a class="headerlink" href="#shell-completions" title="Permanent link">&para;</a></h2>
-<p>httptap supports shell completions for bash and zsh.</p>
-<h3 id="homebrew-installation">Homebrew Installation<a class="headerlink" href="#homebrew-installation" title="Permanent link">&para;</a></h3>
-<p>If you installed httptap via Homebrew, <strong>completions are automatically configured</strong>. Simply restart your shell:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Restart your shell</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="nb">exec</span><span class="w"> </span><span class="nv">$SHELL</span>
-</span></code></pre></div>
-<p>Homebrew automatically places completion scripts in:</p>
 <ul>
-<li><strong>Bash</strong>: <code>$(brew --prefix)/etc/bash_completion.d/</code></li>
-<li><strong>Zsh</strong>: <code>$(brew --prefix)/share/zsh/site-functions/</code></li>
+<li><strong>User → httptap</strong> is trusted: the user is assumed to have legitimate
+  reasons to issue any given request. Input validation still rejects
+  malformed URLs, methods, timeouts, etc. to prevent operator mistakes.</li>
+<li><strong>httptap → network → remote server</strong> is untrusted. All data crossing
+  this boundary is treated as attacker-controlled: response headers,
+  status codes, <code>Location</code> values, TLS certificates, content bodies.</li>
+<li><strong>Build pipeline → PyPI / GitHub Releases</strong> is a separate trust boundary
+  secured by GitHub OIDC (no long-lived keys), Sigstore signing, and SHA-
+  pinned actions.</li>
 </ul>
-<div class="admonition success">
-<p class="admonition-title">No additional setup required</p>
-<p>Homebrew handles all completion setup automatically. Just restart your shell and start using Tab completion!</p>
-</div>
-<h3 id="python-package-installation">Python Package Installation<a class="headerlink" href="#python-package-installation" title="Permanent link">&para;</a></h3>
-<p>If you installed httptap via <code>pip</code>, <code>uv</code>, or <code>pipx</code>, you need to install the optional <code>completion</code> extras:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="5:3"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><input id="__tabbed_5_2" name="__tabbed_5" type="radio" /><input id="__tabbed_5_3" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1">Using uv</label><label for="__tabbed_5_2">Using pip</label><label for="__tabbed_5_3">Using pipx</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;httptap[completion]&quot;</span>
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;httptap[completion]&quot;</span>
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>pipx<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;httptap[completion]&quot;</span>
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<h4 id="activation">Activation<a class="headerlink" href="#activation" title="Permanent link">&para;</a></h4>
-<ol>
-<li>
-<p>Activate your virtual environment (if using venv):</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
-</span></code></pre></div>
-</li>
-<li>
-<p>Run the global activation script:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>activate-global-python-argcomplete
-</span></code></pre></div>
-</li>
-<li>
-<p>Restart your shell.</p>
-</li>
-</ol>
-<h3 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h3>
-<p>Once installed and activated, you can use <code>Tab</code> to autocomplete commands and options:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1"># Complete command options</span>
-</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>httptap<span class="w"> </span>--&lt;TAB&gt;
-</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>
-</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="c1"># Complete after typing partial option</span>
-</span><span id="__span-24-5"><a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>httptap<span class="w"> </span>--fol&lt;TAB&gt;
-</span><span id="__span-24-6"><a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="c1"># Completes to: httptap --follow</span>
-</span><span id="__span-24-7"><a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a>
-</span><span id="__span-24-8"><a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="c1"># Complete multiple options</span>
-</span><span id="__span-24-9"><a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>--time&lt;TAB&gt;
-</span><span id="__span-24-10"><a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a><span class="c1"># Completes to: httptap --follow --timeout</span>
-</span></code></pre></div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The global activation script provides argument completions for bash and zsh only. Other shells are not covered by the script and must be configured separately.</p>
-</div>
-<hr />
-<h2 id="whats-next">What's Next?<a class="headerlink" href="#whats-next" title="Permanent link">&para;</a></h2>
-<div class="grid cards">
+<h2 id="threat-model">Threat Model<a class="headerlink" href="#threat-model" title="Permanent link">&para;</a></h2>
+<p>Threats are listed using the STRIDE categories that apply to a
+diagnostic HTTP client. Threats outside the scope of a client (e.g.,
+server-side DoS) are explicitly excluded as non-goals.</p>
+<table>
+<thead>
+<tr>
+<th>STRIDE</th>
+<th>Threat</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Spoofing</strong></td>
+<td>Attacker impersonates the intended HTTPS server.</td>
+<td>TLS certificate verification on by default (SR-1); <code>--ignore-ssl</code> is opt-in and documented as unsafe (SR-2).</td>
+</tr>
+<tr>
+<td><strong>Spoofing</strong></td>
+<td>Malicious PyPI mirror serves tampered wheel.</td>
+<td>PyPI uses TLS; releases are Sigstore-signed with SLSA v1.0 provenance (SR-5); users can verify with <code>gh attestation verify</code>.</td>
+</tr>
+<tr>
+<td><strong>Tampering</strong></td>
+<td>Modified artifact on GitHub Releases.</td>
+<td>Same as above — build provenance attestations allow independent verification.</td>
+</tr>
+<tr>
+<td><strong>Tampering</strong></td>
+<td>CI pipeline poisoned via compromised third-party action.</td>
+<td>Every action is SHA-pinned (enforced by Scorecard Pinned-Dependencies 10/10 and zizmor pedantic); Dependabot raises PRs to update pins (SR-6, SR-7).</td>
+</tr>
+<tr>
+<td><strong>Repudiation</strong></td>
+<td>—</td>
+<td>Out of scope; httptap is not a multi-user system.</td>
+</tr>
+<tr>
+<td><strong>Information disclosure</strong></td>
+<td>Credentials in <code>-H Authorization</code> leak to redirect target on a different host.</td>
+<td>Redirect chain preserves host-scoped headers per httpx default; cross-origin redirects drop sensitive headers (SR-3).</td>
+</tr>
+<tr>
+<td><strong>Information disclosure</strong></td>
+<td><code>--json</code> export includes auth headers on disk.</td>
+<td>Users are advised in SECURITY.md and docs/troubleshooting.md to redact auth headers before sharing exports.</td>
+</tr>
+<tr>
+<td><strong>Information disclosure</strong></td>
+<td>MITM on insecure proxy.</td>
+<td>Proxy URL scheme is validated; <code>socks5h://</code> / <code>https://</code> recommended for sensitive targets; proxy source is reported in output and JSON for audit.</td>
+</tr>
+<tr>
+<td><strong>Denial of service</strong></td>
+<td>Malicious server streams unbounded body.</td>
+<td>Per-request timeout via <code>--timeout</code> (default 20s); transfer phase is bounded by the same deadline.</td>
+</tr>
+<tr>
+<td><strong>Denial of service</strong></td>
+<td>Malicious server streams zip bomb or gigantic body.</td>
+<td>httptap does not decode or persist bodies beyond counting bytes for the timing metric, so memory cost is linear and bounded by the timeout.</td>
+</tr>
+<tr>
+<td><strong>Elevation of privilege</strong></td>
+<td>Malicious response body triggers parser RCE.</td>
+<td>Bodies are never parsed for content — only length is read. No HTML, JS, or embedded-script interpretation (SR-4).</td>
+</tr>
+<tr>
+<td><strong>Elevation of privilege</strong></td>
+<td>Malicious CLI argument triggers shell injection in downstream invocation.</td>
+<td>Arguments are parsed by <code>argparse</code> (no shell), forwarded as <code>list[str]</code> to <code>httpx</code> (no shell); there is no shell invocation in the request path.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="out-of-scope-threats">Out-of-scope threats<a class="headerlink" href="#out-of-scope-threats" title="Permanent link">&para;</a></h3>
 <ul>
-<li>
-<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M11 15H6l7-14v8h5l-7 14z"/></svg></span> <strong><a href="../quick-start/">Quick Start Guide</a></strong></p>
-<hr />
-<p>Learn the basics with simple examples</p>
-</li>
-<li>
-<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 19V7H4v12zm0-16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm-7 14v-2h5v2zm-3.42-4L5.57 9H8.4l3.3 3.3c.39.39.39 1.03 0 1.42L8.42 17H5.59z"/></svg></span> <strong><a href="../../usage/basic/">Basic Usage</a></strong></p>
-<hr />
-<p>Complete command-line reference</p>
-</li>
-<li>
-<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 7H5a2 2 0 0 0-2 2v8h2v-4h2v4h2V9a2 2 0 0 0-2-2m0 4H5V9h2m7-2h-4v10h2v-4h2a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2m0 4h-2V9h2m6 0v6h1v2h-4v-2h1V9h-1V7h4v2Z"/></svg></span> <strong><a href="../../api/overview/">API Reference</a></strong></p>
-<hr />
-<p>Use httptap programmatically</p>
-</li>
+<li><strong>Adversary with local code execution on the developer's machine.</strong> Out
+  of scope — that adversary already owns the process.</li>
+<li><strong>Adversary controlling the user's terminal / TTY.</strong> Out of scope.</li>
+<li><strong>Cryptanalytic attacks on TLS itself.</strong> Delegated to OpenSSL;
+  mitigations are inherited from the system Python build.</li>
+<li><strong>Post-quantum threats.</strong> Tracked upstream (OpenSSL / Python); out of
+  scope for httptap itself.</li>
 </ul>
-</div>
+<h2 id="applied-secure-design-principles">Applied Secure-Design Principles<a class="headerlink" href="#applied-secure-design-principles" title="Permanent link">&para;</a></h2>
+<p>Mapped to Saltzer &amp; Schroeder (1975) plus modern additions.</p>
+<table>
+<thead>
+<tr>
+<th>Principle</th>
+<th>Application in httptap</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Economy of mechanism</td>
+<td>Small codebase (~2 kLoC), one purpose, no plugin loader, no runtime config files.</td>
+</tr>
+<tr>
+<td>Fail-safe defaults</td>
+<td>TLS verification on, sane default timeout, HTTP/2 preferred, no redirect following by default.</td>
+</tr>
+<tr>
+<td>Complete mediation</td>
+<td>Every outbound request is routed through <code>HTTPClientRequestExecutor</code>; there is no secondary or legacy code path.</td>
+</tr>
+<tr>
+<td>Open design</td>
+<td>Entire codebase is Apache-2.0 on GitHub; no security-through-obscurity.</td>
+</tr>
+<tr>
+<td>Separation of privilege</td>
+<td>Release pipeline is separate from development environment; PyPI publishing uses a GitHub Environment gated by OIDC.</td>
+</tr>
+<tr>
+<td>Least privilege</td>
+<td>Every CI job declares explicit minimum <code>permissions:</code>; no workflow has <code>write-all</code>. Token-Permissions Scorecard check scores 10/10.</td>
+</tr>
+<tr>
+<td>Least common mechanism</td>
+<td>No shared state across runs (single-request tool); no caches or background daemons.</td>
+</tr>
+<tr>
+<td>Psychological acceptability</td>
+<td>Curl-compatible flag aliases (<code>-X</code>, <code>-L</code>, <code>-k</code>, <code>-x</code>, <code>-H</code>) keep the mental model familiar.</td>
+</tr>
+<tr>
+<td>Work factor</td>
+<td>Attacker gains over a developer's local <code>curl</code> invocation are essentially zero — httptap exposes no more than curl does.</td>
+</tr>
+<tr>
+<td>Compromise recording</td>
+<td>JSON export captures the full request/response metadata and the proxy source, so post-hoc forensics is straightforward.</td>
+</tr>
+<tr>
+<td>Defense in depth</td>
+<td>Input validation + TLS verification + pinned build dependencies + SAST + secret scanning + Dependabot + signed releases.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="countered-common-implementation-weaknesses">Countered Common Implementation Weaknesses<a class="headerlink" href="#countered-common-implementation-weaknesses" title="Permanent link">&para;</a></h2>
+<p>Derived from the <a href="https://cwe.mitre.org/top25/">CWE Top 25 (2023)</a> and
+<a href="https://owasp.org/www-project-application-security-verification-standard/">OWASP ASVS 4.0</a>.
+Items not listed are either not applicable to an HTTP client or handled
+upstream.</p>
+<table>
+<thead>
+<tr>
+<th>CWE</th>
+<th>Weakness</th>
+<th>Countermeasure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CWE-20</td>
+<td>Improper input validation</td>
+<td><code>argparse</code> enum/type coercion; URL/method/timeout/proxy explicitly checked.</td>
+</tr>
+<tr>
+<td>CWE-22</td>
+<td>Path traversal (in <code>@file</code> data loader)</td>
+<td>Path is taken verbatim from the user; no server-supplied path is ever used to open a file.</td>
+</tr>
+<tr>
+<td>CWE-78</td>
+<td>OS command injection</td>
+<td>No <code>subprocess</code>/<code>os.system</code> call on user-controlled data in the request path.</td>
+</tr>
+<tr>
+<td>CWE-79</td>
+<td>XSS</td>
+<td>No HTML rendering; output is plain text or Rich-rendered markup with escaping.</td>
+</tr>
+<tr>
+<td>CWE-89</td>
+<td>SQL injection</td>
+<td>No database.</td>
+</tr>
+<tr>
+<td>CWE-94</td>
+<td>Code injection</td>
+<td><code>eval</code>/<code>exec</code> are not used; response bodies are never parsed.</td>
+</tr>
+<tr>
+<td>CWE-116</td>
+<td>Improper output encoding</td>
+<td>Rich handles terminal escape sequences safely; JSON export uses <code>json.dumps</code> with strict escaping.</td>
+</tr>
+<tr>
+<td>CWE-200</td>
+<td>Sensitive information disclosure</td>
+<td>Auth headers are not copied to log output; SECURITY.md and docs warn users to redact JSON exports before sharing.</td>
+</tr>
+<tr>
+<td>CWE-295</td>
+<td>Improper certificate validation</td>
+<td>TLS verification on by default; <code>--ignore-ssl</code> opt-in only, explicitly documented.</td>
+</tr>
+<tr>
+<td>CWE-319</td>
+<td>Cleartext transmission</td>
+<td>HTTPS preferred; plain HTTP requires explicit <code>http://</code> URL; proxy source reported.</td>
+</tr>
+<tr>
+<td>CWE-327</td>
+<td>Broken crypto</td>
+<td>Delegated to stdlib <code>ssl</code>; weak algorithms surface only when diagnosing remote servers.</td>
+</tr>
+<tr>
+<td>CWE-330</td>
+<td>Insufficient randomness</td>
+<td>No RNG use beyond OpenSSL-provided CSPRNG for TLS.</td>
+</tr>
+<tr>
+<td>CWE-352</td>
+<td>CSRF</td>
+<td>Not applicable — httptap is a client, not a server.</td>
+</tr>
+<tr>
+<td>CWE-400</td>
+<td>Uncontrolled resource consumption</td>
+<td>Per-request timeout; bounded redirect chain (max 10).</td>
+</tr>
+<tr>
+<td>CWE-502</td>
+<td>Unsafe deserialization</td>
+<td><code>json.loads</code> only; no pickle, yaml.load, or marshal.</td>
+</tr>
+<tr>
+<td>CWE-601</td>
+<td>Open redirect (credential leak)</td>
+<td>Host-scoped header handling inherits httpx behavior — cross-origin redirects drop sensitive auth headers.</td>
+</tr>
+<tr>
+<td>CWE-918</td>
+<td>SSRF</td>
+<td>httptap is the client; it does not proxy requests on behalf of other systems.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="supply-chain-assurance">Supply-Chain Assurance<a class="headerlink" href="#supply-chain-assurance" title="Permanent link">&para;</a></h2>
+<p>Supporting the release-integrity property (SR-5):</p>
+<ul>
+<li><strong>Publishing</strong>: PyPI via GitHub OIDC Trusted Publishing — no long-lived
+  PyPI tokens anywhere.</li>
+<li><strong>Signing</strong>: Sigstore keyless signing through
+  <code>actions/attest-build-provenance</code>. Signing keys are short-lived,
+  issued per-run by Fulcio, and verifiable via the Rekor transparency
+  log.</li>
+<li><strong>Provenance</strong>: SLSA v1.0 attestation accompanies every wheel and
+  sdist.</li>
+<li><strong>Pinning</strong>: every GitHub Action in every workflow is pinned by SHA;
+  enforced by Scorecard Pinned-Dependencies and zizmor pedantic on every
+  PR.</li>
+<li><strong>Dependency tracking</strong>: SBOM in CycloneDX and SPDX formats is
+  generated during release and attached as a GitHub Release asset.</li>
+</ul>
+<p>Users can verify a downloaded artifact independently:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>dist/httptap-X.Y.Z-py3-none-any.whl<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>--repo<span class="w"> </span>ozeranskii/httptap
+</span></code></pre></div>
+<h2 id="known-residual-risks">Known Residual Risks<a class="headerlink" href="#known-residual-risks" title="Permanent link">&para;</a></h2>
+<p>These are documented rather than mitigated. They represent trade-offs
+that are explicit rather than oversights.</p>
+<ul>
+<li><strong>Git tags are unsigned.</strong> Release <em>artifacts</em> are Sigstore-signed, which
+  is strictly stronger than tag signatures, but the tag-signing criterion
+  is formally unmet; see ROADMAP.md.</li>
+<li><strong>Solo maintainer.</strong> Bus factor is 1 (tracked in GOVERNANCE.md). The
+  continuity plan mitigates single-point-of-failure for operations but not
+  for code review: a single reviewer can merge changes without a second
+  set of eyes. Pre-commit, CI gates, and public audit trail partly
+  compensate.</li>
+<li><strong>No runtime sandboxing.</strong> httptap executes with the user's full
+  privileges. This is appropriate for a developer diagnostic tool but
+  means a bug in <code>httptap</code> itself runs with the user's privileges.</li>
+<li><strong>TLS trust anchors inherited from the OS.</strong> If the OS trust store is
+  compromised (e.g., a corporate MITM proxy installs a private CA),
+  httptap cannot detect this. The <code>network.tls_custom_ca</code> and
+  <code>proxy_source</code> fields in the JSON export document whether a custom CA
+  bundle or proxy was in use.</li>
+</ul>
+<h2 id="change-history">Change History<a class="headerlink" href="#change-history" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-04-12</td>
+<td>Initial assurance case for httptap 0.4.7 (silver submission).</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://github.com/ozeranskii/httptap/blob/main/SECURITY.md">SECURITY.md</a> — vulnerability reporting process and supported versions.</li>
+<li><a href="https://github.com/ozeranskii/httptap/blob/main/GOVERNANCE.md">GOVERNANCE.md</a> — project roles, decisions, and continuity plan.</li>
+<li><a href="https://github.com/ozeranskii/httptap/blob/main/ROADMAP.md">ROADMAP.md</a> — scope, non-goals, and deprecation policy.</li>
+<li><a href="../../troubleshooting/">Troubleshooting &amp; FAQ</a> — operational guidance.</li>
+<li><a href="https://cwe.mitre.org/top25/">CWE Top 25</a> and
+  <a href="https://owasp.org/www-project-application-security-verification-standard/">OWASP ASVS 4.0</a>
+  — reference catalogs of implementation weaknesses.</li>
+</ul>
 
 
 
 
 
 
+
+  
+  
 
 
 

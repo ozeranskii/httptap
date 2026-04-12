@@ -6,37 +6,37 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="HTTP request visualizer with detailed timing breakdown">
+        <meta name="description" content="Common issues, error messages, and diagnostics when running httptap.">
       
       
         <meta name="author" content="Sergei Ozeranskii">
       
       
-        <link rel="canonical" href="https://httptap.dev/getting-started/installation/">
+        <link rel="canonical" href="https://httptap.dev/troubleshooting/">
       
       
-        <link rel="prev" href="../..">
+        <link rel="prev" href="../usage/advanced/">
       
       
-        <link rel="next" href="../quick-start/">
+        <link rel="next" href="../security/assurance-case/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Installation - httptap Documentation</title>
+        <title>Troubleshooting & FAQ - httptap Documentation</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -55,7 +55,7 @@
       
     
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -63,17 +63,17 @@
     
   
 <meta property="og:type" content="website" />
-<meta property="og:title" content="Installation - httptap Documentation" />
-<meta property="og:description" content="HTTP request visualizer with detailed timing breakdown" />
-<meta property="og:image" content="https://httptap.dev/assets/images/social/getting-started/installation.png" />
+<meta property="og:title" content="Troubleshooting & FAQ - httptap Documentation" />
+<meta property="og:description" content="Common issues, error messages, and diagnostics when running httptap." />
+<meta property="og:image" content="https://httptap.dev/assets/images/social/troubleshooting.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:url" content="https://httptap.dev/getting-started/installation/" />
+<meta property="og:url" content="https://httptap.dev/troubleshooting/" />
 <meta property="twitter:card" content="summary_large_image" />
-<meta property="twitter:title" content="Installation - httptap Documentation" />
-<meta property="twitter:description" content="HTTP request visualizer with detailed timing breakdown" />
-<meta property="twitter:image" content="https://httptap.dev/assets/images/social/getting-started/installation.png" />
+<meta property="twitter:title" content="Troubleshooting & FAQ - httptap Documentation" />
+<meta property="twitter:description" content="Common issues, error messages, and diagnostics when running httptap." />
+<meta property="twitter:image" content="https://httptap.dev/assets/images/social/troubleshooting.png" />
 </head>
   
   
@@ -93,7 +93,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#installation" class="md-skip">
+        <a href="#troubleshooting-faq" class="md-skip">
           Skip to content
         </a>
       
@@ -205,7 +205,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="httptap Documentation" class="md-header__button md-logo" aria-label="httptap Documentation" data-md-component="logo">
+    <a href=".." title="httptap Documentation" class="md-header__button md-logo" aria-label="httptap Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
@@ -225,7 +225,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Installation
+              Troubleshooting & FAQ
             
           </span>
         </div>
@@ -348,7 +348,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="httptap Documentation" class="md-nav__button md-logo" aria-label="httptap Documentation" data-md-component="logo">
+    <a href=".." title="httptap Documentation" class="md-nav__button md-logo" aria-label="httptap Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
@@ -378,7 +378,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -402,8 +402,6 @@
       
   
   
-    
-  
   
   
     
@@ -416,11 +414,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
         
           
           <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
@@ -441,7 +441,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -456,37 +456,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Installation
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../getting-started/installation/" class="md-nav__link">
         
   
   
@@ -502,220 +475,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Requirements
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installing-via-homebrew" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installing via Homebrew
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installing-from-pypi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installing from PyPI
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installing-from-source" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installing from Source
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Installing from Source">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#clone-the-repository" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Clone the repository
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#install-with-uv" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Install with uv
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#install-with-pip" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Install with pip
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verifying-installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verifying Installation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#upgrading" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Upgrading
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#uninstalling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Uninstalling
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#shell-completions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shell Completions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Shell Completions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#homebrew-installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Homebrew Installation
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#python-package-installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Python Package Installation
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Python Package Installation">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#activation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Activation
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Usage
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#whats-next" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What's Next?
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -728,7 +487,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../quick-start/" class="md-nav__link">
+      <a href="../getting-started/quick-start/" class="md-nav__link">
         
   
   
@@ -760,8 +519,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -772,13 +533,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
@@ -799,7 +558,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -817,7 +576,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/basic/" class="md-nav__link">
+      <a href="../usage/basic/" class="md-nav__link">
         
   
   
@@ -845,7 +604,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/output-formats/" class="md-nav__link">
+      <a href="../usage/output-formats/" class="md-nav__link">
         
   
   
@@ -873,7 +632,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/advanced/" class="md-nav__link">
+      <a href="../usage/advanced/" class="md-nav__link">
         
   
   
@@ -898,10 +657,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../troubleshooting/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting & FAQ
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -917,6 +703,332 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tls-and-certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS and certificates
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TLS and certificates">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tls-handshake-failed-certificate_verify_failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS handshake failed: CERTIFICATE_VERIFY_FAILED
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#certificate-shows-cert_days_left-null-or-negative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Certificate shows cert_days_left: null or negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#-ignore-ssl-still-fails-with-dh_key_too_small-wrong_version_number" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --ignore-ssl still fails with DH_KEY_TOO_SMALL / WRONG_VERSION_NUMBER
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proxies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proxies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Proxies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#-proxy-is-ignored" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --proxy is ignored
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no_proxy-pattern-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NO_PROXY pattern reference
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#http2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP/2
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="HTTP/2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#server-responds-with-http11-even-though-no-http2-wasnt-passed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server responds with HTTP/1.1 even though --no-http2 wasn't passed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-force-http11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I force HTTP/1.1?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#timingis_estimated-true-what-does-it-mean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        timing.is_estimated: true — what does it mean?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-do-two-consecutive-runs-show-wildly-different-dns_ms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why do two consecutive runs show wildly different dns_ms?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ttfb_ms-is-zero-or-lower-than-connect_ms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ttfb_ms is zero or lower than connect_ms
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#no-colors-in-my-terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No colors in my terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#-metrics-only-stopped-showing-a-proxy-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --metrics-only stopped showing a proxy= field
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scripting-ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scripting &amp; CI
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scripting &amp; CI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-exit-codes-should-i-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What exit codes should I check?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#can-httptap-emit-prometheus-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can httptap emit Prometheus metrics?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#importerror-cannot-import-name-httpmethod-from-httptap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ImportError: cannot import name 'HTTPMethod' from 'httptap'
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#my-custom-resolver-isnt-being-called" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        My custom resolver isn't being called
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#still-stuck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Still stuck?
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -990,7 +1102,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../security/assurance-case/" class="md-nav__link">
+      <a href="../security/assurance-case/" class="md-nav__link">
         
   
   
@@ -1079,7 +1191,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/overview/" class="md-nav__link">
+      <a href="../api/overview/" class="md-nav__link">
         
   
   
@@ -1107,7 +1219,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/core/" class="md-nav__link">
+      <a href="../api/core/" class="md-nav__link">
         
   
   
@@ -1135,7 +1247,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/interfaces/" class="md-nav__link">
+      <a href="../api/interfaces/" class="md-nav__link">
         
   
   
@@ -1224,7 +1336,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/contributing/" class="md-nav__link">
+      <a href="../development/contributing/" class="md-nav__link">
         
   
   
@@ -1252,7 +1364,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/release/" class="md-nav__link">
+      <a href="../development/release/" class="md-nav__link">
         
   
   
@@ -1341,7 +1453,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../about/license/" class="md-nav__link">
+      <a href="../about/license/" class="md-nav__link">
         
   
   
@@ -1369,7 +1481,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../about/changelog/" class="md-nav__link">
+      <a href="../about/changelog/" class="md-nav__link">
         
   
   
@@ -1424,55 +1536,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
+  <a href="#tls-and-certificates" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Requirements
+        TLS and certificates
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installing-via-homebrew" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installing via Homebrew
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installing-from-pypi" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installing from PyPI
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installing-from-source" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installing from Source
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Installing from Source">
+    <nav class="md-nav" aria-label="TLS and certificates">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#clone-the-repository" class="md-nav__link">
+  <a href="#tls-handshake-failed-certificate_verify_failed" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Clone the repository
+        TLS handshake failed: CERTIFICATE_VERIFY_FAILED
       
     </span>
   </a>
@@ -1480,10 +1559,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#install-with-uv" class="md-nav__link">
+  <a href="#certificate-shows-cert_days_left-null-or-negative" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Install with uv
+        Certificate shows cert_days_left: null or negative
       
     </span>
   </a>
@@ -1491,10 +1570,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#install-with-pip" class="md-nav__link">
+  <a href="#-ignore-ssl-still-fails-with-dh_key_too_small-wrong_version_number" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Install with pip
+        --ignore-ssl still fails with DH_KEY_TOO_SMALL / WRONG_VERSION_NUMBER
       
     </span>
   </a>
@@ -1507,55 +1586,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#verifying-installation" class="md-nav__link">
+  <a href="#proxies" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verifying Installation
+        Proxies
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#upgrading" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Upgrading
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#uninstalling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Uninstalling
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#shell-completions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shell Completions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Shell Completions">
+    <nav class="md-nav" aria-label="Proxies">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#homebrew-installation" class="md-nav__link">
+  <a href="#-proxy-is-ignored" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Homebrew Installation
+        --proxy is ignored
       
     </span>
   </a>
@@ -1563,38 +1609,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#python-package-installation" class="md-nav__link">
+  <a href="#no_proxy-pattern-reference" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Python Package Installation
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Python Package Installation">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#activation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Activation
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Usage
+        NO_PROXY pattern reference
       
     </span>
   </a>
@@ -1607,10 +1625,216 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#whats-next" class="md-nav__link">
+  <a href="#http2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What's Next?
+        HTTP/2
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="HTTP/2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#server-responds-with-http11-even-though-no-http2-wasnt-passed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server responds with HTTP/1.1 even though --no-http2 wasn't passed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-do-i-force-http11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I force HTTP/1.1?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#timingis_estimated-true-what-does-it-mean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        timing.is_estimated: true — what does it mean?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-do-two-consecutive-runs-show-wildly-different-dns_ms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why do two consecutive runs show wildly different dns_ms?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ttfb_ms-is-zero-or-lower-than-connect_ms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ttfb_ms is zero or lower than connect_ms
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#no-colors-in-my-terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No colors in my terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#-metrics-only-stopped-showing-a-proxy-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --metrics-only stopped showing a proxy= field
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scripting-ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scripting &amp; CI
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scripting &amp; CI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-exit-codes-should-i-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What exit codes should I check?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#can-httptap-emit-prometheus-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can httptap emit Prometheus metrics?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#importerror-cannot-import-name-httpmethod-from-httptap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ImportError: cannot import name 'HTTPMethod' from 'httptap'
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#my-custom-resolver-isnt-being-called" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        My custom resolver isn't being called
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#still-stuck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Still stuck?
       
     </span>
   </a>
@@ -1637,209 +1861,138 @@
   
 
 
-<h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
-<h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
-<p>Before installing httptap, ensure you have:</p>
+<h1 id="troubleshooting-faq">Troubleshooting &amp; FAQ<a class="headerlink" href="#troubleshooting-faq" title="Permanent link">&para;</a></h1>
+<p>This page collects the most common questions and errors users hit when running
+<code>httptap</code>. If your issue isn't listed, please
+<a href="https://github.com/ozeranskii/httptap/issues">open an issue</a> with the exact
+command, the JSON export (if any), and the relevant terminal output.</p>
+<h2 id="tls-and-certificates">TLS and certificates<a class="headerlink" href="#tls-and-certificates" title="Permanent link">&para;</a></h2>
+<h3 id="tls-handshake-failed-certificate_verify_failed"><code>TLS handshake failed: CERTIFICATE_VERIFY_FAILED</code><a class="headerlink" href="#tls-handshake-failed-certificate_verify_failed" title="Permanent link">&para;</a></h3>
+<p>The server presented a certificate your trust store doesn't recognize.</p>
 <ul>
-<li><strong>Python 3.10 or higher</strong> (CPython recommended)</li>
-<li><strong>pip</strong> or <strong>uv</strong> package manager</li>
-<li><strong>macOS, Linux, or Windows</strong> operating system</li>
+<li><strong>Self-signed or expired cert on a non-production host</strong> — add <code>--ignore-ssl</code>
+  (disables validation, use on trusted networks only).</li>
+<li><strong>Internal CA</strong> — point <code>--cacert</code> (alias <code>--ca-bundle</code>) at your PEM bundle.</li>
+<li><strong>System trust store out of date</strong> — update <code>ca-certificates</code> on Linux, or
+  refresh <code>certifi</code> in your Python environment (<code>uv pip install --upgrade certifi</code>).</li>
 </ul>
-<p>No system dependencies beyond standard networking are required.</p>
-<h2 id="installing-via-homebrew">Installing via Homebrew<a class="headerlink" href="#installing-via-homebrew" title="Permanent link">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">macOS</label><label for="__tabbed_1_2">Linux</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>brew<span class="w"> </span>install<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>brew<span class="w"> </span>install<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<div class="admonition tip">
-<p class="admonition-title">Recommended for macOS/Linux users</p>
-<p>Homebrew installation is the simplest method and includes automatic shell completion setup.</p>
-</div>
-<h2 id="installing-from-pypi">Installing from PyPI<a class="headerlink" href="#installing-from-pypi" title="Permanent link">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Using uv (recommended)</label><label for="__tabbed_2_2">Using pip</label><label for="__tabbed_2_3">Using pipx</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>httptap
-</span></code></pre></div>
-<p>Or install as a global tool:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<p>For isolated CLI tool installation:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pipx<span class="w"> </span>install<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<h2 id="installing-from-source">Installing from Source<a class="headerlink" href="#installing-from-source" title="Permanent link">&para;</a></h2>
-<h3 id="clone-the-repository">Clone the repository<a class="headerlink" href="#clone-the-repository" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/ozeranskii/httptap.git
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">cd</span><span class="w"> </span>httptap
-</span></code></pre></div>
-<h3 id="install-with-uv">Install with uv<a class="headerlink" href="#install-with-uv" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>uv<span class="w"> </span>sync
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
-</span></code></pre></div>
-<h3 id="install-with-pip">Install with pip<a class="headerlink" href="#install-with-pip" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate<span class="w">  </span><span class="c1"># On Windows: .venv\Scripts\activate</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
-</span></code></pre></div>
-<h2 id="verifying-installation">Verifying Installation<a class="headerlink" href="#verifying-installation" title="Permanent link">&para;</a></h2>
-<p>After installation, verify that httptap is correctly installed:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>httptap<span class="w"> </span>--version
-</span></code></pre></div>
-<p>You should see output similar to:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>httptap X.Y.Z
-</span></code></pre></div>
-<h2 id="upgrading">Upgrading<a class="headerlink" href="#upgrading" title="Permanent link">&para;</a></h2>
-<p>To upgrade httptap to the latest version:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="3:3"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><input id="__tabbed_3_3" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Using Homebrew</label><label for="__tabbed_3_2">Using uv</label><label for="__tabbed_3_3">Using pip</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>brew<span class="w"> </span>upgrade<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<h2 id="uninstalling">Uninstalling<a class="headerlink" href="#uninstalling" title="Permanent link">&para;</a></h2>
-<p>To remove httptap from your system:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="4:4"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><input id="__tabbed_4_3" name="__tabbed_4" type="radio" /><input id="__tabbed_4_4" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Using Homebrew</label><label for="__tabbed_4_2">Using uv</label><label for="__tabbed_4_3">Using pip</label><label for="__tabbed_4_4">Using pipx</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>brew<span class="w"> </span>uninstall<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>uv<span class="w"> </span>pip<span class="w"> </span>uninstall<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>pip<span class="w"> </span>uninstall<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>pipx<span class="w"> </span>uninstall<span class="w"> </span>httptap
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<hr />
-<h2 id="shell-completions">Shell Completions<a class="headerlink" href="#shell-completions" title="Permanent link">&para;</a></h2>
-<p>httptap supports shell completions for bash and zsh.</p>
-<h3 id="homebrew-installation">Homebrew Installation<a class="headerlink" href="#homebrew-installation" title="Permanent link">&para;</a></h3>
-<p>If you installed httptap via Homebrew, <strong>completions are automatically configured</strong>. Simply restart your shell:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Restart your shell</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="nb">exec</span><span class="w"> </span><span class="nv">$SHELL</span>
-</span></code></pre></div>
-<p>Homebrew automatically places completion scripts in:</p>
-<ul>
-<li><strong>Bash</strong>: <code>$(brew --prefix)/etc/bash_completion.d/</code></li>
-<li><strong>Zsh</strong>: <code>$(brew --prefix)/share/zsh/site-functions/</code></li>
-</ul>
-<div class="admonition success">
-<p class="admonition-title">No additional setup required</p>
-<p>Homebrew handles all completion setup automatically. Just restart your shell and start using Tab completion!</p>
-</div>
-<h3 id="python-package-installation">Python Package Installation<a class="headerlink" href="#python-package-installation" title="Permanent link">&para;</a></h3>
-<p>If you installed httptap via <code>pip</code>, <code>uv</code>, or <code>pipx</code>, you need to install the optional <code>completion</code> extras:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="5:3"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><input id="__tabbed_5_2" name="__tabbed_5" type="radio" /><input id="__tabbed_5_3" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1">Using uv</label><label for="__tabbed_5_2">Using pip</label><label for="__tabbed_5_3">Using pipx</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;httptap[completion]&quot;</span>
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;httptap[completion]&quot;</span>
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>pipx<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;httptap[completion]&quot;</span>
-</span></code></pre></div>
-</div>
-</div>
-</div>
-<h4 id="activation">Activation<a class="headerlink" href="#activation" title="Permanent link">&para;</a></h4>
+<p>The JSON export shows <code>network.tls_verified: false</code> and, when <code>--cacert</code> is
+used, <code>network.tls_custom_ca: true</code>.</p>
+<h3 id="certificate-shows-cert_days_left-null-or-negative">Certificate shows <code>cert_days_left: null</code> or negative<a class="headerlink" href="#certificate-shows-cert_days_left-null-or-negative" title="Permanent link">&para;</a></h3>
+<p><code>cert_days_left</code> is parsed from the leaf certificate's <code>notAfter</code> field. A
+<code>null</code> value means the inspector couldn't fetch/parse the certificate (usually
+TLS aborted before a cert was received). A <strong>negative</strong> value means the
+certificate is already expired.</p>
+<h3 id="-ignore-ssl-still-fails-with-dh_key_too_small-wrong_version_number"><code>--ignore-ssl</code> still fails with <code>DH_KEY_TOO_SMALL</code> / <code>WRONG_VERSION_NUMBER</code><a class="headerlink" href="#-ignore-ssl-still-fails-with-dh_key_too_small-wrong_version_number" title="Permanent link">&para;</a></h3>
+<p>Modern OpenSSL builds drop some ciphers and DH parameters for safety.
+<code>--ignore-ssl</code> relaxes verification and protocol constraints but can't bring
+back cipher suites (RC4, 3DES, weak DH) that were removed from the binary.
+Workarounds: use an older curl, a proxy that terminates TLS, or rebuild OpenSSL.</p>
+<h2 id="proxies">Proxies<a class="headerlink" href="#proxies" title="Permanent link">&para;</a></h2>
+<h3 id="-proxy-is-ignored"><code>--proxy</code> is ignored<a class="headerlink" href="#-proxy-is-ignored" title="Permanent link">&para;</a></h3>
+<p>The explicit <code>-x/--proxy</code> flag always wins over environment variables. Check:</p>
 <ol>
-<li>
-<p>Activate your virtual environment (if using venv):</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
-</span></code></pre></div>
-</li>
-<li>
-<p>Run the global activation script:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>activate-global-python-argcomplete
-</span></code></pre></div>
-</li>
-<li>
-<p>Restart your shell.</p>
-</li>
+<li>You didn't pass an empty string by mistake — <code>--proxy ""</code> <strong>explicitly
+   disables</strong> env-based proxies and forces direct connection.</li>
+<li>The scheme matches the target — <code>HTTPS_PROXY</code> is used for <code>https://</code> URLs,
+   <code>HTTP_PROXY</code> for <code>http://</code>.</li>
+<li>The target host isn't matched by <code>NO_PROXY</code>. Check the <code>proxy_source</code> field
+   in the JSON export; if it says <code>env:no_proxy</code>, your host is excluded.</li>
 </ol>
-<h3 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h3>
-<p>Once installed and activated, you can use <code>Tab</code> to autocomplete commands and options:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1"># Complete command options</span>
-</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>httptap<span class="w"> </span>--&lt;TAB&gt;
-</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>
-</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="c1"># Complete after typing partial option</span>
-</span><span id="__span-24-5"><a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>httptap<span class="w"> </span>--fol&lt;TAB&gt;
-</span><span id="__span-24-6"><a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="c1"># Completes to: httptap --follow</span>
-</span><span id="__span-24-7"><a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a>
-</span><span id="__span-24-8"><a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="c1"># Complete multiple options</span>
-</span><span id="__span-24-9"><a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>httptap<span class="w"> </span>--follow<span class="w"> </span>--time&lt;TAB&gt;
-</span><span id="__span-24-10"><a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a><span class="c1"># Completes to: httptap --follow --timeout</span>
-</span></code></pre></div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The global activation script provides argument completions for bash and zsh only. Other shells are not covered by the script and must be configured separately.</p>
-</div>
-<hr />
-<h2 id="whats-next">What's Next?<a class="headerlink" href="#whats-next" title="Permanent link">&para;</a></h2>
-<div class="grid cards">
+<h3 id="no_proxy-pattern-reference"><code>NO_PROXY</code> pattern reference<a class="headerlink" href="#no_proxy-pattern-reference" title="Permanent link">&para;</a></h3>
 <ul>
-<li>
-<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M11 15H6l7-14v8h5l-7 14z"/></svg></span> <strong><a href="../quick-start/">Quick Start Guide</a></strong></p>
-<hr />
-<p>Learn the basics with simple examples</p>
-</li>
-<li>
-<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 19V7H4v12zm0-16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm-7 14v-2h5v2zm-3.42-4L5.57 9H8.4l3.3 3.3c.39.39.39 1.03 0 1.42L8.42 17H5.59z"/></svg></span> <strong><a href="../../usage/basic/">Basic Usage</a></strong></p>
-<hr />
-<p>Complete command-line reference</p>
-</li>
-<li>
-<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 7H5a2 2 0 0 0-2 2v8h2v-4h2v4h2V9a2 2 0 0 0-2-2m0 4H5V9h2m7-2h-4v10h2v-4h2a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2m0 4h-2V9h2m6 0v6h1v2h-4v-2h1V9h-1V7h4v2Z"/></svg></span> <strong><a href="../../api/overview/">API Reference</a></strong></p>
-<hr />
-<p>Use httptap programmatically</p>
-</li>
+<li>Exact host: <code>api.internal.example</code></li>
+<li>Domain suffix: <code>.internal.example</code> (matches <code>foo.internal.example</code>)</li>
+<li>Wildcard: <code>*</code> (excludes everything)</li>
+<li>Multiple entries: comma-separated, whitespace trimmed</li>
 </ul>
-</div>
+<p>IP/CIDR matching is <strong>not</strong> supported — this follows the widely-adopted curl
+behavior.</p>
+<h2 id="http2">HTTP/2<a class="headerlink" href="#http2" title="Permanent link">&para;</a></h2>
+<h3 id="server-responds-with-http11-even-though-no-http2-wasnt-passed">Server responds with HTTP/1.1 even though <code>--no-http2</code> wasn't passed<a class="headerlink" href="#server-responds-with-http11-even-though-no-http2-wasnt-passed" title="Permanent link">&para;</a></h3>
+<p>HTTP/2 requires ALPN negotiation during the TLS handshake. If:</p>
+<ul>
+<li>the server does not advertise <code>h2</code> in ALPN, <strong>or</strong></li>
+<li>the target uses plain <code>http://</code> (h2c is not supported),</li>
+</ul>
+<p>httptap falls back to HTTP/1.1. Check <code>network.http_version</code> in the JSON
+export.</p>
+<h3 id="how-do-i-force-http11">How do I force HTTP/1.1?<a class="headerlink" href="#how-do-i-force-http11" title="Permanent link">&para;</a></h3>
+<p>Use <code>--no-http2</code> (curl-compatible alias <code>--http1.1</code>). This disables ALPN h2
+negotiation entirely.</p>
+<h2 id="timing">Timing<a class="headerlink" href="#timing" title="Permanent link">&para;</a></h2>
+<h3 id="timingis_estimated-true-what-does-it-mean"><code>timing.is_estimated: true</code> — what does it mean?<a class="headerlink" href="#timingis_estimated-true-what-does-it-mean" title="Permanent link">&para;</a></h3>
+<p>httptap normally gets phase timings from <code>httpcore</code> trace hooks. When those
+hooks are unavailable (e.g., a custom <code>RequestExecutor</code> that bypasses them,
+or certain HTTP/2 connection-reuse paths), httptap falls back to splitting the
+total elapsed time using heuristics. The breakdown is still directionally
+correct but less precise than the default path.</p>
+<h3 id="why-do-two-consecutive-runs-show-wildly-different-dns_ms">Why do two consecutive runs show wildly different <code>dns_ms</code>?<a class="headerlink" href="#why-do-two-consecutive-runs-show-wildly-different-dns_ms" title="Permanent link">&para;</a></h3>
+<p>The system resolver caches entries. The first request pays the full RTT to
+your DNS server; subsequent requests hit the cache (often sub-millisecond).
+To bypass caches, supply a custom resolver via the Python API or flush the
+local cache (e.g., <code>sudo dscacheutil -flushcache</code> on macOS, <code>resolvectl flush-caches</code>
+on systemd).</p>
+<h3 id="ttfb_ms-is-zero-or-lower-than-connect_ms"><code>ttfb_ms</code> is zero or lower than <code>connect_ms</code><a class="headerlink" href="#ttfb_ms-is-zero-or-lower-than-connect_ms" title="Permanent link">&para;</a></h3>
+<p>On connection reuse (keep-alive for subsequent redirect steps, HTTP/2 stream
+multiplexing) there's no new TCP connect for that step — <code>connect_ms</code> will be
+<code>0</code> or very small. <code>ttfb_ms</code> measures time until the first response byte on
+that specific request; comparing it to <code>connect_ms</code> across steps is expected
+to look odd.</p>
+<h2 id="output">Output<a class="headerlink" href="#output" title="Permanent link">&para;</a></h2>
+<h3 id="no-colors-in-my-terminal">No colors in my terminal<a class="headerlink" href="#no-colors-in-my-terminal" title="Permanent link">&para;</a></h3>
+<p>httptap honors the <a href="https://no-color.org"><code>NO_COLOR</code></a> convention and Rich's
+TTY detection:</p>
+<ul>
+<li>Unset <code>NO_COLOR</code> if it's set.</li>
+<li>Piping stdout to a file or another process disables colors; set
+  <code>FORCE_COLOR=1</code> to override.</li>
+<li><code>TERM=dumb</code> also disables rendering.</li>
+</ul>
+<h3 id="-metrics-only-stopped-showing-a-proxy-field"><code>--metrics-only</code> stopped showing a <code>proxy=</code> field<a class="headerlink" href="#-metrics-only-stopped-showing-a-proxy-field" title="Permanent link">&para;</a></h3>
+<p>It didn't — the field is always present. Old screenshots/examples may predate
+the change. Expected format:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
+</span></code></pre></div>
+<p>Sources for <code>proxy</code>: <code>direct</code>, <code>none</code> (NO_PROXY hit), <code>disabled</code> (<code>--proxy ""</code>),
+<code>&lt;url&gt;</code> with a <code>proxy_from=...</code> hint.</p>
+<h2 id="scripting-ci">Scripting &amp; CI<a class="headerlink" href="#scripting-ci" title="Permanent link">&para;</a></h2>
+<h3 id="what-exit-codes-should-i-check">What exit codes should I check?<a class="headerlink" href="#what-exit-codes-should-i-check" title="Permanent link">&para;</a></h3>
+<p>See the <a href="https://github.com/ozeranskii/httptap#exit-codes">Exit Codes</a> section
+in the README. Typical CI pattern: treat <code>75</code> (network / TLS, transient) as
+retryable, fail hard on <code>64</code> (usage) and <code>70</code> (bug).</p>
+<h3 id="can-httptap-emit-prometheus-metrics">Can httptap emit Prometheus metrics?<a class="headerlink" href="#can-httptap-emit-prometheus-metrics" title="Permanent link">&para;</a></h3>
+<p>Not out of the box. Use <code>--metrics-only</code> and post-process with <code>awk</code>/<code>jq</code>, or
+parse the <code>--json</code> export. A dedicated exporter is on the roadmap — track
+<a href="https://github.com/ozeranskii/httptap/issues">issue tracker</a> for updates.</p>
+<h2 id="python-api">Python API<a class="headerlink" href="#python-api" title="Permanent link">&para;</a></h2>
+<h3 id="importerror-cannot-import-name-httpmethod-from-httptap"><code>ImportError: cannot import name 'HTTPMethod' from 'httptap'</code><a class="headerlink" href="#importerror-cannot-import-name-httpmethod-from-httptap" title="Permanent link">&para;</a></h3>
+<p><code>HTTPMethod</code> lives in <code>httptap.constants</code>, not the top-level namespace:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">httptap</span><span class="w"> </span><span class="kn">import</span> <span class="n">HTTPTapAnalyzer</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">httptap.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">HTTPMethod</span>
+</span></code></pre></div>
+<h3 id="my-custom-resolver-isnt-being-called">My custom resolver isn't being called<a class="headerlink" href="#my-custom-resolver-isnt-being-called" title="Permanent link">&para;</a></h3>
+<p><code>HTTPTapAnalyzer</code> uses the injected resolver only for the diagnostic DNS lookup
+timing. Actual connection resolution is still performed by <code>httpx</code>/<code>httpcore</code>.
+To route the real connection through your resolver, implement a custom
+<code>RequestExecutor</code> as well.</p>
+<hr />
+<h2 id="still-stuck">Still stuck?<a class="headerlink" href="#still-stuck" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Run with <code>--metrics-only</code> and include the full output in your report.</li>
+<li>Run with <code>--json report.json</code> and attach the report (redact auth headers).</li>
+<li>Confirm the version — <code>httptap --version</code> — we only support the latest
+  minor.</li>
+</ul>
 
 
 
 
 
 
+
+  
+  
 
 
 
@@ -1924,10 +2077,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
