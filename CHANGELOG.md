@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.9] - 2026-04-12
+
+### Bug Fixes
+
+- **cli:** Emit one line per step for --compact ([adc29ae](https://github.com/ozeranskii/httptap/commit/adc29ae6d0ca5e4111ba9f1fbc6043dee92d08da))
+
+### Documentation
+
+- Fix mkdocs build on Python 3.14 ([1b9281f](https://github.com/ozeranskii/httptap/commit/1b9281f77347cb03f81371febc8301c62dbb8f89))
+
+
 ## [0.4.8] - 2026-04-12
 
 ### Documentation

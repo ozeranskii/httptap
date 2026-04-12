@@ -535,7 +535,7 @@ wheels = [
 
 [[package]]
 name = "httptap"
-version = "0.4.8"
+version = "0.4.9"
 source = { editable = "." }
 dependencies = [
     { name = "dnspython" },
