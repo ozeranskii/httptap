@@ -29,6 +29,9 @@
       <a href="https://scorecard.dev/viewer/?uri=github.com/ozeranskii/httptap">
         <img src="https://api.scorecard.dev/projects/github.com/ozeranskii/httptap/badge" alt="OpenSSF Scorecard" />
       </a><br />
+      <a href="https://www.bestpractices.dev/projects/12474">
+        <img src="https://www.bestpractices.dev/projects/12474/badge" alt="OpenSSF Best Practices" />
+      </a><br />
       <a href="https://codecov.io/github/ozeranskii/httptap">
         <img src="https://codecov.io/github/ozeranskii/httptap/graph/badge.svg?token=OFOHOI1X5J" alt="Coverage" />
       </a><br />
