@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/httptap-banner.svg" alt="httptap" width="100%" />
+</p>
+
 # httptap
 
 <table>
@@ -158,7 +162,7 @@ Once completions are installed, you can use `Tab` to autocomplete commands and o
 ```shell
 # Complete command options
 httptap --<TAB>
-# Shows: --follow, --timeout, --no-http2, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --version, --help
+# Shows: --method, --data, --follow, --timeout, --no-http2, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --version, --help
 
 # Complete after typing partial option
 httptap --fol<TAB>
@@ -577,6 +581,6 @@ details.
 
 - Built on the shoulders of fantastic
   libraries: [httpx](https://www.python-httpx.org/), [httpcore](https://github.com/encode/httpcore),
-  and [Rich](https://github.com/Textualize/rich).
+  [dnspython](https://www.dnspython.org/), and [Rich](https://github.com/Textualize/rich).
 - Inspired by the tooling ecosystem around web performance (e.g., DevTools waterfalls, `curl --trace`).
 - Special thanks to everyone who opens issues, shares ideas, or contributes patches.

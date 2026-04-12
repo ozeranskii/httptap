@@ -37,6 +37,21 @@ analyzer = HTTPTapAnalyzer()
 steps = analyzer.analyze_url("https://httpbin.io")
 ```
 
+`analyze_url` also accepts keyword-only arguments for non-GET requests:
+
+```python
+from httptap import HTTPTapAnalyzer
+from httptap.constants import HTTPMethod
+
+analyzer = HTTPTapAnalyzer(follow_redirects=True, timeout=10.0)
+steps = analyzer.analyze_url(
+    "https://httpbin.io/post",
+    method=HTTPMethod.POST,
+    content=b'{"name": "John"}',
+    headers={"Content-Type": "application/json"},
+)
+```
+
 ### StepMetrics
 
 Data model representing a single request/response cycle.
