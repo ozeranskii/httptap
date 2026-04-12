@@ -4,7 +4,7 @@ httptap is licensed under the Apache License 2.0.
 
 ## Apache License 2.0
 
-```
+```text
 Copyright 2025-2026 Sergei Ozeranskii
 
 Licensed under the Apache License, Version 2.0 (the "License");
