@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.8] - 2026-04-12
+
+### Documentation
+
+- **readme:** Add project banner to README and docs index ([c74dda6](https://github.com/ozeranskii/httptap/commit/c74dda60bc237b7ab9f5b32c314d8a96e7fdaf1d))
+- **readme:** Add OpenSSF Best Practices passing badge ([a110d21](https://github.com/ozeranskii/httptap/commit/a110d21dc99cf070a78131f7b78db5b2778b7e6d))
+
+### Miscellaneous Tasks
+
+- **ci:** Add zizmor and harden GitHub Actions workflows ([15e4451](https://github.com/ozeranskii/httptap/commit/15e445177a30cd1a0f53e7ba9d83ee45059caa4f))
+- **release:** Attest build provenance for release artifacts ([678df32](https://github.com/ozeranskii/httptap/commit/678df32b63da1811976d6494f573f360a5e1242a))
+- **release:** Auto-bump CITATION.cff and refresh SECURITY.md ([c80cf60](https://github.com/ozeranskii/httptap/commit/c80cf60a5699fa42d0ea32ef2db7882d38eb5760))
+- **release:** Fix git-cliff install and stale release notes ([94aa412](https://github.com/ozeranskii/httptap/commit/94aa4128e642413001743ebc429dbd74236a5ff3))
+
+
 ## [0.4.7] - 2026-03-30
 
 ### Miscellaneous Tasks
