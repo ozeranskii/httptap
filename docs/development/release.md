@@ -53,12 +53,7 @@ The release process is triggered manually via GitHub Actions.
    ```
    Regenerates `uv.lock` so it stays in sync with the new version
 
-3. **Assurance-case review stamp**
-   The `**Last reviewed:** YYYY-MM-DD for httptap X.Y.Z.` line in
-   `docs/security/assurance-case.md` is bumped to the release date and
-   version.
-
-4. **Changelog Generation**
+3. **Changelog Generation**
    ```bash
    git cliff --tag v0.2.0 --unreleased --prepend CHANGELOG.md
    ```

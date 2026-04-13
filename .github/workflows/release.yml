@@ -103,15 +103,6 @@ jobs:
           DATE=$(date -u +%Y-%m-%d)
           yq -i ".version = \"${VERSION}\" | .\"date-released\" = \"${DATE}\"" CITATION.cff
 
-      - name: Refresh security assurance-case review stamp
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          DATE=$(date -u +%Y-%m-%d)
-          FILE=docs/security/assurance-case.md
-          sed -i -E "s|^\*\*Last reviewed:\*\* .+$|**Last reviewed:** ${DATE} for httptap ${VERSION}.|" "$FILE"
-          grep -q "^\*\*Last reviewed:\*\* ${DATE} for httptap ${VERSION}\.$" "$FILE"
-
       - name: Ensure changelog exists
         run: touch ${CHANGELOG_FILE}
 
@@ -142,7 +133,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          git add pyproject.toml uv.lock CITATION.cff docs/security/assurance-case.md ${CHANGELOG_FILE}
+          git add pyproject.toml uv.lock CITATION.cff ${CHANGELOG_FILE}
           git commit -S -m "chore: release v${VERSION}"
 
       - name: Create and push signed tag
