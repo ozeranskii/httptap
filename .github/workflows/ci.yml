@@ -196,8 +196,10 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
 
       - name: Smoke test (httptap --version)
+        env:
+          PLATFORM: ${{ matrix.platform }}
         run: |
-          OUTPUT=$(docker run --rm --platform=${{ matrix.platform }} httptap:ci-smoke --version)
+          OUTPUT=$(docker run --rm --platform="$PLATFORM" httptap:ci-smoke --version)
           echo "$OUTPUT"
           echo "$OUTPUT" | grep -E '^httptap [0-9]+\.[0-9]+\.[0-9]+'
 
