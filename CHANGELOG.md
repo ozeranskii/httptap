@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-04-13
+
+### Miscellaneous Tasks
+
+- **release:** Harden supply chain with signed commits, container images, and TestPyPI ([ad654ec](https://github.com/ozeranskii/httptap/commit/ad654ec854b152a087dc573e4dbbe460141b0eb5))
+- **infra:** Avoid template expansion in container smoke test ([471ae15](https://github.com/ozeranskii/httptap/commit/471ae150f587c3b50509d0254eaf4c1ea169bffd))
+- **infra:** Use correct uv invocation to run argparse-manpage in release workflow ([17342f6](https://github.com/ozeranskii/httptap/commit/17342f688de244cc7f5bb8cc2fcd53dcf71aabbd))
+- **infra:** Use --module when running argparse-manpage in release workflow ([bb0fdbf](https://github.com/ozeranskii/httptap/commit/bb0fdbfc5ef3d95f8ee8258abace97325c71980c))
+
+
 ## [0.5.0] - 2026-04-12
 
 ### Features
