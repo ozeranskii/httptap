@@ -226,7 +226,7 @@ jobs:
         run: |
           mkdir -p man
           uv run --with 'argparse-manpage>=4.7' argparse-manpage \
-            --pyfile httptap/cli.py \
+            --module httptap.cli \
             --function create_parser \
             --project-name httptap \
             --version "${VERSION}" \
