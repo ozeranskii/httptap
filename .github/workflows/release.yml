@@ -225,7 +225,7 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           mkdir -p man
-          uv tool run --from 'argparse-manpage>=4.7' argparse-manpage \
+          uv run --with 'argparse-manpage>=4.7' argparse-manpage \
             --pyfile httptap/cli.py \
             --function create_parser \
             --project-name httptap \
