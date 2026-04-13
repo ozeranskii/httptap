@@ -235,3 +235,4 @@ jobs:
           TYPE_CHECK_RESULT: ${{ needs.type-check.result }}
           TEST_RESULT: ${{ needs.test.result }}
           BUILD_RESULT: ${{ needs.build.result }}
+          CONTAINER_BUILD_RESULT: ${{ needs.container-build.result }}
