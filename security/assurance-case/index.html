@@ -1536,7 +1536,7 @@
 project believes its security properties hold, not just <strong>what</strong> those
 properties are. It is structured according to the OpenSSF Best Practices
 silver-level <code>assurance_case</code> criterion.</p>
-<p><strong>Last reviewed:</strong> 2026-04-12 for httptap 0.4.7.</p>
+<p><strong>Last reviewed:</strong> 2026-04-13 for httptap 0.5.0.</p>
 <p>The assurance case is a living document; it is reviewed at every major
 release and whenever the threat landscape or feature set changes
 materially. Proposals for amendments are accepted as pull requests against
@@ -1586,7 +1586,7 @@ is mapped to supporting arguments in the sections below.</p>
 </tr>
 <tr>
 <td>SR-5</td>
-<td>Release artifacts are signed and their build provenance is verifiable.</td>
+<td>Release artifacts (PyPI wheels/sdist, container images, git tags and release commits) are signed and their build provenance is verifiable.</td>
 <td>Protects users from tampered distributions.</td>
 </tr>
 <tr>
@@ -1874,14 +1874,23 @@ upstream.</p>
 <h2 id="supply-chain-assurance">Supply-Chain Assurance<a class="headerlink" href="#supply-chain-assurance" title="Permanent link">&para;</a></h2>
 <p>Supporting the release-integrity property (SR-5):</p>
 <ul>
-<li><strong>Publishing</strong>: PyPI via GitHub OIDC Trusted Publishing — no long-lived
-  PyPI tokens anywhere.</li>
+<li><strong>Publishing</strong>: PyPI (and TestPyPI as a pre-production smoke test) via
+  GitHub OIDC Trusted Publishing — no long-lived PyPI tokens anywhere.
+  PEP 740 attestations are surfaced on PyPI as "Verified publisher".</li>
+<li><strong>Container images</strong>: multi-arch (linux/amd64, linux/arm64) images are
+  built with Buildx and pushed to GHCR, signed keylessly with cosign, and
+  accompanied by SLSA build provenance attached to the registry.</li>
+<li><strong>Git signing</strong>: release commits and annotated tags are signed keylessly
+  with <a href="https://github.com/sigstore/gitsign">gitsign</a> (x.509 via Fulcio</li>
+<li>Rekor transparency log), using the release workflow's OIDC identity.</li>
 <li><strong>Signing</strong>: Sigstore keyless signing through
-  <code>actions/attest-build-provenance</code>. Signing keys are short-lived,
-  issued per-run by Fulcio, and verifiable via the Rekor transparency
-  log.</li>
-<li><strong>Provenance</strong>: SLSA v1.0 attestation accompanies every wheel and
-  sdist.</li>
+  <code>actions/attest-build-provenance</code> and cosign. Signing keys are
+  short-lived, issued per-run by Fulcio, and verifiable via the Rekor
+  transparency log.</li>
+<li><strong>Provenance</strong>: SLSA v1.0 attestation accompanies every wheel, sdist,
+  and container image digest.</li>
+<li><strong>Dockerfile linting</strong>: <code>hadolint</code> runs on every PR with a warning-level
+  failure threshold.</li>
 <li><strong>Pinning</strong>: every GitHub Action in every workflow is pinned by SHA;
   enforced by Scorecard Pinned-Dependencies and zizmor pedantic on every
   PR.</li>
@@ -1903,9 +1912,6 @@ upstream.</p>
 <p>These are documented rather than mitigated. They represent trade-offs
 that are explicit rather than oversights.</p>
 <ul>
-<li><strong>Git tags are unsigned.</strong> Release <em>artifacts</em> are Sigstore-signed, which
-  is strictly stronger than tag signatures, but the tag-signing criterion
-  is formally unmet; see ROADMAP.md.</li>
 <li><strong>Solo maintainer.</strong> Bus factor is 1 (tracked in GOVERNANCE.md). The
   continuity plan mitigates single-point-of-failure for operations but not
   for code review: a single reviewer can merge changes without a second
@@ -1932,6 +1938,10 @@ that are explicit rather than oversights.</p>
 <tr>
 <td>2026-04-12</td>
 <td>Initial assurance case for httptap 0.4.7 (silver submission).</td>
+</tr>
+<tr>
+<td>2026-04-13</td>
+<td>OSS hardening for 0.5.0: gitsign-signed release commits/tags, TestPyPI pre-flight, signed GHCR container images with SLSA provenance, hadolint in CI, man-page artifact.</td>
 </tr>
 </tbody>
 </table>

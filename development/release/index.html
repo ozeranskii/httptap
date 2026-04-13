@@ -1217,10 +1217,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-publish-to-pypi" class="md-nav__link">
+  <a href="#3-publish-to-testpypi" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Publish to PyPI
+        3. Publish to TestPyPI
       
     </span>
   </a>
@@ -1228,10 +1228,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-create-github-release" class="md-nav__link">
+  <a href="#4-publish-to-pypi" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Create GitHub Release
+        4. Publish to PyPI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-publish-container-image-to-ghcr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Publish container image to GHCR
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-create-github-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Create GitHub Release
       
     </span>
   </a>
@@ -1803,10 +1825,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-publish-to-pypi" class="md-nav__link">
+  <a href="#3-publish-to-testpypi" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Publish to PyPI
+        3. Publish to TestPyPI
       
     </span>
   </a>
@@ -1814,10 +1836,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-create-github-release" class="md-nav__link">
+  <a href="#4-publish-to-pypi" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Create GitHub Release
+        4. Publish to PyPI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-publish-container-image-to-ghcr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Publish container image to GHCR
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-create-github-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Create GitHub Release
       
     </span>
   </a>
@@ -2135,13 +2179,15 @@
 <p>This document describes the automated release process for httptap.</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>Releases are fully automated using GitHub Actions. The workflow handles versioning, changelog generation, testing,
-building, and publishing to PyPI.</p>
+building, signing, publishing to TestPyPI and PyPI, and pushing a
+signed container image to GHCR.</p>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <p>Before creating a release, ensure:</p>
 <ol>
-<li><strong>GitHub Environment</strong> - <code>pypi</code> environment configured in repository settings</li>
-<li><strong>PyPI Trusted Publishing</strong> - Configured for <code>ozeranskii/httptap</code> repository</li>
+<li><strong>GitHub Environments</strong> - <code>release</code>, <code>testpypi</code>, and <code>pypi</code> environments configured in repository settings</li>
+<li><strong>PyPI Trusted Publishing</strong> - Configured for both PyPI and TestPyPI (OIDC, no tokens)</li>
 <li><strong>Deploy Key</strong> - SSH deploy key with write access (for bypassing branch protection)</li>
+<li><strong>GHCR access</strong> - <code>packages: write</code> permission on the release job (granted per-workflow)</li>
 <li><strong>All tests passing</strong> - CI must be green on main branch</li>
 </ol>
 <h2 id="release-workflow">Release Workflow<a class="headerlink" href="#release-workflow" title="Permanent link">&para;</a></h2>
@@ -2205,12 +2251,15 @@ building, and publishing to PyPI.</p>
    Generates changelog from conventional commits</p>
 </li>
 <li>
-<p><strong>Commit and Tag</strong>
-   <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore: release v0.2.0&quot;</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>git<span class="w"> </span>tag<span class="w"> </span>-a<span class="w"> </span>v0.2.0<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Release v0.2.0&quot;</span>
+<p><strong>Signed Commit and Tag</strong>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>git<span class="w"> </span>commit<span class="w"> </span>-S<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore: release v0.2.0&quot;</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>git<span class="w"> </span>tag<span class="w"> </span>-s<span class="w"> </span>v0.2.0<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Release v0.2.0&quot;</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>HEAD
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>v0.2.0
-</span></code></pre></div></p>
+</span></code></pre></div>
+   Keyless Sigstore signing via <a href="https://github.com/sigstore/gitsign">gitsign</a>:
+   a short-lived Fulcio certificate is issued through the workflow's OIDC
+   identity, so no long-lived GPG keys are required.</p>
 </li>
 <li>
 <p><strong>Build</strong>
@@ -2220,17 +2269,34 @@ building, and publishing to PyPI.</p>
 </span></code></pre></div></p>
 </li>
 <li>
+<p><strong>Publish to TestPyPI</strong></p>
+<ul>
+<li>Uploads to TestPyPI first via OIDC Trusted Publishing, with PEP 740
+  attestations, as a smoke test before the production push.</li>
+</ul>
+</li>
+<li>
 <p><strong>Publish to PyPI</strong></p>
 <ul>
 <li>Uses OIDC Trusted Publishing (no tokens required)</li>
-<li>Uploads wheel and source distribution</li>
+<li>Uploads wheel and source distribution with PEP 740 attestations</li>
+</ul>
+</li>
+<li>
+<p><strong>Publish container image to GHCR</strong></p>
+<ul>
+<li>Builds multi-arch (linux/amd64, linux/arm64) image</li>
+<li>Pushes to <code>ghcr.io/ozeranskii/httptap</code> with <code>{version}</code>, <code>{major}.{minor}</code>,
+  <code>{major}</code>, and <code>latest</code> tags</li>
+<li>Signs the image with cosign (keyless Sigstore)</li>
+<li>Attaches SLSA build provenance via <code>actions/attest-build-provenance</code></li>
 </ul>
 </li>
 <li>
 <p><strong>GitHub Release</strong></p>
 <ul>
 <li>Creates release with generated notes</li>
-<li>Attaches build artifacts</li>
+<li>Attaches build artifacts, SBOMs, VEX, and the man page</li>
 </ul>
 </li>
 </ol>
@@ -2253,18 +2319,30 @@ building, and publishing to PyPI.</p>
 <li>Builds wheel and sdist</li>
 <li>Generates SBOM in CycloneDX and SPDX JSON formats via <a href="https://github.com/anchore/syft">Syft</a></li>
 <li>Copies the versioned OpenVEX document from <code>.vex/httptap.openvex.json</code> into the <code>sbom/</code> directory as <code>httptap-X.Y.Z.openvex.json</code></li>
-<li>Uploads <code>dist/</code> and <code>sbom/</code> artifacts separately</li>
+<li>Generates a gzipped <code>man(1)</code> page with <a href="https://github.com/praiskup/argparse-manpage">argparse-manpage</a></li>
+<li>Uploads <code>dist/</code>, <code>sbom/</code>, and <code>man/</code> artifacts separately</li>
 </ul>
-<h4 id="3-publish-to-pypi">3. Publish to PyPI<a class="headerlink" href="#3-publish-to-pypi" title="Permanent link">&para;</a></h4>
+<h4 id="3-publish-to-testpypi">3. Publish to TestPyPI<a class="headerlink" href="#3-publish-to-testpypi" title="Permanent link">&para;</a></h4>
 <ul>
-<li>Downloads build artifacts</li>
-<li>Publishes using Trusted Publishing</li>
+<li>Downloads <code>dist/</code> artifacts</li>
+<li>Publishes via TestPyPI OIDC Trusted Publishing with PEP 740 attestations</li>
 </ul>
-<h4 id="4-create-github-release">4. Create GitHub Release<a class="headerlink" href="#4-create-github-release" title="Permanent link">&para;</a></h4>
+<h4 id="4-publish-to-pypi">4. Publish to PyPI<a class="headerlink" href="#4-publish-to-pypi" title="Permanent link">&para;</a></h4>
 <ul>
-<li>Downloads <code>dist/</code> and <code>sbom/</code> artifacts</li>
+<li>Runs only after TestPyPI succeeds</li>
+<li>Publishes using Trusted Publishing with PEP 740 attestations</li>
+</ul>
+<h4 id="5-publish-container-image-to-ghcr">5. Publish container image to GHCR<a class="headerlink" href="#5-publish-container-image-to-ghcr" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Builds multi-arch image with Buildx + QEMU</li>
+<li>Signs with cosign (keyless Sigstore OIDC)</li>
+<li>Attaches SLSA build provenance</li>
+</ul>
+<h4 id="6-create-github-release">6. Create GitHub Release<a class="headerlink" href="#6-create-github-release" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Downloads <code>dist/</code>, <code>sbom/</code>, and <code>man/</code> artifacts</li>
 <li>Creates GitHub release with changelog notes</li>
-<li>Attaches wheel, sdist, SBOM (<code>*.cdx.json</code>, <code>*.spdx.json</code>), and VEX (<code>*.openvex.json</code>) assets</li>
+<li>Attaches wheel, sdist, SBOM (<code>*.cdx.json</code>, <code>*.spdx.json</code>), VEX (<code>*.openvex.json</code>), and the man page</li>
 </ul>
 <h2 id="changelog-generation">Changelog Generation<a class="headerlink" href="#changelog-generation" title="Permanent link">&para;</a></h2>
 <p>Changelogs are automatically generated using <a href="https://git-cliff.org/">git-cliff</a> based on conventional commits.</p>
