@@ -703,11 +703,6 @@ def test_no_auto_post_when_method_explicitly_specified(
     # Note: logger.warning goes to stderr, not stdout
 
 
-# ---------------------------------------------------------------------------
-# SLO integration tests
-# ---------------------------------------------------------------------------
-
-
 class _SLOAnalyzerStub:
     """Minimal analyzer that returns one step with caller-specified timing."""
 

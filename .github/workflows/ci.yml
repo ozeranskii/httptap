@@ -37,6 +37,12 @@ jobs:
         with:
           args: format --check .
 
+      - name: Lint Dockerfile with hadolint
+        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning
+
   type-check:
     name: Type Check
     runs-on: ubuntu-latest

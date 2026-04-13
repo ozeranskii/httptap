@@ -55,6 +55,24 @@ No system dependencies beyond standard networking are required.
     pipx install httptap
     ```
 
+## Running via Container
+
+Signed multi-arch (linux/amd64, linux/arm64) images are published to GitHub Container Registry on every release:
+
+```bash
+docker run --rm ghcr.io/ozeranskii/httptap:latest https://example.com
+```
+
+Verify the image signature with [cosign](https://docs.sigstore.dev/cosign/overview/) (keyless Sigstore):
+
+```bash
+cosign verify ghcr.io/ozeranskii/httptap:latest \
+  --certificate-identity-regexp 'https://github\.com/ozeranskii/httptap/\.github/workflows/release\.yml@.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+Pinned major/minor tags (e.g. `:0`, `:0.5`, `:0.5.0`) are also published.
+
 ## Installing from Source
 
 ### Clone the repository

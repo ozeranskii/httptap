@@ -10,7 +10,7 @@ project believes its security properties hold, not just **what** those
 properties are. It is structured according to the OpenSSF Best Practices
 silver-level `assurance_case` criterion.
 
-**Last reviewed:** 2026-04-12 for httptap 0.4.7.
+**Last reviewed:** 2026-04-13 for httptap 0.5.0.
 
 The assurance case is a living document; it is reviewed at every major
 release and whenever the threat landscape or feature set changes
@@ -40,7 +40,7 @@ is mapped to supporting arguments in the sections below.
 | SR-2 | Plaintext HTTP, weakened TLS, or custom CA bundles require an explicit user opt-in. | Ensures insecure configurations are always deliberate. |
 | SR-3 | Credentials supplied by the user (e.g., `Authorization` headers) are forwarded only to the original URL and are not leaked to redirect targets on different hosts. | Prevents credential theft via open redirects. |
 | SR-4 | The tool does not execute content served by the remote host. | No code-execution primitive from the server. |
-| SR-5 | Release artifacts are signed and their build provenance is verifiable. | Protects users from tampered distributions. |
+| SR-5 | Release artifacts (PyPI wheels/sdist, container images, git tags and release commits) are signed and their build provenance is verifiable. | Protects users from tampered distributions. |
 | SR-6 | All CI workflow tokens follow least privilege and are pinned by SHA. | Reduces the attack surface of the build pipeline. |
 | SR-7 | Supply chain (dependencies, GitHub Actions, Docker images) is monitored for known vulnerabilities. | Timely patching of upstream weaknesses. |
 
@@ -154,14 +154,23 @@ upstream.
 
 Supporting the release-integrity property (SR-5):
 
-- **Publishing**: PyPI via GitHub OIDC Trusted Publishing — no long-lived
-  PyPI tokens anywhere.
+- **Publishing**: PyPI (and TestPyPI as a pre-production smoke test) via
+  GitHub OIDC Trusted Publishing — no long-lived PyPI tokens anywhere.
+  PEP 740 attestations are surfaced on PyPI as "Verified publisher".
+- **Container images**: multi-arch (linux/amd64, linux/arm64) images are
+  built with Buildx and pushed to GHCR, signed keylessly with cosign, and
+  accompanied by SLSA build provenance attached to the registry.
+- **Git signing**: release commits and annotated tags are signed keylessly
+  with [gitsign](https://github.com/sigstore/gitsign) (x.509 via Fulcio
+  + Rekor transparency log), using the release workflow's OIDC identity.
 - **Signing**: Sigstore keyless signing through
-  `actions/attest-build-provenance`. Signing keys are short-lived,
-  issued per-run by Fulcio, and verifiable via the Rekor transparency
-  log.
-- **Provenance**: SLSA v1.0 attestation accompanies every wheel and
-  sdist.
+  `actions/attest-build-provenance` and cosign. Signing keys are
+  short-lived, issued per-run by Fulcio, and verifiable via the Rekor
+  transparency log.
+- **Provenance**: SLSA v1.0 attestation accompanies every wheel, sdist,
+  and container image digest.
+- **Dockerfile linting**: `hadolint` runs on every PR with a warning-level
+  failure threshold.
 - **Pinning**: every GitHub Action in every workflow is pinned by SHA;
   enforced by Scorecard Pinned-Dependencies and zizmor pedantic on every
   PR.
@@ -187,9 +196,6 @@ gh attestation verify dist/httptap-X.Y.Z-py3-none-any.whl \
 These are documented rather than mitigated. They represent trade-offs
 that are explicit rather than oversights.
 
-- **Git tags are unsigned.** Release *artifacts* are Sigstore-signed, which
-  is strictly stronger than tag signatures, but the tag-signing criterion
-  is formally unmet; see ROADMAP.md.
 - **Solo maintainer.** Bus factor is 1 (tracked in GOVERNANCE.md). The
   continuity plan mitigates single-point-of-failure for operations but not
   for code review: a single reviewer can merge changes without a second
@@ -209,6 +215,7 @@ that are explicit rather than oversights.
 | Date | Notes |
 |------|-------|
 | 2026-04-12 | Initial assurance case for httptap 0.4.7 (silver submission). |
+| 2026-04-13 | OSS hardening for 0.5.0: gitsign-signed release commits/tags, TestPyPI pre-flight, signed GHCR container images with SLSA provenance, hadolint in CI, man-page artifact. |
 
 ---
 

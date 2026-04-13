@@ -1,0 +1,11 @@
+**/*
+
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!httptap/
+
+httptap/**/__pycache__
+httptap/**/*.pyc
+httptap/**/*.pyo

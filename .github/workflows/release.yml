@@ -35,6 +35,7 @@ jobs:
     environment: release
     permissions:
       contents: write # Required for git push and tag creation
+      id-token: write # Required for gitsign keyless Sigstore OIDC signing
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
@@ -48,10 +49,17 @@ jobs:
           ssh-key: ${{ secrets.DEPLOY_KEY }}
           persist-credentials: true
 
+      - name: Install gitsign (Sigstore keyless git signing)
+        uses: chainguard-dev/actions/setup-gitsign@4e3f4584d1878b38c302aa6350a51afe6020e8eb # v1.6.14
+
       - name: Configure git
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+          git config --global gpg.x509.program gitsign
+          git config --global gpg.format x509
+          git config --global tag.gpgsign true
+          git config --global commit.gpgsign true
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -95,6 +103,15 @@ jobs:
           DATE=$(date -u +%Y-%m-%d)
           yq -i ".version = \"${VERSION}\" | .\"date-released\" = \"${DATE}\"" CITATION.cff
 
+      - name: Refresh security assurance-case review stamp
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          FILE=docs/security/assurance-case.md
+          sed -i -E "s|^\*\*Last reviewed:\*\* .+$|**Last reviewed:** ${DATE} for httptap ${VERSION}.|" "$FILE"
+          grep -q "^\*\*Last reviewed:\*\* ${DATE} for httptap ${VERSION}\.$" "$FILE"
+
       - name: Ensure changelog exists
         run: touch ${CHANGELOG_FILE}
 
@@ -125,14 +142,14 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          git add pyproject.toml uv.lock CITATION.cff ${CHANGELOG_FILE}
-          git commit -m "chore: release v${VERSION}"
+          git add pyproject.toml uv.lock CITATION.cff docs/security/assurance-case.md ${CHANGELOG_FILE}
+          git commit -S -m "chore: release v${VERSION}"
 
-      - name: Create and push tag
+      - name: Create and push signed tag
         env:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
-          git tag -a "${TAG}" -m "Release ${TAG}"
+          git tag -s "${TAG}" -m "Release ${TAG}"
           git push origin HEAD
           git push origin "${TAG}"
 
@@ -212,6 +229,31 @@ jobs:
           # is self-identifying.
           cp .vex/httptap.openvex.json "sbom/${PACKAGE_NAME}-${VERSION}.openvex.json"
 
+      - name: Generate man page
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          mkdir -p man
+          uv tool run --from 'argparse-manpage>=4.7' argparse-manpage \
+            --pyfile httptap/cli.py \
+            --function create_parser \
+            --project-name httptap \
+            --version "${VERSION}" \
+            --author "Sergei Ozeranskii" \
+            --author-email "noreply@httptap.dev" \
+            --url "https://github.com/ozeranskii/httptap" \
+            --manual-title "httptap" \
+            --output "man/${PACKAGE_NAME}.1"
+          gzip --best "man/${PACKAGE_NAME}.1"
+
+      - name: Upload man-page artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: man
+          path: man/
+          retention-days: 7
+          if-no-files-found: error
+
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -220,6 +262,32 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  publish-testpypi:
+    name: Publish to TestPyPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - prepare
+      - build
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/${{ env.PACKAGE_NAME }}/
+    permissions:
+      id-token: write # Required for TestPyPI OIDC trusted publishing
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          attestations: true
+
   publish-pypi:
     name: Publish to PyPI
     runs-on: ubuntu-latest
@@ -227,6 +295,7 @@ jobs:
     needs:
       - prepare
       - build
+      - publish-testpypi
     environment:
       name: pypi
       url: https://pypi.org/project/${{ env.PACKAGE_NAME }}/
@@ -242,6 +311,86 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        with:
+          # PEP 740 attestations are signed via Sigstore OIDC and
+          # surfaced on the PyPI project page as "Verified publisher".
+          attestations: true
+
+  publish-container:
+    name: Publish container image to GHCR
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - prepare
+    permissions:
+      contents: read
+      packages: write # Push to ghcr.io/<owner>/<repo>
+      id-token: write # Sigstore OIDC for keyless cosign signing
+      attestations: write # GitHub build provenance attestations
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+          persist-credentials: false
+
+      - name: Set up QEMU for multi-arch builds
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive container tags and labels
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.prepare.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.prepare.outputs.tag }}
+            type=semver,pattern={{major}},value=${{ needs.prepare.outputs.tag }}
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+
+      - name: Sign image with cosign (keyless Sigstore)
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+      - name: Attach SLSA build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
   create-release:
     name: Create GitHub Release
@@ -253,6 +402,7 @@ jobs:
       - prepare
       - build
       - publish-pypi
+      - publish-container
 
     steps:
       - name: Checkout
@@ -272,6 +422,12 @@ jobs:
           name: sbom
           path: sbom/
 
+      - name: Download man-page artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: man
+          path: man/
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -280,7 +436,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |-
           gh release create "$TAG" \
-            dist/* sbom/* \
+            dist/* sbom/* man/* \
             --repo "$REPO" \
             --title "$TAG" \
             --notes "$NOTES"
