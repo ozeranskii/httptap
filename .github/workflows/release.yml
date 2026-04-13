@@ -50,7 +50,7 @@ jobs:
           persist-credentials: true
 
       - name: Install gitsign (Sigstore keyless git signing)
-        uses: chainguard-dev/actions/setup-gitsign@4e3f4584d1878b38c302aa6350a51afe6020e8eb # v1.6.14
+        uses: chainguard-dev/actions/setup-gitsign@de68b87302e6266db5fb5220246f8aa46fe94b67 # v1.6.14
 
       - name: Configure git
         run: |
