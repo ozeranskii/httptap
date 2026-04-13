@@ -176,6 +176,14 @@ uv pip install httptap
 pip install httptap
 ```
 
+### Container image
+
+```shell
+docker run --rm ghcr.io/ozeranskii/httptap:latest https://example.com
+```
+
+Multi-arch (linux/amd64, linux/arm64), signed with cosign (keyless Sigstore) and shipped with SLSA build provenance.
+
 ### From source
 
 ```shell

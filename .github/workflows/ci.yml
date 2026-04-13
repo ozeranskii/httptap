@@ -37,6 +37,12 @@ jobs:
         with:
           args: format --check .
 
+      - name: Lint Dockerfile with hadolint
+        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning
+
   type-check:
     name: Type Check
     runs-on: ubuntu-latest
@@ -152,6 +158,49 @@ jobs:
           compression-level: 6
           if-no-files-found: error
 
+  container-build:
+    name: Container Build (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - lint
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up QEMU
+        if: matrix.platform != 'linux/amd64'
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Build and load image
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: false
+          load: true
+          tags: httptap:ci-smoke
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+
+      - name: Smoke test (httptap --version)
+        run: |
+          OUTPUT=$(docker run --rm --platform=${{ matrix.platform }} httptap:ci-smoke --version)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -E '^httptap [0-9]+\.[0-9]+\.[0-9]+'
+
   all-checks-pass:
     name: All Checks Passed
     if: ${{ !cancelled() }}
@@ -160,6 +209,7 @@ jobs:
       - type-check
       - test
       - build
+      - container-build
     runs-on: ubuntu-latest
 
     steps:
@@ -169,11 +219,13 @@ jobs:
           echo "type-check: $TYPE_CHECK_RESULT"
           echo "test: $TEST_RESULT"
           echo "build: $BUILD_RESULT"
+          echo "container-build: $CONTAINER_BUILD_RESULT"
 
           if [[ "$LINT_RESULT" != "success" ]] || \
              [[ "$TYPE_CHECK_RESULT" != "success" ]] || \
              [[ "$TEST_RESULT" != "success" ]] || \
-             [[ "$BUILD_RESULT" != "success" ]]; then
+             [[ "$BUILD_RESULT" != "success" ]] || \
+             [[ "$CONTAINER_BUILD_RESULT" != "success" ]]; then
             echo "One or more checks failed"
             exit 1
           fi
@@ -183,3 +235,4 @@ jobs:
           TYPE_CHECK_RESULT: ${{ needs.type-check.result }}
           TEST_RESULT: ${{ needs.test.result }}
           BUILD_RESULT: ${{ needs.build.result }}
+          CONTAINER_BUILD_RESULT: ${{ needs.container-build.result }}

@@ -306,4 +306,4 @@ def validate_url(url: str) -> bool:
         False
 
     """
-    return bool(re.match(r"^https?://", url))
+    return bool(re.match(r"^https?://", url, flags=re.IGNORECASE))

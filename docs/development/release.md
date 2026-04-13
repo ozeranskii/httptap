@@ -5,16 +5,18 @@ This document describes the automated release process for httptap.
 ## Overview
 
 Releases are fully automated using GitHub Actions. The workflow handles versioning, changelog generation, testing,
-building, and publishing to PyPI.
+building, signing, publishing to TestPyPI and PyPI, and pushing a
+signed container image to GHCR.
 
 ## Prerequisites
 
 Before creating a release, ensure:
 
-1. **GitHub Environment** - `pypi` environment configured in repository settings
-2. **PyPI Trusted Publishing** - Configured for `ozeranskii/httptap` repository
+1. **GitHub Environments** - `release`, `testpypi`, and `pypi` environments configured in repository settings
+2. **PyPI Trusted Publishing** - Configured for both PyPI and TestPyPI (OIDC, no tokens)
 3. **Deploy Key** - SSH deploy key with write access (for bypassing branch protection)
-4. **All tests passing** - CI must be green on main branch
+4. **GHCR access** - `packages: write` permission on the release job (granted per-workflow)
+5. **All tests passing** - CI must be green on main branch
 
 ## Release Workflow
 
@@ -57,13 +59,16 @@ The release process is triggered manually via GitHub Actions.
    ```
    Generates changelog from conventional commits
 
-4. **Commit and Tag**
+4. **Signed Commit and Tag**
    ```bash
-   git commit -m "chore: release v0.2.0"
-   git tag -a v0.2.0 -m "Release v0.2.0"
+   git commit -S -m "chore: release v0.2.0"
+   git tag -s v0.2.0 -m "Release v0.2.0"
    git push origin HEAD
    git push origin v0.2.0
    ```
+   Keyless Sigstore signing via [gitsign](https://github.com/sigstore/gitsign):
+   a short-lived Fulcio certificate is issued through the workflow's OIDC
+   identity, so no long-lived GPG keys are required.
 
 5. **Build**
    ```bash
@@ -72,13 +77,24 @@ The release process is triggered manually via GitHub Actions.
    uv build  # Create wheel and sdist
    ```
 
-5. **Publish to PyPI**
-    - Uses OIDC Trusted Publishing (no tokens required)
-    - Uploads wheel and source distribution
+5. **Publish to TestPyPI**
+    - Uploads to TestPyPI first via OIDC Trusted Publishing, with PEP 740
+      attestations, as a smoke test before the production push.
 
-6. **GitHub Release**
+6. **Publish to PyPI**
+    - Uses OIDC Trusted Publishing (no tokens required)
+    - Uploads wheel and source distribution with PEP 740 attestations
+
+7. **Publish container image to GHCR**
+    - Builds multi-arch (linux/amd64, linux/arm64) image
+    - Pushes to `ghcr.io/ozeranskii/httptap` with `{version}`, `{major}.{minor}`,
+      `{major}`, and `latest` tags
+    - Signs the image with cosign (keyless Sigstore)
+    - Attaches SLSA build provenance via `actions/attest-build-provenance`
+
+8. **GitHub Release**
     - Creates release with generated notes
-    - Attaches build artifacts
+    - Attaches build artifacts, SBOMs, VEX, and the man page
 
 ## Workflow Configuration
 
@@ -102,18 +118,30 @@ The release workflow is defined in `.github/workflows/release.yml`:
 - Builds wheel and sdist
 - Generates SBOM in CycloneDX and SPDX JSON formats via [Syft](https://github.com/anchore/syft)
 - Copies the versioned OpenVEX document from `.vex/httptap.openvex.json` into the `sbom/` directory as `httptap-X.Y.Z.openvex.json`
-- Uploads `dist/` and `sbom/` artifacts separately
+- Generates a gzipped `man(1)` page with [argparse-manpage](https://github.com/praiskup/argparse-manpage)
+- Uploads `dist/`, `sbom/`, and `man/` artifacts separately
 
-#### 3. Publish to PyPI
+#### 3. Publish to TestPyPI
 
-- Downloads build artifacts
-- Publishes using Trusted Publishing
+- Downloads `dist/` artifacts
+- Publishes via TestPyPI OIDC Trusted Publishing with PEP 740 attestations
 
-#### 4. Create GitHub Release
+#### 4. Publish to PyPI
 
-- Downloads `dist/` and `sbom/` artifacts
+- Runs only after TestPyPI succeeds
+- Publishes using Trusted Publishing with PEP 740 attestations
+
+#### 5. Publish container image to GHCR
+
+- Builds multi-arch image with Buildx + QEMU
+- Signs with cosign (keyless Sigstore OIDC)
+- Attaches SLSA build provenance
+
+#### 6. Create GitHub Release
+
+- Downloads `dist/`, `sbom/`, and `man/` artifacts
 - Creates GitHub release with changelog notes
-- Attaches wheel, sdist, SBOM (`*.cdx.json`, `*.spdx.json`), and VEX (`*.openvex.json`) assets
+- Attaches wheel, sdist, SBOM (`*.cdx.json`, `*.spdx.json`), VEX (`*.openvex.json`), and the man page
 
 ## Changelog Generation
 

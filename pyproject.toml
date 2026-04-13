@@ -105,6 +105,7 @@ test = [
     "pytest-httpx>=0.36.0",
     "faker>=40.4.0",
     "pytest-codspeed>=4.3.0",
+    "hypothesis>=6.151.13",
 ]
 
 lint = [
@@ -114,6 +115,9 @@ lint = [
 docs = [
     "mkdocs-material[imaging]>=9.7.1",
     "pymdown-extensions>=10.21.2",
+]
+release = [
+    "argparse-manpage>=4.7",
 ]
 precommit = [
     "pre-commit>=4.5.1",
