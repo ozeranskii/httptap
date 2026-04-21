@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-04-21
+
+
 ## [0.5.1] - 2026-04-13
 
 ### Miscellaneous Tasks

@@ -10,8 +10,8 @@ authors:
   - family-names: Ozeranskii
     given-names: Sergei
     alias: ozeranskii
-version: 0.5.1
-date-released: "2026-04-13"
+version: 0.5.2
+date-released: "2026-04-21"
 license: Apache-2.0
 url: "https://github.com/ozeranskii/httptap"
 repository-code: "https://github.com/ozeranskii/httptap"
