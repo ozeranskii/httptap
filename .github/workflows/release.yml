@@ -107,7 +107,7 @@ jobs:
         run: touch ${CHANGELOG_FILE}
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@60ae4ce63c7aeb6e96d7f572c1ec7fafbb17ca80 # v2.79.10
+        uses: taiki-e/install-action@873c7452cadb7c034694a1282227095d93fbdf92 # v2.79.14
         with:
           tool: git-cliff
 
