@@ -304,6 +304,12 @@ def validate_url(url: str) -> bool:
         True
         >>> validate_url("ftp://example.com")
         False
+        >>> validate_url("https://")
+        False
 
     """
-    return bool(re.match(r"^https?://", url, flags=re.IGNORECASE))
+    if not url or not url.strip():
+        return False
+    if any(ch.isspace() for ch in url):
+        return False
+    return bool(re.match(r"^https?://\S+", url, flags=re.IGNORECASE))
