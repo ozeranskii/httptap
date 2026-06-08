@@ -260,6 +260,19 @@ class TestValidateUrl:
         """Test that URLs without scheme are invalid."""
         assert validate_url("example.com") is False
 
+    def test_validate_url_with_empty_host(self) -> None:
+        """URLs with an empty host (just the scheme) should be invalid."""
+        assert validate_url("https://") is False
+        assert validate_url("http://") is False
+        assert validate_url("") is False
+        assert validate_url("   ") is False
+
+    def test_validate_url_with_whitespace(self) -> None:
+        """URLs containing whitespace should be invalid."""
+        assert validate_url("https://example.com\n") is False
+        assert validate_url("https://example.com\tfoo") is False
+        assert validate_url("https://example.com foo") is False
+
 
 class TestCreateSSLContext:
     """Tests for the create_ssl_context helper."""
