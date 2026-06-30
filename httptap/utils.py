@@ -290,6 +290,12 @@ def read_request_data(data_arg: str | None) -> tuple[bytes | None, dict[str, str
     return data, headers
 
 
+# Valid HTTP/HTTPS URL: scheme followed by at least one non-whitespace
+# character. ``fullmatch`` rejects empty/whitespace-only input and any URL
+# containing embedded whitespace (e.g. a trailing newline) in a single pass.
+_URL_RE = re.compile(r"https?://\S+", flags=re.IGNORECASE)
+
+
 def validate_url(url: str) -> bool:
     """Validate URL format.
 
@@ -304,6 +310,8 @@ def validate_url(url: str) -> bool:
         True
         >>> validate_url("ftp://example.com")
         False
+        >>> validate_url("https://")
+        False
 
     """
-    return bool(re.match(r"^https?://", url, flags=re.IGNORECASE))
+    return _URL_RE.fullmatch(url) is not None
