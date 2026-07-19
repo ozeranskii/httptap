@@ -20,6 +20,25 @@ updates:
       include: "scope"
     rebase-strategy: "auto"
 
+  # Base images in the Dockerfile
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+    target-branch: "main"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    rebase-strategy: "auto"
+
   # Python dependencies via uv
   - package-ecosystem: "uv"
     directory: "/"
