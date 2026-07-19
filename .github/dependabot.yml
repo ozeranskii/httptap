@@ -1,7 +1,6 @@
 version: 2
 
 updates:
-  # GitHub Actions dependencies
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -19,8 +18,36 @@ updates:
       prefix: "chore"
       include: "scope"
     rebase-strategy: "auto"
+    groups:
+      actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
-  # Python dependencies via uv
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+    target-branch: "main"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    rebase-strategy: "auto"
+    groups:
+      base-images:
+        patterns:
+          - "*"
+
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
@@ -38,17 +65,14 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      # Group dev tools
       dev-tools:
         patterns:
           - "ruff"
           - "mypy"
-      # Group test dependencies (pytest and related)
       test-dependencies:
         patterns:
           - "pytest*"
           - "faker"
-      # Group httpx and related
       http-client:
         patterns:
           - "httpx*"
