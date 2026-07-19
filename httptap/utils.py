@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 try:  # pragma: no cover - exercised indirectly
     from datetime import UTC  # type: ignore[attr-defined]
@@ -32,7 +33,6 @@ __all__ = [
     "validate_url",
 ]
 
-# Headers that should have their values masked for security
 SENSITIVE_HEADERS: set[str] = {
     "authorization",
     "cookie",
@@ -41,7 +41,6 @@ SENSITIVE_HEADERS: set[str] = {
     "x-api-key",
 }
 
-# Pattern for masking - show first 4 and last 4 characters
 MASK_PATTERN = "****"
 
 
@@ -170,7 +169,6 @@ def create_ssl_context(*, verify_ssl: bool, ca_bundle_path: str | None = None) -
     if verify_ssl:
         context = ssl.create_default_context()
 
-        # Load custom CA bundle if provided
         if ca_bundle_path:
             try:
                 context.load_verify_locations(cafile=ca_bundle_path)
@@ -183,7 +181,6 @@ def create_ssl_context(*, verify_ssl: bool, ca_bundle_path: str | None = None) -
     # For legacy mode create a mutable context allowing older protocols.
     context = ssl.SSLContext(ssl.PROTOCOL_TLS)
 
-    # Disable certificate verification and hostname checks
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE
 
@@ -290,8 +287,16 @@ def read_request_data(data_arg: str | None) -> tuple[bytes | None, dict[str, str
     return data, headers
 
 
+_WHITESPACE_RE = re.compile(r"\s")
+
+
 def validate_url(url: str) -> bool:
     """Validate URL format.
+
+    Requires an http/https scheme and a non-empty host. A scheme alone is not
+    enough: ``https:///path`` and ``https://?query`` parse to an empty host and
+    would fail at connection time with an opaque error, so they are rejected
+    here where the message can be actionable.
 
     Args:
         url: URL string to validate.
@@ -304,6 +309,19 @@ def validate_url(url: str) -> bool:
         True
         >>> validate_url("ftp://example.com")
         False
+        >>> validate_url("https://")
+        False
+        >>> validate_url("https:///path")
+        False
 
     """
-    return bool(re.match(r"^https?://", url, flags=re.IGNORECASE))
+    if _WHITESPACE_RE.search(url):
+        return False
+
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        # Malformed authority, e.g. an unterminated IPv6 literal.
+        return False
+
+    return parts.scheme in {"http", "https"} and bool(parts.hostname)
