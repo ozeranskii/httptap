@@ -260,6 +260,67 @@ class TestValidateUrl:
         """Test that URLs without scheme are invalid."""
         assert validate_url("example.com") is False
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://",
+            "http://",
+            "   ",
+        ],
+    )
+    def test_validate_scheme_without_host(self, url: str) -> None:
+        """Test that a scheme with no host at all is invalid."""
+        assert validate_url(url) is False
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https:///path",
+            "https://?query",
+            "https://#fragment",
+            "https://:8080",
+            "https://@",
+            "http://:@",
+        ],
+    )
+    def test_validate_empty_host_with_trailing_component(self, url: str) -> None:
+        """Test that an empty host is invalid even when a path/query/port follows.
+
+        These parse to an empty host and would otherwise fail at connection
+        time with an opaque error instead of a validation message.
+        """
+        assert validate_url(url) is False
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://example.com\n",
+            "https://example.com\tfoo",
+            "https://example.com foo",
+            " https://example.com",
+        ],
+    )
+    def test_validate_url_with_whitespace(self, url: str) -> None:
+        """Test that URLs containing whitespace are invalid."""
+        assert validate_url(url) is False
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://user:pw@example.com",
+            "https://[::1]:8080/path",
+            "https://192.168.0.1",
+            "HTTPS://EXAMPLE.COM",
+        ],
+    )
+    def test_validate_accepts_valid_authority_forms(self, url: str) -> None:
+        """Test that userinfo, IPv6 literals, IPs and uppercase schemes stay valid."""
+        assert validate_url(url) is True
+
+    def test_validate_unterminated_ipv6_literal(self) -> None:
+        """Test that a malformed authority is rejected rather than raising."""
+        assert validate_url("https://[::1") is False
+
 
 class TestCreateSSLContext:
     """Tests for the create_ssl_context helper."""
@@ -336,14 +397,11 @@ class TestCreateSSLContext:
         real_ctx = ssl.create_default_context()
         monkeypatch.setattr(real_ctx, "load_verify_locations", mock_load_verify_locations)
 
-        # Patch create_default_context to return our mocked context
         monkeypatch.setattr(ssl, "create_default_context", lambda: real_ctx)
 
         ctx = create_ssl_context(verify_ssl=True, ca_bundle_path=str(ca_bundle))
 
-        # Should have called load_verify_locations with our CA bundle
         assert load_called_with["cafile"] == str(ca_bundle)
-        # Should still have verification enabled
         assert ctx.verify_mode == ssl.CERT_REQUIRED
         assert ctx.check_hostname is True
 
@@ -357,7 +415,6 @@ class TestCreateSSLContext:
 
         ctx = create_ssl_context(verify_ssl=False, ca_bundle_path=str(ca_bundle))
 
-        # Should have verification disabled regardless of ca_bundle_path
         assert ctx.verify_mode == ssl.CERT_NONE
         assert ctx.check_hostname is False
 
@@ -365,7 +422,6 @@ class TestCreateSSLContext:
         """Test that None ca_bundle_path uses system CA bundle."""
         ctx = create_ssl_context(verify_ssl=True, ca_bundle_path=None)
 
-        # Should use default system CA (verification enabled)
         assert ctx.verify_mode == ssl.CERT_REQUIRED
         assert ctx.check_hostname is True
 
@@ -548,7 +604,6 @@ class TestReadRequestData:
     ) -> None:
         """Test that file extension takes priority over content inspection."""
         json_file = tmp_path / "data.json"
-        # Write non-JSON content to .json file
         json_file.write_text("not valid json")
 
         content, headers = read_request_data(f"@{json_file}")
