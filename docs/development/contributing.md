@@ -106,11 +106,16 @@ Performance benchmarks use [pytest-codspeed](https://codspeed.io) and run automa
 # Run benchmarks locally (validates correctness, no performance data)
 uv run pytest tests/test_benchmarks.py --codspeed
 
+# Measure wall-clock time locally, with a results table
+uv run pytest tests/test_benchmarks.py --codspeed --codspeed-mode=walltime
+
 # Run benchmarks without CodSpeed (as regular tests)
 uv run pytest tests/test_benchmarks.py
 ```
 
-Benchmarks cover pure-computation functions across models, formatters, utils, and exporter modules. CI measures CPU instructions (simulation), wall-clock time, and memory usage.
+Benchmarks cover pure-computation functions across models, formatters, utils, and exporter modules. CI measures CPU instructions (`simulation`) and memory allocations (`memory`).
+
+Use `--codspeed-mode=walltime` to check an optimization locally without waiting for CI; it takes roughly two seconds per benchmark. Wall-clock numbers are inherently noisy on shared hardware, so CI relies on `simulation` instead — treat local walltime results as a directional signal, not as the value CI will report.
 
 ### Running Locally
 

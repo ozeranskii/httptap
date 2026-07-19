@@ -48,5 +48,5 @@ jobs:
       - name: Run benchmarks
         uses: CodSpeedHQ/action@9f3a37ece7abc84992501a7fcd54d1704f3458fa # v4.18.4
         with:
-          mode: simulation
+          mode: simulation,memory
           run: uv run --no-dev --group test pytest tests/test_benchmarks.py --codspeed
