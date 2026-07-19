@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.3] - 2026-07-19
+
+### Bug Fixes
+
+- **utils:** Require a non-empty host in validate_url ([63594f2](https://github.com/ozeranskii/httptap/commit/63594f2444b3e4a29a59157bf82086c61cf6d16b))
+
+
 ## [0.5.2] - 2026-04-21
 
 
