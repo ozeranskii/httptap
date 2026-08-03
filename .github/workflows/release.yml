@@ -43,14 +43,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ssh-key: ${{ secrets.DEPLOY_KEY }}
           persist-credentials: true
 
       - name: Install gitsign (Sigstore keyless git signing)
-        uses: chainguard-dev/actions/setup-gitsign@4d37df0d85a91f619edc34a8803323033cdcb124 # v1.6.27
+        uses: chainguard-dev/actions/setup-gitsign@b2555de0cf9724fb9b49d050ff18bd1f49562ba7 # v1.6.29
 
       - name: Configure git
         run: |
@@ -107,7 +107,7 @@ jobs:
         run: touch ${CHANGELOG_FILE}
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@07b4745e0c39a41822af610387492e3e53aa222b # v2.83.4
+        uses: taiki-e/install-action@41049aa56687c35e0afa74eed4f09cec4f9afabf # v2.85.2
         with:
           tool: git-cliff
 
@@ -156,7 +156,7 @@ jobs:
 
     steps:
       - name: Checkout tag
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.prepare.outputs.tag }}
           persist-credentials: false
@@ -274,7 +274,7 @@ jobs:
           path: dist/
 
       - name: Publish to TestPyPI
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # v1.14.1
         with:
           repository-url: https://test.pypi.org/legacy/
           attestations: true
@@ -301,7 +301,7 @@ jobs:
           path: dist/
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # v1.14.1
         with:
           # PEP 740 attestations are signed via Sigstore OIDC and
           # surfaced on the PyPI project page as "Verified publisher".
@@ -321,7 +321,7 @@ jobs:
 
     steps:
       - name: Checkout tag
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.prepare.outputs.tag }}
           persist-credentials: false
@@ -333,7 +333,7 @@ jobs:
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        uses: docker/login-action@371161bbe7024a29a25c5e19bfcbc0804fe9ad2c # v4.5.2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -397,7 +397,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
