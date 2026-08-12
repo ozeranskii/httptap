@@ -164,6 +164,12 @@ performance baselines.
 brew install httptap
 ```
 
+### Using `uvx` (Recommended)
+
+```shell
+uvx --from "httptap[completion]" httptap <options>
+```
+
 ### Using `uv`
 
 ```shell
