@@ -137,6 +137,11 @@ class NetworkInfo:
     tls_cipher: str | None = None  # Cipher suite name
     cert_cn: str | None = None  # Certificate common name
     cert_days_left: int | None = None  # Days until certificate expires
+    cert_sans: list[str] = field(default_factory=list)  # Subject Alternative Names (DNS)
+    cert_issuer: str | None = None  # Issuer common name
+    cert_serial: str | None = None  # Certificate serial number (hex)
+    cert_not_before: datetime | None = None  # Validity start
+    cert_not_after: datetime | None = None  # Validity end
     tls_verified: bool | None = None  # Whether TLS verification was enforced
     tls_custom_ca: bool | None = None  # True when custom CA bundle was used
 ```

@@ -28,9 +28,12 @@ used, `network.tls_custom_ca: true`.
 ### Certificate shows `cert_days_left: null` or negative
 
 `cert_days_left` is parsed from the leaf certificate's `notAfter` field. A
-`null` value means the inspector couldn't fetch/parse the certificate (usually
-TLS aborted before a cert was received). A **negative** value means the
-certificate is already expired.
+`null` value means the certificate could not be fetched/parsed — usually TLS
+aborted before a cert was received, or `--ignore-ssl` was used (with
+verification disabled the peer certificate is not surfaced as a parsed
+dictionary, so `cert_cn`/`cert_days_left` and the other `cert_*` fields stay
+`null` while `tls_version`/`tls_cipher` are still reported). A **negative**
+value means the certificate is already expired.
 
 ### `--ignore-ssl` still fails with `DH_KEY_TOO_SMALL` / `WRONG_VERSION_NUMBER`
 

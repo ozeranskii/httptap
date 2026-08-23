@@ -46,10 +46,9 @@ Examples:
 from __future__ import annotations
 
 import os
-import ssl
 import time
 from contextlib import suppress
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import httpx
@@ -72,7 +71,11 @@ from .implementations.dns import DNSResolutionError, SystemDNSResolver
 from .implementations.timing import PerfCounterTimingCollector
 from .implementations.tls import SocketTLSInspector, TLSInspectionError
 from .models import NetworkInfo, ResponseInfo, TimingMetrics
-from .tls_inspector import extract_certificate_info
+from .tls_inspector import (
+    SSLObjectLike,
+    apply_certificate_info,
+    extract_certificate_info,
+)
 from .utils import create_ssl_context, parse_http_date, sanitize_headers
 
 if TYPE_CHECKING:
@@ -83,17 +86,6 @@ if TYPE_CHECKING:
     from .interfaces import DNSResolver, TimingCollector, TLSInspector
 else:  # pragma: no cover - typing helper
     ProxyTypes = object  # type: ignore[assignment]
-
-
-@runtime_checkable
-class SSLInfoProvider(Protocol):
-    """Protocol describing minimal TLS attributes exposed by stream objects."""
-
-    def version(self) -> str:
-        """Return the negotiated TLS protocol version."""
-
-    def cipher(self) -> tuple[str, str, int]:
-        """Return the active cipher suite description."""
 
 
 def _build_user_agent() -> str:
@@ -588,9 +580,12 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             ) as response:
                 timing_collector.mark_ttfb()
                 _populate_response_metadata(response, response_info)
-                response_info.bytes = _consume_response_body(response)
+                # Capture TLS metadata from the live connection *before* draining
+                # the body: once the response is consumed the SSL object is
+                # released and can no longer be inspected.
                 _populate_tls_from_stream(response, network_info)
                 network_info.http_version = network_info.http_version or _normalize_http_version(response.http_version)
+                response_info.bytes = _consume_response_body(response)
 
         timing_collector.mark_request_end()
 
@@ -601,18 +596,22 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             tls_ms=trace.tls_ms,
         )
 
-        # Gather TLS metadata for HTTPS.
-        # Skip separate TLS inspection when using a proxy, as the TLS inspector
-        # makes a direct socket connection that bypasses the proxy. TLS info is
-        # already captured via _populate_tls_from_stream when available.
+        # Fallback probe: only when the live connection exposed no TLS and no
+        # proxy is set. A direct socket probe would bypass the proxy and could
+        # reach a different backend, so it must never run while a proxy is used.
         if is_https and network_info.tls_version is None and effective_proxy_url is None:
             try:
                 tls_info = tls_inspector.inspect(host, port, timeout)
-                # Merge TLS info (preserve IP/family from DNS)
+                # Merge TLS metadata (preserve IP/family already set from DNS).
                 network_info.tls_version = tls_info.tls_version
                 network_info.tls_cipher = tls_info.tls_cipher
                 network_info.cert_cn = tls_info.cert_cn
                 network_info.cert_days_left = tls_info.cert_days_left
+                network_info.cert_sans = tls_info.cert_sans
+                network_info.cert_issuer = tls_info.cert_issuer
+                network_info.cert_serial = tls_info.cert_serial
+                network_info.cert_not_before = tls_info.cert_not_before
+                network_info.cert_not_after = tls_info.cert_not_after
             except TLSInspectionError:
                 # TLS inspection is non-fatal, continue without it
                 pass
@@ -636,29 +635,34 @@ def _populate_tls_from_stream(
     response: httpx.Response,
     network_info: NetworkInfo,
 ) -> None:
+    """Fill TLS metadata from the connection that served the response.
+
+    Reads the negotiated version, cipher, and full peer certificate directly
+    from the live SSL object exposed by httpcore's ``network_stream`` — no
+    extra handshake, and the certificate is guaranteed to come from the node
+    that actually answered (unlike a separate probe, which re-resolves DNS and
+    may land on a different backend).
+
+    This must be called while the response stream is still open, before the
+    body is consumed: once the body is drained the sync backend releases the
+    SSL object and ``get_extra_info("ssl_object")`` returns ``None``.
+    """
     ssl_object = _extract_ssl_object(response)
     if ssl_object is None:
         return
 
-    with suppress(AttributeError):  # pragma: no cover - defensive
+    with suppress(Exception):
         network_info.tls_version = network_info.tls_version or ssl_object.version()
 
-    cipher_info = None
-    with suppress(AttributeError):  # pragma: no cover - defensive
+    with suppress(Exception):
         cipher_info = ssl_object.cipher()
-    if cipher_info:
-        network_info.tls_cipher = network_info.tls_cipher or cipher_info[0]
+        if cipher_info:
+            network_info.tls_cipher = network_info.tls_cipher or cipher_info[0]
 
-    if isinstance(ssl_object, ssl.SSLSocket):
-        try:
-            cert_info = extract_certificate_info(ssl_object)
-        except Exception:  # pragma: no cover - defensive  # noqa: BLE001
-            cert_info = None
-    else:
-        cert_info = None
-    if cert_info:
-        network_info.cert_cn = network_info.cert_cn or cert_info.common_name
-        network_info.cert_days_left = network_info.cert_days_left or cert_info.days_until_expiry
+    with suppress(Exception):
+        cert_info = extract_certificate_info(ssl_object)
+        if cert_info is not None:
+            apply_certificate_info(network_info, cert_info)
 
 
 def _normalize_http_version(version: str | None) -> str | None:
@@ -682,8 +686,18 @@ def _normalize_http_version(version: str | None) -> str | None:
 
 def _extract_ssl_object(
     response: httpx.Response,
-) -> ssl.SSLObject | ssl.SSLSocket | SSLInfoProvider | None:
-    """Return the SSL object associated with the httpx response stream if available."""
+) -> SSLObjectLike | None:
+    """Return the live SSL object backing the response stream, if any.
+
+    Queries the documented ``network_stream`` response extension via
+    ``get_extra_info``. The ``"ssl_object"`` key is preferred — it works across
+    every backend (a low-level ``_ssl._SSLSocket`` on the sync backend, an
+    :class:`ssl.SSLObject` on the async and TLS-in-TLS/proxy paths) — with
+    ``"socket"`` (an :class:`ssl.SSLSocket`) as a fallback. Candidates are
+    accepted purely by structural type (:class:`SSLObjectLike`), so plain
+    (non-TLS) sockets are naturally rejected and the caller never has to branch
+    on a concrete class.
+    """
     stream = response.extensions.get("network_stream")
     if stream is None:
         return None
@@ -692,11 +706,10 @@ def _extract_ssl_object(
     if not callable(getter):
         return None
 
-    try:
-        ssl_candidate = getter("ssl_object")
-    except Exception:  # pragma: no cover - defensive  # noqa: BLE001
-        return None
-
-    if isinstance(ssl_candidate, (ssl.SSLSocket, ssl.SSLObject, SSLInfoProvider)):
-        return ssl_candidate
+    for key in ("ssl_object", "socket"):
+        candidate: object | None = None
+        with suppress(Exception):  # extras are best-effort across backends
+            candidate = getter(key)
+        if isinstance(candidate, SSLObjectLike):
+            return candidate
     return None

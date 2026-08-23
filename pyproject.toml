@@ -5,6 +5,7 @@ description = "HTTP request visualizer with detailed timing breakdown (DNS → T
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
+license-files = ["LICENSE"]
 
 authors = [
     { name = "Sergei Ozeranskii" },
@@ -37,7 +38,6 @@ classifiers = [
     "Topic :: System :: Networking :: Monitoring",
     "Topic :: Software Development :: Testing",
     "Topic :: Utilities",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",

@@ -4,11 +4,39 @@ This module provides utilities for extracting and analyzing TLS certificate
 information from SSL connections.
 """
 
-import ssl
-from datetime import datetime
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from .utils import calculate_days_until, parse_certificate_date
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from .models import NetworkInfo
+
+
+@runtime_checkable
+class SSLObjectLike(Protocol):
+    """Structural type for any object exposing the SSL inspection surface.
+
+    This intentionally matches every peer object httpcore hands back through
+    ``network_stream.get_extra_info`` — the high-level :class:`ssl.SSLSocket`
+    and :class:`ssl.SSLObject`, as well as the low-level ``_ssl._SSLSocket``
+    returned by the sync backend. All three implement the same methods, so
+    callers duck-type against this protocol instead of branching on the
+    concrete class (which previously caused certificate data to be dropped for
+    every object that was not exactly an :class:`ssl.SSLSocket`).
+    """
+
+    def version(self) -> str | None:
+        """Return the negotiated TLS protocol version."""
+
+    def cipher(self) -> tuple[Any, ...] | None:
+        """Return the active cipher suite description."""
+
+    def getpeercert(self) -> dict[str, Any] | None:
+        """Return the peer certificate as a parsed dictionary (or None)."""
 
 
 class TLSInspectionError(Exception):
@@ -138,21 +166,47 @@ class CertificateInfo:
         return calculate_days_until(self.not_after)
 
 
-def extract_certificate_info(ssl_socket: ssl.SSLSocket) -> CertificateInfo | None:
-    """Extract certificate information from SSL socket.
+def apply_certificate_info(network_info: NetworkInfo, cert_info: CertificateInfo) -> None:
+    """Copy parsed certificate fields onto a :class:`NetworkInfo`.
+
+    Existing values are preserved: each target field is only filled when it is
+    still unset, so metadata already captured from another source (for example
+    the live connection) is never clobbered by a later fallback probe.
 
     Args:
-        ssl_socket: Connected SSL socket.
+        network_info: Destination metadata container to enrich in place.
+        cert_info: Parsed certificate details to copy from.
+
+    """
+    network_info.cert_cn = network_info.cert_cn or cert_info.common_name
+    if network_info.cert_days_left is None:
+        network_info.cert_days_left = cert_info.days_until_expiry
+    network_info.cert_sans = network_info.cert_sans or list(cert_info.subject_alt_names)
+    network_info.cert_issuer = network_info.cert_issuer or cert_info.issuer
+    network_info.cert_serial = network_info.cert_serial or cert_info.serial_number
+    network_info.cert_not_before = network_info.cert_not_before or cert_info.not_before
+    network_info.cert_not_after = network_info.cert_not_after or cert_info.not_after
+
+
+def extract_certificate_info(ssl_object: SSLObjectLike) -> CertificateInfo | None:
+    """Extract certificate information from a live SSL object.
+
+    Args:
+        ssl_object: Any connected SSL object exposing ``getpeercert`` — an
+            :class:`ssl.SSLSocket`, :class:`ssl.SSLObject`, or the low-level
+            ``_ssl._SSLSocket`` handed back by httpcore's sync backend.
 
     Returns:
-        CertificateInfo object or None if certificate unavailable.
+        CertificateInfo object or None if certificate unavailable (e.g. when
+        verification is disabled and the peer certificate is not surfaced as a
+        parsed dictionary).
 
     Raises:
         TLSInspectionError: If certificate extraction fails.
 
     """
     try:
-        cert_dict = ssl_socket.getpeercert()
+        cert_dict = ssl_object.getpeercert()
         if not cert_dict:
             return None
         return CertificateInfo(cert_dict)
@@ -162,7 +216,7 @@ def extract_certificate_info(ssl_socket: ssl.SSLSocket) -> CertificateInfo | Non
 
 
 def extract_tls_info(
-    ssl_socket: ssl.SSLSocket,
+    ssl_socket: SSLObjectLike,
 ) -> tuple[str | None, str | None, CertificateInfo | None]:
     """Extract TLS version, cipher, and certificate information.
 
@@ -180,14 +234,9 @@ def extract_tls_info(
 
     """
     try:
-        # Extract TLS version
         tls_version = ssl_socket.version()
-
-        # Extract cipher suite
         cipher_info = ssl_socket.cipher()
         cipher_suite = cipher_info[0] if cipher_info else None
-
-        # Extract certificate info
         cert_info = extract_certificate_info(ssl_socket)
     except Exception as e:
         msg = f"Failed to extract TLS info: {e}"

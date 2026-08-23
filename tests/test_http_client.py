@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import ssl
 import sys
 from types import SimpleNamespace, TracebackType
@@ -7,6 +8,8 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 import pytest
+
+import httptap.http_client
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -20,8 +23,16 @@ from httptap.constants import (
     PROXY_SOURCE_NO_PROXY,
 )
 from httptap.http_client import (
+    USER_AGENT,
+    TraceCollector,
+    _build_timing_metrics,
+    _consume_response_body,
+    _extract_ssl_object,
     _host_matches_no_proxy,
     _needs_remote_dns,
+    _normalize_http_version,
+    _populate_response_metadata,
+    _populate_tls_from_stream,
     _resolve_effective_proxy,
     make_request,
 )
@@ -134,8 +145,6 @@ class TestBuildUserAgent:
 
     def test_build_user_agent_includes_version(self) -> None:
         """Test that user agent includes package version."""
-        from httptap.http_client import USER_AGENT
-
         assert "httptap/" in USER_AGENT
         assert "+https://github.com/ozeranskii/httptap" in USER_AGENT
 
@@ -157,14 +166,8 @@ class TestBuildUserAgent:
             ),
         )
 
-        # Reload module to trigger _build_user_agent with mocked metadata
-        import importlib
-
-        import httptap.http_client
-
         importlib.reload(httptap.http_client)
 
-        # Should use "0.0.0" as fallback version
         assert "httptap/0.0.0" in httptap.http_client.USER_AGENT
 
 
@@ -173,8 +176,6 @@ class TestBuildTimingMetrics:
 
     def test_build_timing_with_precise_connect_and_tls(self) -> None:
         """Test building timing with precise connect and TLS values."""
-        from httptap.http_client import _build_timing_metrics
-
         timing_input = TimingMetrics(
             dns_ms=5.0,
             ttfb_ms=100.0,
@@ -195,8 +196,6 @@ class TestBuildTimingMetrics:
 
     def test_build_timing_estimates_https_when_missing(self) -> None:
         """Test HTTPS timing estimation when precise values unavailable."""
-        from httptap.http_client import _build_timing_metrics
-
         timing_input = TimingMetrics(
             dns_ms=10.0,
             ttfb_ms=100.0,
@@ -219,8 +218,6 @@ class TestBuildTimingMetrics:
 
     def test_build_timing_estimates_http_when_missing(self) -> None:
         """Test HTTP timing estimation (no TLS)."""
-        from httptap.http_client import _build_timing_metrics
-
         timing_input = TimingMetrics(
             dns_ms=5.0,
             ttfb_ms=50.0,
@@ -243,8 +240,6 @@ class TestBuildTimingMetrics:
 
     def test_build_timing_uses_partial_precise_values(self) -> None:
         """Test using only connect_ms when tls_ms is None."""
-        from httptap.http_client import _build_timing_metrics
-
         timing_input = TimingMetrics(
             dns_ms=10.0,
             ttfb_ms=100.0,
@@ -269,7 +264,6 @@ class TestPopulateResponseMetadata:
 
     def test_populate_response_metadata_with_all_headers(self) -> None:
         """Test populating response metadata with all headers present."""
-        from httptap.http_client import _populate_response_metadata
         from httptap.models import ResponseInfo
 
         response = httpx.Response(
@@ -295,7 +289,6 @@ class TestPopulateResponseMetadata:
 
     def test_populate_response_metadata_without_date(self) -> None:
         """Test populating response metadata without date header."""
-        from httptap.http_client import _populate_response_metadata
         from httptap.models import ResponseInfo
 
         response = httpx.Response(
@@ -318,8 +311,6 @@ class TestConsumeResponseBody:
 
     def test_consume_response_body_counts_bytes(self) -> None:
         """Test consuming response body and counting bytes."""
-        from httptap.http_client import _consume_response_body
-
         body = b"Hello, World!" * 100
         response = httpx.Response(200, content=body)
 
@@ -328,82 +319,93 @@ class TestConsumeResponseBody:
         assert total_bytes == len(body)
 
 
+CERT_DICT: dict[str, Any] = {
+    "subject": ((("commonName", "example.test"),),),
+    "issuer": ((("commonName", "Example Root CA"),),),
+    "subjectAltName": (("DNS", "example.test"), ("DNS", "www.example.test")),
+    "notBefore": "Jan  1 00:00:00 2025 GMT",
+    "notAfter": "Jan  1 00:00:00 2035 GMT",
+    "serialNumber": "0ABCDEF0",
+}
+
+
+class FakeSSLObject:
+    """Duck-typed stand-in for the live SSL object exposed by httpcore.
+
+    Mirrors the surface shared by ``ssl.SSLSocket``, ``ssl.SSLObject`` and the
+    low-level ``_ssl._SSLSocket``: ``version()``, ``cipher()`` and
+    ``getpeercert()``.
+    """
+
+    def __init__(
+        self,
+        *,
+        version: str | None = "TLSv1.3",
+        cipher: tuple[str, str, int] | None = ("TLS_AES_128_GCM_SHA256", "TLSv1.3", 128),
+        cert: dict[str, Any] | None = None,
+        cipher_error: bool = False,
+    ) -> None:
+        self._version = version
+        self._cipher = cipher
+        self._cert = CERT_DICT if cert is None else cert
+        self._cipher_error = cipher_error
+
+    def version(self) -> str | None:
+        return self._version
+
+    def cipher(self) -> tuple[str, str, int] | None:
+        if self._cipher_error:
+            msg = "cipher unavailable"
+            raise AttributeError(msg)
+        return self._cipher
+
+    def getpeercert(self) -> dict[str, Any] | None:
+        return self._cert
+
+
+class FakeStream:
+    """Network stream stub returning a fake SSL object under a chosen key."""
+
+    def __init__(self, obj: object, *, key: str = "ssl_object") -> None:
+        self._obj = obj
+        self._key = key
+
+    def get_extra_info(self, name: str) -> object | None:
+        return self._obj if name == self._key else None
+
+
 class TestPopulateTLSFromStream:
     """Test suite for _populate_tls_from_stream function."""
 
-    def test_populate_tls_from_stream_enriches_network_info(
-        self,
-        mocker: pytest_mock.MockerFixture,
-    ) -> None:
-        """Stream with SSL object enriches network info fields."""
-        from httptap.http_client import _populate_tls_from_stream
-
+    def test_populate_tls_from_stream_enriches_network_info(self) -> None:
+        """Stream with SSL object enriches version, cipher, and full cert data."""
         response = httpx.Response(200)
         network_info = NetworkInfo()
-
-        class FakeSSLSocket:
-            def version(self) -> str:
-                return "TLSv1.3"
-
-            def cipher(self) -> tuple[str, str, int]:
-                return "TLS_AES_128_GCM_SHA256", "TLSv1.3", 128
-
-        class FakeStream:
-            def get_extra_info(self, name: str) -> FakeSSLSocket | None:
-                return FakeSSLSocket() if name == "ssl_object" else None
-
-        response.extensions["network_stream"] = FakeStream()
-        mocker.patch("httptap.http_client.ssl.SSLSocket", FakeSSLSocket)
-        mocker.patch(
-            "httptap.http_client.extract_certificate_info",
-            return_value=SimpleNamespace(
-                common_name="example.test",
-                days_until_expiry=120,
-            ),
-        )
+        response.extensions["network_stream"] = FakeStream(FakeSSLObject())
 
         _populate_tls_from_stream(response, network_info)
 
         assert network_info.tls_version == "TLSv1.3"
         assert network_info.tls_cipher == "TLS_AES_128_GCM_SHA256"
         assert network_info.cert_cn == "example.test"
-        assert network_info.cert_days_left == 120
+        assert network_info.cert_issuer == "Example Root CA"
+        assert network_info.cert_sans == ["example.test", "www.example.test"]
+        assert network_info.cert_serial == "0ABCDEF0"
+        assert network_info.cert_not_before is not None
+        assert network_info.cert_not_after is not None
+        assert isinstance(network_info.cert_days_left, int)
 
-    def test_populate_tls_from_stream_preserves_existing_fields(
-        self,
-        mocker: pytest_mock.MockerFixture,
-    ) -> None:
+    def test_populate_tls_from_stream_preserves_existing_fields(self) -> None:
         """Existing TLS metadata is not overwritten by stream data."""
-        from httptap.http_client import _populate_tls_from_stream
-
         response = httpx.Response(200)
         network_info = NetworkInfo(
             tls_version="TLSv1.2",
             tls_cipher="TLS_CHACHA20_POLY1305_SHA256",
             cert_cn="cached.example",
             cert_days_left=30,
+            cert_issuer="Cached CA",
         )
-
-        class FakeSSLSocket:
-            def version(self) -> str:
-                return "TLSv1.3"
-
-            def cipher(self) -> tuple[str, str, int]:
-                return "TLS_AES_256_GCM_SHA384", "TLSv1.3", 256
-
-        class FakeStream:
-            def get_extra_info(self, name: str) -> FakeSSLSocket | None:
-                return FakeSSLSocket() if name == "ssl_object" else None
-
-        response.extensions["network_stream"] = FakeStream()
-        mocker.patch("httptap.http_client.ssl.SSLSocket", FakeSSLSocket)
-        mocker.patch(
-            "httptap.http_client.extract_certificate_info",
-            return_value=SimpleNamespace(
-                common_name="stream.example",
-                days_until_expiry=365,
-            ),
-        )
+        response.extensions["network_stream"] = FakeStream(FakeSSLObject())
 
         _populate_tls_from_stream(response, network_info)
 
@@ -411,92 +413,87 @@ class TestPopulateTLSFromStream:
         assert network_info.tls_cipher == "TLS_CHACHA20_POLY1305_SHA256"
         assert network_info.cert_cn == "cached.example"
         assert network_info.cert_days_left == 30
+        assert network_info.cert_issuer == "Cached CA"
 
     def test_populate_tls_from_stream_handles_missing_ssl_object(self) -> None:
         """Gracefully handle streams without SSL metadata."""
-        from httptap.http_client import _populate_tls_from_stream
-
         response = httpx.Response(200)
         network_info = NetworkInfo()
-
-        class NullStream:
-            def get_extra_info(self, name: str) -> None:
-                assert name == "ssl_object"
-
-        response.extensions["network_stream"] = NullStream()
+        response.extensions["network_stream"] = FakeStream(None)
 
         _populate_tls_from_stream(response, network_info)
 
         assert network_info.tls_version is None
         assert network_info.tls_cipher is None
+        assert network_info.cert_cn is None
 
-    def test_populate_tls_from_stream_without_sslsocket(
-        self,
-        mocker: pytest_mock.MockerFixture,
-    ) -> None:
-        """Streams that return non-SSLSocket objects only populate TLS basics."""
-        from httptap.http_client import _populate_tls_from_stream
-
+    def test_populate_tls_from_stream_falls_back_to_socket_key(self) -> None:
+        """When ssl_object is absent, the socket extra is used instead."""
         response = httpx.Response(200)
         network_info = NetworkInfo()
-
-        class PseudoSSLObject:
-            def version(self) -> str:
-                return "TLSv1.2"
-
-            def cipher(self) -> tuple[str, str, int]:
-                return "TLS_RSA_WITH_AES_128_GCM_SHA256", "TLSv1.2", 128
-
-        class FakeStream:
-            def __init__(self) -> None:
-                self._ssl = PseudoSSLObject()
-
-            def get_extra_info(self, name: str) -> PseudoSSLObject | None:
-                return self._ssl if name == "ssl_object" else None
-
-        response.extensions["network_stream"] = FakeStream()
-        mocker.patch(
-            "httptap.http_client.extract_certificate_info",
-            side_effect=AssertionError("should not be called"),
-        )
+        response.extensions["network_stream"] = FakeStream(FakeSSLObject(), key="socket")
 
         _populate_tls_from_stream(response, network_info)
 
-        assert network_info.tls_version == "TLSv1.2"
-        assert network_info.tls_cipher == "TLS_RSA_WITH_AES_128_GCM_SHA256"
-        assert network_info.cert_cn is None
+        assert network_info.tls_version == "TLSv1.3"
+        assert network_info.cert_cn == "example.test"
 
-    def test_populate_tls_from_stream_when_cipher_missing(self) -> None:
-        """Cipherless streams leave tls_cipher unset while keeping other data."""
-        from httptap.http_client import _populate_tls_from_stream
-
+    def test_populate_tls_from_stream_ignores_non_tls_socket(self) -> None:
+        """A plain (non-TLS) socket without getpeercert is ignored."""
         response = httpx.Response(200)
         network_info = NetworkInfo()
 
-        class MinimalSSLObject:
-            def version(self) -> str:
-                return "TLSv1.3"
+        class PlainSocket:
+            def getsockname(self) -> tuple[str, int]:
+                return ("127.0.0.1", 12345)
 
-            def cipher(self) -> tuple[str, str, int]:
-                msg = "cipher unavailable"
-                raise AttributeError(msg)
+        response.extensions["network_stream"] = FakeStream(PlainSocket(), key="socket")
 
-        class FakeStream:
-            def get_extra_info(self, name: str) -> MinimalSSLObject | None:
-                return MinimalSSLObject() if name == "ssl_object" else None
+        _populate_tls_from_stream(response, network_info)
 
-        response.extensions["network_stream"] = FakeStream()
+        assert network_info.tls_version is None
+        assert network_info.cert_cn is None
+
+    def test_populate_tls_from_stream_without_certificate(self) -> None:
+        """No parsed peer cert (e.g. verification disabled) still yields version/cipher."""
+        response = httpx.Response(200)
+        network_info = NetworkInfo()
+        response.extensions["network_stream"] = FakeStream(FakeSSLObject(cert={}))
+
+        _populate_tls_from_stream(response, network_info)
+
+        assert network_info.tls_version == "TLSv1.3"
+        assert network_info.tls_cipher == "TLS_AES_128_GCM_SHA256"
+        assert network_info.cert_cn is None
+        assert network_info.cert_sans == []
+
+    def test_populate_tls_from_stream_when_cipher_missing(self) -> None:
+        """Cipherless streams leave tls_cipher unset while keeping other data."""
+        response = httpx.Response(200)
+        network_info = NetworkInfo()
+        response.extensions["network_stream"] = FakeStream(FakeSSLObject(cipher_error=True))
 
         _populate_tls_from_stream(response, network_info)
 
         assert network_info.tls_version == "TLSv1.3"
         assert network_info.tls_cipher is None
+        assert network_info.cert_cn == "example.test"
+
+    def test_populate_tls_from_stream_when_cipher_empty(self) -> None:
+        """A None cipher tuple leaves tls_cipher unset while keeping other data."""
+        response = httpx.Response(200)
+        network_info = NetworkInfo()
+        response.extensions["network_stream"] = FakeStream(FakeSSLObject(cipher=None))
+
+        _populate_tls_from_stream(response, network_info)
+
+        assert network_info.tls_version == "TLSv1.3"
+        assert network_info.tls_cipher is None
+        assert network_info.cert_cn == "example.test"
 
 
 def test_extract_ssl_object_handles_non_callable_getter() -> None:
     """Non-callable network stream extras should be ignored safely."""
-    from httptap.http_client import _extract_ssl_object
-
     response = httpx.Response(200)
 
     class NonCallableStream:
@@ -507,13 +504,114 @@ def test_extract_ssl_object_handles_non_callable_getter() -> None:
     assert _extract_ssl_object(response) is None
 
 
+def test_extract_ssl_object_returns_first_tls_capable_candidate() -> None:
+    """The socket key is consulted when ssl_object yields nothing usable."""
+    response = httpx.Response(200)
+    ssl_obj = FakeSSLObject()
+    response.extensions["network_stream"] = FakeStream(ssl_obj, key="socket")
+
+    assert _extract_ssl_object(response) is ssl_obj
+
+
+class RecordingTLSInspector:
+    """TLS inspector that records how many times its probe was invoked."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def inspect(self, host: str, _port: int, _timeout: float) -> NetworkInfo:
+        self.calls += 1
+        info = NetworkInfo()
+        info.tls_version = "TLSv1.2"
+        info.tls_cipher = "ECDHE-RSA-AES128-GCM-SHA256"
+        info.cert_cn = host
+        info.cert_days_left = 77
+        return info
+
+
+class TestLiveTLSExtractionSupersedesProbe:
+    """The live connection is the primary TLS source; the probe is fallback-only."""
+
+    @staticmethod
+    def _patch_client(mocker: pytest_mock.MockerFixture, network_stream: object) -> None:
+        class DummyStream:
+            def __enter__(self) -> httpx.Response:
+                request = httpx.Request("GET", "https://secure.test/")
+                return httpx.Response(
+                    200,
+                    request=request,
+                    content=b"ok",
+                    extensions={"network_stream": network_stream},
+                )
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+        class DummyClient:
+            def __init__(self, *_: object, **__: object) -> None:
+                self.headers: dict[str, str] = {}
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(self, *_: object, **__: object) -> DummyStream:
+                return DummyStream()
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+    def test_probe_skipped_when_live_tls_available(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """No extra handshake when the live connection exposes TLS metadata."""
+        self._patch_client(mocker, FakeStream(FakeSSLObject()))
+        inspector = RecordingTLSInspector()
+
+        _timing, network, _response = make_request(
+            "https://secure.test/",
+            timeout=5.0,
+            dns_resolver=FakeDNSResolver(),
+            tls_inspector=inspector,
+            timing_collector=FakeTimingCollector(TimingMetrics(dns_ms=1.0, ttfb_ms=5.0, total_ms=6.0)),
+            force_new_connection=True,
+        )
+
+        assert inspector.calls == 0
+        assert network.tls_version == "TLSv1.3"
+        assert network.cert_cn == "example.test"
+        assert network.cert_issuer == "Example Root CA"
+        assert network.cert_sans == ["example.test", "www.example.test"]
+
+    def test_probe_used_when_live_tls_absent(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """The dedicated probe fills TLS metadata when the live object is unavailable."""
+        self._patch_client(mocker, FakeStream(None))
+        inspector = RecordingTLSInspector()
+
+        _timing, network, _response = make_request(
+            "https://secure.test/",
+            timeout=5.0,
+            dns_resolver=FakeDNSResolver(),
+            tls_inspector=inspector,
+            timing_collector=FakeTimingCollector(TimingMetrics(dns_ms=1.0, ttfb_ms=5.0, total_ms=6.0)),
+            force_new_connection=True,
+        )
+
+        assert inspector.calls == 1
+        assert network.tls_version == "TLSv1.2"
+        assert network.cert_cn == "secure.test"
+
+
 class TestTraceCollector:
     """Test suite for TraceCollector class."""
 
     def test_trace_collector_captures_connect_timing(self) -> None:
         """Test that TraceCollector captures TCP connect timing."""
-        from httptap.http_client import TraceCollector
-
         trace = TraceCollector()
 
         # Simulate httpcore trace events
@@ -526,8 +624,6 @@ class TestTraceCollector:
 
     def test_trace_collector_captures_tls_timing(self) -> None:
         """Test that TraceCollector captures TLS handshake timing."""
-        from httptap.http_client import TraceCollector
-
         trace = TraceCollector()
 
         trace("connection.start_tls.started", {})
@@ -539,8 +635,6 @@ class TestTraceCollector:
 
     def test_trace_collector_returns_none_for_missing_events(self) -> None:
         """Test that TraceCollector returns None for incomplete events."""
-        from httptap.http_client import TraceCollector
-
         trace = TraceCollector()
 
         # No events captured
@@ -549,8 +643,6 @@ class TestTraceCollector:
 
     def test_trace_collector_returns_none_for_incomplete_events(self) -> None:
         """Test that TraceCollector handles incomplete event pairs."""
-        from httptap.http_client import TraceCollector
-
         trace = TraceCollector()
 
         # Only started, no complete
@@ -560,8 +652,6 @@ class TestTraceCollector:
 
     def test_trace_collector_ignores_invalid_events(self) -> None:
         """Test that TraceCollector ignores events without proper structure."""
-        from httptap.http_client import TraceCollector
-
         trace = TraceCollector()
 
         # Event without prefix (no dot)
@@ -573,8 +663,6 @@ class TestTraceCollector:
     def test_trace_collector_handles_inverted_timestamps(self) -> None:
         """Test that TraceCollector handles end before start."""
         import time
-
-        from httptap.http_client import TraceCollector
 
         trace = TraceCollector()
 
@@ -819,9 +907,7 @@ class TestMakeRequest:
 
     def test_make_request_handles_missing_hostname(self) -> None:
         """Test error handling for URL without hostname."""
-        from httptap.http_client import HTTPClientError
-
-        with pytest.raises(HTTPClientError, match="Invalid URL: missing hostname"):
+        with pytest.raises(httptap.http_client.HTTPClientError, match="Invalid URL: missing hostname"):
             _timing, _network, _response = make_request(
                 "http://",
                 timeout=5.0,
@@ -830,7 +916,6 @@ class TestMakeRequest:
 
     def test_make_request_handles_dns_error(self) -> None:
         """Test error handling for DNS resolution failure."""
-        from httptap.http_client import HTTPClientError
         from httptap.implementations.dns import DNSResolutionError
 
         class FailingDNSResolver:
@@ -838,7 +923,7 @@ class TestMakeRequest:
                 msg = "DNS lookup failed"
                 raise DNSResolutionError(msg)
 
-        with pytest.raises(HTTPClientError, match="DNS lookup failed"):
+        with pytest.raises(httptap.http_client.HTTPClientError, match="DNS lookup failed"):
             make_request(
                 "https://invalid.test",
                 timeout=5.0,
@@ -851,8 +936,6 @@ class TestMakeRequest:
         httpx_mock: pytest_httpx.HTTPXMock,
     ) -> None:
         """Test error handling for request timeout."""
-        from httptap.http_client import HTTPClientError
-
         dns_resolver = FakeDNSResolver()
         ip, _family, _dns_ms = dns_resolver.resolve("slow.test", 443, 5.0)
         httpx_mock.add_exception(
@@ -861,7 +944,7 @@ class TestMakeRequest:
             url=f"https://{ip}",
         )
 
-        with pytest.raises(HTTPClientError, match="Request timeout"):
+        with pytest.raises(httptap.http_client.HTTPClientError, match="Request timeout"):
             make_request(
                 "https://slow.test",
                 timeout=1.0,
@@ -875,8 +958,6 @@ class TestMakeRequest:
         httpx_mock: pytest_httpx.HTTPXMock,
     ) -> None:
         """Test error handling for connection errors."""
-        from httptap.http_client import HTTPClientError
-
         dns_resolver = FakeDNSResolver()
         ip, _family, _dns_ms = dns_resolver.resolve("unreachable.test", 443, 5.0)
         httpx_mock.add_exception(
@@ -885,7 +966,7 @@ class TestMakeRequest:
             url=f"https://{ip}",
         )
 
-        with pytest.raises(HTTPClientError, match="Request failed"):
+        with pytest.raises(httptap.http_client.HTTPClientError, match="Request failed"):
             make_request(
                 "https://unreachable.test",
                 timeout=5.0,
@@ -1314,8 +1395,6 @@ class TestMakeRequest:
         httpx_mock: pytest_httpx.HTTPXMock,
     ) -> None:
         """Test handling of unexpected exceptions."""
-        from httptap.http_client import HTTPClientError
-
         dns_resolver = FakeDNSResolver()
         ip, _family, _dns_ms = dns_resolver.resolve("error.test", 443, 5.0)
         # Simulate unexpected exception
@@ -1325,7 +1404,7 @@ class TestMakeRequest:
             url=f"https://{ip}",
         )
 
-        with pytest.raises(HTTPClientError, match="Unexpected error"):
+        with pytest.raises(httptap.http_client.HTTPClientError, match="Unexpected error"):
             make_request(
                 "https://error.test",
                 timeout=5.0,
@@ -1349,17 +1428,14 @@ class TestNormalizeHttpVersion:
         ],
     )
     def test_normalizes_known_tokens(self, raw: str, expected: str) -> None:
-        from httptap.http_client import _normalize_http_version
 
         assert _normalize_http_version(raw) == expected
 
     def test_returns_none_when_missing(self) -> None:
-        from httptap.http_client import _normalize_http_version
 
         assert _normalize_http_version(None) is None
 
     def test_leaves_unknown_strings_untouched(self) -> None:
-        from httptap.http_client import _normalize_http_version
 
         assert _normalize_http_version("spdy/3") == "spdy/3"
 

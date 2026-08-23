@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
         --no-group docs --no-group lint --no-group test \
         --no-group typing --no-group precommit
 
-COPY README.md ./
+COPY README.md LICENSE ./
 COPY httptap/ ./httptap/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable \

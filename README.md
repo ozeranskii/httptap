@@ -107,7 +107,8 @@ performance baselines.
 - **All HTTP methods** – GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS with request body support.
 - **Request body support** – send JSON, XML, or any data inline or from file with automatic Content-Type detection.
 - **IPv4/IPv6 aware** – the resolver and TLS inspector report both the address and its family.
-- **TLS insights** – certificate CN, expiry countdown, cipher suite, and protocol version are captured automatically.
+- **TLS insights** – certificate CN, SANs, issuer, serial, validity window and expiry countdown, plus cipher suite and
+  protocol version, are captured automatically from the live connection (no extra handshake).
 - **Multiple output modes** – rich waterfall view, compact single-line summaries, or `--metrics-only` for scripting.
 - **JSON export** – persist full step data (including redirect chains) for later processing.
 - **SLO threshold checking** – `--slo total=500,ttfb=200` gates CI jobs, cron probes, and readiness checks on per-phase
@@ -559,6 +560,11 @@ The redirect summary includes a total row:
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
         "cert_days_left": 143,
+        "cert_sans": ["httpbin.io", "*.httpbin.io"],
+        "cert_issuer": "WE1",
+        "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
+        "cert_not_before": "2025-04-01T00:00:00+00:00",
+        "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": null,
         "proxy_url": null,
@@ -609,6 +615,11 @@ The redirect summary includes a total row:
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
         "cert_days_left": 143,
+        "cert_sans": ["httpbin.io", "*.httpbin.io"],
+        "cert_issuer": "WE1",
+        "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
+        "cert_not_before": "2025-04-01T00:00:00+00:00",
+        "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": null,
         "proxy_url": null,
@@ -659,6 +670,11 @@ The redirect summary includes a total row:
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
         "cert_days_left": 143,
+        "cert_sans": ["httpbin.io", "*.httpbin.io"],
+        "cert_issuer": "WE1",
+        "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
+        "cert_not_before": "2025-04-01T00:00:00+00:00",
+        "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": null,
         "proxy_url": null,
@@ -767,3 +783,15 @@ details.
   [dnspython](https://www.dnspython.org/), and [Rich](https://github.com/Textualize/rich).
 - Inspired by the tooling ecosystem around web performance (e.g., DevTools waterfalls, `curl --trace`).
 - Special thanks to everyone who opens issues, shares ideas, or contributes patches.
+
+---
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=ozeranskii%2Fhttptap&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=ozeranskii/httptap&type=date&theme=dark&legend=top-left&sealed_token=l9nG3PE0bX5aj34TLoeySlfh-_SB3q51PgWOaU2CmnMGqBBvE8afuR1znzOdI0Vffj7Eh07VC1QPIOro5aeWb1B8BVdWOtnFhVcsJ22WFSfZkZWNx0v74LF--vP-rnm_WSMwooWGpUCQK24Anw5-qoqR2ItPauLxdsBhDZwLKJMEX0J46yaHWtJ-D1jc" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=ozeranskii/httptap&type=date&legend=top-left&sealed_token=l9nG3PE0bX5aj34TLoeySlfh-_SB3q51PgWOaU2CmnMGqBBvE8afuR1znzOdI0Vffj7Eh07VC1QPIOro5aeWb1B8BVdWOtnFhVcsJ22WFSfZkZWNx0v74LF--vP-rnm_WSMwooWGpUCQK24Anw5-qoqR2ItPauLxdsBhDZwLKJMEX0J46yaHWtJ-D1jc" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=ozeranskii/httptap&type=date&legend=top-left&sealed_token=l9nG3PE0bX5aj34TLoeySlfh-_SB3q51PgWOaU2CmnMGqBBvE8afuR1znzOdI0Vffj7Eh07VC1QPIOro5aeWb1B8BVdWOtnFhVcsJ22WFSfZkZWNx0v74LF--vP-rnm_WSMwooWGpUCQK24Anw5-qoqR2ItPauLxdsBhDZwLKJMEX0J46yaHWtJ-D1jc" />
+ </picture>
+</a>

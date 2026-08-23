@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pytest
@@ -209,6 +210,11 @@ class TestNetworkInfo:
             "tls_cipher": tls_cipher,
             "cert_cn": cert_cn,
             "cert_days_left": cert_days_left,
+            "cert_sans": [],
+            "cert_issuer": None,
+            "cert_serial": None,
+            "cert_not_before": None,
+            "cert_not_after": None,
             "tls_verified": True,
             "tls_custom_ca": True,
             "proxy_url": None,
@@ -226,6 +232,31 @@ class TestNetworkInfo:
         assert result["http_version"] is None
         assert result["tls_version"] is None
         assert result["cert_cn"] is None
+        assert result["cert_sans"] == []
+        assert result["cert_issuer"] is None
+        assert result["cert_not_before"] is None
+        assert result["cert_not_after"] is None
+
+    def test_to_dict_serializes_certificate_fields(self) -> None:
+        """Certificate SAN/issuer/serial/validity are serialized (dates as ISO)."""
+        not_before = datetime(2025, 1, 1, tzinfo=UTC)
+        not_after = datetime(2035, 1, 1, tzinfo=UTC)
+        network = NetworkInfo(
+            cert_cn="example.com",
+            cert_sans=["example.com", "www.example.com"],
+            cert_issuer="Example CA",
+            cert_serial="0ABCDEF0",
+            cert_not_before=not_before,
+            cert_not_after=not_after,
+        )
+
+        result = network.to_dict()
+
+        assert result["cert_sans"] == ["example.com", "www.example.com"]
+        assert result["cert_issuer"] == "Example CA"
+        assert result["cert_serial"] == "0ABCDEF0"
+        assert result["cert_not_before"] == not_before.isoformat()
+        assert result["cert_not_after"] == not_after.isoformat()
 
 
 class TestResponseInfo:
