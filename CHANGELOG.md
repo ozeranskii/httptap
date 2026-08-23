@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-08-23
+
+### Bug Fixes
+
+- **http_client:** Read TLS from the live connection instead of a separate probe ([ec386dd](https://github.com/ozeranskii/httptap/commit/ec386ddc00ea1c3fc5ac10bf43f70953bb764339))
+
+### Documentation
+
+- **mkdocs:** Sync footer copyright year with LICENSE (2025-2026) ([507acb7](https://github.com/ozeranskii/httptap/commit/507acb708a863500e954d5481393f7f07762a2b5))
+- **readme:** Add Simplified Chinese translation ([88f4187](https://github.com/ozeranskii/httptap/commit/88f41874e7684bbe073b4b21d20a34ae37616caa))
+- **readme:** Complete the installation and top-level TOC ([d6f8b4a](https://github.com/ozeranskii/httptap/commit/d6f8b4abbe8e3244930ebd4ef27ef87d53f60b1d))
+
+
 ## [0.5.4] - 2026-08-23
 
 ### Documentation
