@@ -5,7 +5,7 @@ site_author: Sergei Ozeranskii
 repo_url: https://github.com/ozeranskii/httptap
 repo_name: ozeranskii/httptap
 edit_uri: edit/main/docs/
-copyright: Copyright &copy; 2025 Sergei Ozeranskii
+copyright: Copyright &copy; 2025-2026 Sergei Ozeranskii
 
 theme:
   name: material
