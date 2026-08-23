@@ -38,6 +38,11 @@ class TestSocketTLSInspector:
         mock_cert_info = mocker.Mock()
         mock_cert_info.common_name = "example.com"
         mock_cert_info.days_until_expiry = 90
+        mock_cert_info.subject_alt_names = ["example.com", "www.example.com"]
+        mock_cert_info.issuer = "Example Root CA"
+        mock_cert_info.serial_number = "0ABCDEF0"
+        mock_cert_info.not_before = None
+        mock_cert_info.not_after = None
 
         # Patch dependencies
         mocker.patch("socket.create_connection", return_value=mock_socket)
@@ -60,6 +65,9 @@ class TestSocketTLSInspector:
         assert network_info.tls_cipher == "TLS_AES_256_GCM_SHA384"
         assert network_info.cert_cn == "example.com"
         assert network_info.cert_days_left == 90
+        assert network_info.cert_sans == ["example.com", "www.example.com"]
+        assert network_info.cert_issuer == "Example Root CA"
+        assert network_info.cert_serial == "0ABCDEF0"
 
     def test_inspect_ipv6_address(self, mocker: MockerFixture) -> None:
         """Test TLS inspection with IPv6 address."""

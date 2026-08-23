@@ -7,7 +7,7 @@ from contextlib import closing
 
 from httptap.constants import TLS_PROBE_MAX_TIMEOUT_SECONDS
 from httptap.models import NetworkInfo
-from httptap.tls_inspector import extract_tls_info
+from httptap.tls_inspector import apply_certificate_info, extract_tls_info
 from httptap.utils import create_ssl_context
 
 
@@ -53,8 +53,7 @@ class SocketTLSInspector:
                     network_info.tls_cipher = cipher_suite
 
                     if cert_info:
-                        network_info.cert_cn = cert_info.common_name
-                        network_info.cert_days_left = cert_info.days_until_expiry
+                        apply_certificate_info(network_info, cert_info)
 
         except Exception as exc:
             msg = f"TLS inspection failed for {host}:{port}: {exc}"

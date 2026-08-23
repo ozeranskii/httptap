@@ -45,7 +45,7 @@ performance baselines.
 - **All HTTP methods** – GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS with request body support
 - **Request body support** – send JSON, XML, or any data inline or from file with automatic Content-Type detection
 - **IPv4/IPv6 aware** – the resolver and TLS inspector report both the address and its family
-- **TLS insights** – certificate CN, expiry countdown, cipher suite, and protocol version are captured automatically
+- **TLS insights** – certificate CN, SANs, issuer, serial, validity window and expiry countdown, plus cipher suite and protocol version, are captured automatically from the live connection (no extra handshake)
 - **Multiple output modes** – rich waterfall view, compact single-line summaries, or `--metrics-only` for scripting
 - **JSON export** – persist full step data (including redirect chains) for later processing
 - **Extensible** – clean Protocol interfaces for DNS, TLS, timing, visualization, and export so you can plug in custom

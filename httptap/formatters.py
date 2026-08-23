@@ -114,6 +114,7 @@ def format_network_info(step: StepMetrics) -> str | None:
         ("TLS", step.network.tls_version),
         ("Cipher", step.network.tls_cipher),
         ("Cert", step.network.cert_cn),
+        ("Issuer", step.network.cert_issuer),
     ):
         if value:
             parts.append(f"{label}: {value}")

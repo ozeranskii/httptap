@@ -131,6 +131,12 @@ class NetworkInfo:
         tls_cipher: TLS cipher suite used.
         cert_cn: Certificate Common Name.
         cert_days_left: Days until certificate expiration.
+        cert_sans: Subject Alternative Names (DNS entries) from the leaf
+            certificate.
+        cert_issuer: Issuer Common Name of the leaf certificate.
+        cert_serial: Certificate serial number (hex string).
+        cert_not_before: Start of the certificate validity window.
+        cert_not_after: End of the certificate validity window.
         tls_verified: Whether TLS certificate verification was enforced.
         tls_custom_ca: True when a custom CA bundle was configured.
         proxy_url: Effective proxy URL used for this request, or None.
@@ -146,6 +152,11 @@ class NetworkInfo:
     tls_cipher: str | None = None
     cert_cn: str | None = None
     cert_days_left: int | None = None
+    cert_sans: list[str] = field(default_factory=list)
+    cert_issuer: str | None = None
+    cert_serial: str | None = None
+    cert_not_before: datetime | None = None
+    cert_not_after: datetime | None = None
     tls_verified: bool | None = None
     tls_custom_ca: bool | None = None
     proxy_url: str | None = None
@@ -166,6 +177,11 @@ class NetworkInfo:
             "tls_cipher": self.tls_cipher,
             "cert_cn": self.cert_cn,
             "cert_days_left": self.cert_days_left,
+            "cert_sans": self.cert_sans,
+            "cert_issuer": self.cert_issuer,
+            "cert_serial": self.cert_serial,
+            "cert_not_before": self.cert_not_before.isoformat() if self.cert_not_before else None,
+            "cert_not_after": self.cert_not_after.isoformat() if self.cert_not_after else None,
             "tls_verified": self.tls_verified,
             "tls_custom_ca": self.tls_custom_ca,
             "proxy_url": self.proxy_url,
