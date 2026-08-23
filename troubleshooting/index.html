@@ -1930,9 +1930,12 @@ command, the JSON export (if any), and the relevant terminal output.</p>
 used, <code>network.tls_custom_ca: true</code>.</p>
 <h3 id="certificate-shows-cert_days_left-null-or-negative">Certificate shows <code>cert_days_left: null</code> or negative<a class="headerlink" href="#certificate-shows-cert_days_left-null-or-negative" title="Permanent link">&para;</a></h3>
 <p><code>cert_days_left</code> is parsed from the leaf certificate's <code>notAfter</code> field. A
-<code>null</code> value means the inspector couldn't fetch/parse the certificate (usually
-TLS aborted before a cert was received). A <strong>negative</strong> value means the
-certificate is already expired.</p>
+<code>null</code> value means the certificate could not be fetched/parsed — usually TLS
+aborted before a cert was received, or <code>--ignore-ssl</code> was used (with
+verification disabled the peer certificate is not surfaced as a parsed
+dictionary, so <code>cert_cn</code>/<code>cert_days_left</code> and the other <code>cert_*</code> fields stay
+<code>null</code> while <code>tls_version</code>/<code>tls_cipher</code> are still reported). A <strong>negative</strong>
+value means the certificate is already expired.</p>
 <h3 id="-ignore-ssl-still-fails-with-dh_key_too_small-wrong_version_number"><code>--ignore-ssl</code> still fails with <code>DH_KEY_TOO_SMALL</code> / <code>WRONG_VERSION_NUMBER</code><a class="headerlink" href="#-ignore-ssl-still-fails-with-dh_key_too_small-wrong_version_number" title="Permanent link">&para;</a></h3>
 <p>Modern OpenSSL builds drop some ciphers and DH parameters for safety.
 <code>--ignore-ssl</code> relaxes verification and protocol constraints but can't bring

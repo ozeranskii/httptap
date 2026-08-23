@@ -1510,7 +1510,7 @@ performance baselines.</p>
 <li><strong>All HTTP methods</strong> – GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS with request body support</li>
 <li><strong>Request body support</strong> – send JSON, XML, or any data inline or from file with automatic Content-Type detection</li>
 <li><strong>IPv4/IPv6 aware</strong> – the resolver and TLS inspector report both the address and its family</li>
-<li><strong>TLS insights</strong> – certificate CN, expiry countdown, cipher suite, and protocol version are captured automatically</li>
+<li><strong>TLS insights</strong> – certificate CN, SANs, issuer, serial, validity window and expiry countdown, plus cipher suite and protocol version, are captured automatically from the live connection (no extra handshake)</li>
 <li><strong>Multiple output modes</strong> – rich waterfall view, compact single-line summaries, or <code>--metrics-only</code> for scripting</li>
 <li><strong>JSON export</strong> – persist full step data (including redirect chains) for later processing</li>
 <li><strong>Extensible</strong> – clean Protocol interfaces for DNS, TLS, timing, visualization, and export so you can plug in custom
