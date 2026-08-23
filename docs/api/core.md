@@ -91,17 +91,17 @@ Represents a single HTTP request/response cycle.
 ```python
 @dataclass(slots=True)
 class StepMetrics:
-    url: str = ""                                       # Request URL
-    step_number: int = 1                                # Step number in redirect chain
-    timing: TimingMetrics = field(default_factory=...)   # Timing information
-    network: NetworkInfo = field(default_factory=...)    # Network details
+    url: str = ""  # Request URL
+    step_number: int = 1  # Step number in redirect chain
+    timing: TimingMetrics = field(default_factory=...)  # Timing information
+    network: NetworkInfo = field(default_factory=...)  # Network details
     response: ResponseInfo = field(default_factory=...)  # Response data
-    error: str | None = None                            # Error message if failed
-    note: str | None = None                             # Additional notes
-    proxied_via: str | None = None                      # Proxy URL used, if any
-    request_method: str | None = None                   # HTTP method used
-    request_headers: dict[str, str] = field(...)        # Request headers (sanitized)
-    request_body_bytes: int = 0                         # Size of request body
+    error: str | None = None  # Error message if failed
+    note: str | None = None  # Additional notes
+    proxied_via: str | None = None  # Proxy URL used, if any
+    request_method: str | None = None  # HTTP method used
+    request_headers: dict[str, str] = field(...)  # Request headers (sanitized)
+    request_body_bytes: int = 0  # Size of request body
 ```
 
 ### TimingMetrics
@@ -111,13 +111,13 @@ Contains detailed timing breakdown for the request. All values are in millisecon
 ```python
 @dataclass(slots=True)
 class TimingMetrics:
-    dns_ms: float = 0.0        # DNS resolution time
-    connect_ms: float = 0.0    # TCP connection time
-    tls_ms: float = 0.0        # TLS handshake time
-    ttfb_ms: float = 0.0       # Time to first byte
-    total_ms: float = 0.0      # Total request time
-    wait_ms: float = 0.0       # Server processing time (derived)
-    xfer_ms: float = 0.0       # Body transfer time (derived)
+    dns_ms: float = 0.0  # DNS resolution time
+    connect_ms: float = 0.0  # TCP connection time
+    tls_ms: float = 0.0  # TLS handshake time
+    ttfb_ms: float = 0.0  # Time to first byte
+    total_ms: float = 0.0  # Total request time
+    wait_ms: float = 0.0  # Server processing time (derived)
+    xfer_ms: float = 0.0  # Body transfer time (derived)
     is_estimated: bool = False  # Whether timing is estimated
 ```
 
@@ -130,14 +130,14 @@ Contains network-level details about the connection. All fields are optional.
 ```python
 @dataclass(slots=True)
 class NetworkInfo:
-    ip: str | None = None              # Resolved IP address
-    ip_family: str | None = None       # "IPv4" or "IPv6"
-    http_version: str | None = None    # HTTP protocol version
-    tls_version: str | None = None     # TLS protocol version
-    tls_cipher: str | None = None      # Cipher suite name
-    cert_cn: str | None = None         # Certificate common name
+    ip: str | None = None  # Resolved IP address
+    ip_family: str | None = None  # "IPv4" or "IPv6"
+    http_version: str | None = None  # HTTP protocol version
+    tls_version: str | None = None  # TLS protocol version
+    tls_cipher: str | None = None  # Cipher suite name
+    cert_cn: str | None = None  # Certificate common name
     cert_days_left: int | None = None  # Days until certificate expires
-    tls_verified: bool | None = None   # Whether TLS verification was enforced
+    tls_verified: bool | None = None  # Whether TLS verification was enforced
     tls_custom_ca: bool | None = None  # True when custom CA bundle was used
 ```
 
@@ -148,13 +148,13 @@ Contains HTTP response metadata.
 ```python
 @dataclass(slots=True)
 class ResponseInfo:
-    status: int | None = None            # HTTP status code
-    bytes: int = 0                       # Response body size
-    content_type: str | None = None      # Content-Type header
-    server: str | None = None            # Server header
-    date: datetime | None = None         # Response date (parsed)
-    location: str | None = None          # Location header (redirects)
-    headers: dict[str, str] = field(...) # Sanitized response headers
+    status: int | None = None  # HTTP status code
+    bytes: int = 0  # Response body size
+    content_type: str | None = None  # Content-Type header
+    server: str | None = None  # Server header
+    date: datetime | None = None  # Response date (parsed)
+    location: str | None = None  # Location header (redirects)
+    headers: dict[str, str] = field(...)  # Sanitized response headers
 ```
 
 ## Utility Functions
@@ -166,8 +166,8 @@ Validate that a URL is a valid HTTP/HTTPS URL.
 ```python
 from httptap.utils import validate_url
 
-validate_url("https://httpbin.io")     # True
-validate_url("ftp://example.com")      # False
+validate_url("https://httpbin.io")  # True
+validate_url("ftp://example.com")  # False
 ```
 
 ### sanitize_headers()
@@ -207,10 +207,10 @@ ctx = create_ssl_context(verify_ssl=True, ca_bundle_path="/path/to/ca.pem")
 
 ```python
 from httptap.constants import (
-    DEFAULT_TIMEOUT_SECONDS,       # 20.0 seconds
-    TLS_PROBE_MAX_TIMEOUT_SECONDS, # 5.0 seconds
-    HTTP_DEFAULT_PORT,             # 80
-    HTTPS_DEFAULT_PORT,            # 443
+    DEFAULT_TIMEOUT_SECONDS,  # 20.0 seconds
+    TLS_PROBE_MAX_TIMEOUT_SECONDS,  # 5.0 seconds
+    HTTP_DEFAULT_PORT,  # 80
+    HTTPS_DEFAULT_PORT,  # 443
 )
 ```
 
@@ -218,8 +218,8 @@ from httptap.constants import (
 
 ```python
 from httptap.constants import (
-    EXIT_CODE_OK,        # 0 - Success
-    EXIT_CODE_USAGE,     # 64 - Invalid arguments
+    EXIT_CODE_OK,  # 0 - Success
+    EXIT_CODE_USAGE,  # 64 - Invalid arguments
     EXIT_CODE_SOFTWARE,  # 70 - Internal error
     EXIT_CODE_TEMPFAIL,  # 75 - Network/TLS error
 )
@@ -263,8 +263,7 @@ for step in steps:
     if step.network.tls_version:
         print(f"  TLS: {step.network.tls_version}")
     if step.network.cert_cn:
-        print(f"  Certificate: {step.network.cert_cn} "
-              f"(expires in {step.network.cert_days_left} days)")
+        print(f"  Certificate: {step.network.cert_cn} (expires in {step.network.cert_days_left} days)")
 ```
 
 ---

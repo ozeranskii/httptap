@@ -9,6 +9,7 @@ You can provide custom DNS resolver implementations by using the Python API. htt
 ```python
 from httptap import HTTPTapAnalyzer, SystemDNSResolver
 
+
 class CustomDNSResolver(SystemDNSResolver):
     """Custom DNS resolver with hardcoded responses."""
 
@@ -17,6 +18,7 @@ class CustomDNSResolver(SystemDNSResolver):
         if host == "httpbin.io":
             return "44.211.11.205", "IPv4", 0.1
         return super().resolve(host, port, timeout)
+
 
 # Use custom resolver
 analyzer = HTTPTapAnalyzer(dns_resolver=CustomDNSResolver())
@@ -32,6 +34,7 @@ from httptap import HTTPTapAnalyzer
 from httptap.interfaces import TLSInspector
 from httptap.models import NetworkInfo
 
+
 class CustomTLSInspector:
     """Custom TLS inspector with extended certificate checks."""
 
@@ -39,6 +42,7 @@ class CustomTLSInspector:
         # Custom TLS inspection logic
         # Return: NetworkInfo with TLS version, cipher, and certificate data
         ...
+
 
 analyzer = HTTPTapAnalyzer(tls_inspector=CustomTLSInspector())
 ```
@@ -67,15 +71,9 @@ for step in steps:
 from httptap import HTTPTapAnalyzer
 
 analyzer = HTTPTapAnalyzer()
-headers = {
-    "Authorization": "Bearer token123",
-    "Accept": "application/json"
-}
+headers = {"Authorization": "Bearer token123", "Accept": "application/json"}
 
-steps = analyzer.analyze_url(
-    "https://httpbin.io/bearer",
-    headers=headers
-)
+steps = analyzer.analyze_url("https://httpbin.io/bearer", headers=headers)
 ```
 
 ### Following Redirects
@@ -228,11 +226,13 @@ Create your own visualization by implementing the `Visualizer` protocol.
 ```python
 from httptap.models import StepMetrics
 
+
 class CustomVisualizer:
     """Custom visualizer for request steps."""
 
     def render(self, step: StepMetrics) -> None:
         print(f"Step {step.step_number}: {step.timing.total_ms}ms")
+
 
 # Use custom visualizer
 from httptap import HTTPTapAnalyzer
@@ -254,25 +254,28 @@ from collections.abc import Sequence
 from httptap.models import StepMetrics
 import csv
 
+
 class CSVExporter:
     """Export request data to CSV format."""
 
     def export(self, steps: Sequence[StepMetrics], initial_url: str, output_path: str) -> None:
         with open(output_path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["url", "status", "dns_ms", "connect_ms",
-                           "tls_ms", "ttfb_ms", "total_ms"])
+            writer.writerow(["url", "status", "dns_ms", "connect_ms", "tls_ms", "ttfb_ms", "total_ms"])
 
             for step in steps:
-                writer.writerow([
-                    step.url,
-                    step.response.status,
-                    step.timing.dns_ms,
-                    step.timing.connect_ms,
-                    step.timing.tls_ms,
-                    step.timing.ttfb_ms,
-                    step.timing.total_ms,
-                ])
+                writer.writerow(
+                    [
+                        step.url,
+                        step.response.status,
+                        step.timing.dns_ms,
+                        step.timing.connect_ms,
+                        step.timing.tls_ms,
+                        step.timing.ttfb_ms,
+                        step.timing.total_ms,
+                    ]
+                )
+
 
 # Usage
 from httptap import HTTPTapAnalyzer
@@ -292,6 +295,7 @@ Use httptap for continuous performance monitoring.
 import time
 from httptap import HTTPTapAnalyzer
 
+
 def monitor_endpoint(url: str, interval: int = 60):
     """Monitor endpoint every interval seconds."""
     analyzer = HTTPTapAnalyzer()
@@ -301,12 +305,15 @@ def monitor_endpoint(url: str, interval: int = 60):
         step = steps[0]
 
         # Log metrics
-        print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - "
-              f"TTFB: {step.timing.ttfb_ms:.2f}ms, "
-              f"Total: {step.timing.total_ms:.2f}ms, "
-              f"Status: {step.response.status}")
+        print(
+            f"{time.strftime('%Y-%m-%d %H:%M:%S')} - "
+            f"TTFB: {step.timing.ttfb_ms:.2f}ms, "
+            f"Total: {step.timing.total_ms:.2f}ms, "
+            f"Status: {step.response.status}"
+        )
 
         time.sleep(interval)
+
 
 # Monitor API endpoint every minute
 monitor_endpoint("https://httpbin.io/status/200", interval=60)
@@ -320,18 +327,16 @@ Analyze multiple URLs concurrently.
 from concurrent.futures import ThreadPoolExecutor
 from httptap import HTTPTapAnalyzer
 
+
 def analyze_url(url: str):
     """Analyze a single URL."""
     analyzer = HTTPTapAnalyzer()
     steps = analyzer.analyze_url(url)
     return url, steps[0].timing.total_ms
 
+
 # List of URLs to analyze
-urls = [
-    "https://httpbin.io",
-    "https://httpbin.io/delay/1",
-    "https://httpbin.io/gzip"
-]
+urls = ["https://httpbin.io", "https://httpbin.io/delay/1", "https://httpbin.io/gzip"]
 
 # Analyze concurrently
 with ThreadPoolExecutor(max_workers=5) as executor:
@@ -367,18 +372,18 @@ Use httptap in your test suites to verify performance requirements.
 import pytest
 from httptap import HTTPTapAnalyzer
 
+
 def test_api_response_time():
     """Test that API responds within acceptable time."""
     analyzer = HTTPTapAnalyzer()
     steps = analyzer.analyze_url("https://httpbin.io/delay/0")
 
     # Assert TTFB is under 500ms
-    assert steps[0].timing.ttfb_ms < 500, \
-        f"TTFB too high: {steps[0].timing.ttfb_ms}ms"
+    assert steps[0].timing.ttfb_ms < 500, f"TTFB too high: {steps[0].timing.ttfb_ms}ms"
 
     # Assert total time is under 1 second
-    assert steps[0].timing.total_ms < 1000, \
-        f"Total time too high: {steps[0].timing.total_ms}ms"
+    assert steps[0].timing.total_ms < 1000, f"Total time too high: {steps[0].timing.total_ms}ms"
+
 
 def test_tls_configuration():
     """Verify TLS configuration meets security standards."""
@@ -386,12 +391,12 @@ def test_tls_configuration():
     steps = analyzer.analyze_url("https://httpbin.io")
 
     # Assert TLS 1.2 or higher
-    assert steps[0].network.tls_version in ["TLSv1.2", "TLSv1.3"], \
+    assert steps[0].network.tls_version in ["TLSv1.2", "TLSv1.3"], (
         f"Insecure TLS version: {steps[0].network.tls_version}"
+    )
 
     # Assert certificate is valid for at least 30 days
-    assert steps[0].network.cert_days_left > 30, \
-        f"Certificate expiring soon: {steps[0].network.cert_days_left} days"
+    assert steps[0].network.cert_days_left > 30, f"Certificate expiring soon: {steps[0].network.cert_days_left} days"
 ```
 
 ## Environment-Specific Configuration
