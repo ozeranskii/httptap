@@ -167,7 +167,7 @@ brew install httptap
 ### Using `uvx` (Recommended)
 
 ```shell
-uvx --from "httptap[completion]" httptap <options>
+uvx --from "httptap[completion]" httptap https://example.com
 ```
 
 ### Using `uv`
