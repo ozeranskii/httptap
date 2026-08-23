@@ -77,8 +77,10 @@ performance baselines.
 - [Requirements](#requirements)
 - [Installation](#installation)
   - [Using Homebrew (macOS/Linux)](#using-homebrew-macoslinux)
+  - [Using `uvx` (Recommended)](#using-uvx-recommended)
   - [Using `uv`](#using-uv)
   - [Using `pip`](#using-pip)
+  - [Container image](#container-image)
   - [From source](#from-source)
   - [Shell completions](#shell-completions)
 - [Quick Start](#quick-start)
@@ -101,6 +103,7 @@ performance baselines.
 - [Contributing](#contributing)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
+- [Star History](#star-history)
 
 ---
 
