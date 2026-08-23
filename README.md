@@ -59,6 +59,10 @@
   </tr>
 </table>
 
+<p align="center">
+  <b>English</b> | <a href="README.zh-CN.md">简体中文</a>
+</p>
+
 `httptap` is a rich-powered CLI that dissects an HTTP request into every meaningful phase-DNS, TCP connect, TLS
 handshake, server wait, and body transfer and renders the results as a timeline table, compact summary, or
 machine-friendly metrics. It is designed for interactive troubleshooting, regression analysis, and recording of
