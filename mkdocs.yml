@@ -1,5 +1,5 @@
 site_name: httptap Documentation
-site_url: https://httptap.dev/
+site_url: https://docs.httptap.dev/
 site_description: HTTP request visualizer with detailed timing breakdown
 site_author: Sergei Ozeranskii
 repo_url: https://github.com/ozeranskii/httptap
