@@ -10,6 +10,17 @@ Before installing httptap, ensure you have:
 
 No system dependencies beyond standard networking are required.
 
+## Running with uvx
+
+The fastest way to run httptap without a permanent install. [`uvx`](https://docs.astral.sh/uv/guides/tools/) (shipped with [uv](https://docs.astral.sh/uv/)) fetches httptap and runs it in an ephemeral, isolated environment:
+
+```bash
+uvx --from "httptap[completion]" httptap https://example.com
+```
+
+!!! tip "Recommended for a quick try"
+    `uvx` needs no prior install step and leaves nothing behind — ideal for one-off checks or trying httptap out. For repeated use, install it with one of the methods below.
+
 ## Installing via Homebrew
 
 === "macOS"
