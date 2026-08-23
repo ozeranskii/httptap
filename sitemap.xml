@@ -1,67 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://httptap.dev/</loc>
+         <loc>https://docs.httptap.dev/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/troubleshooting/</loc>
+         <loc>https://docs.httptap.dev/troubleshooting/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/about/changelog/</loc>
+         <loc>https://docs.httptap.dev/about/changelog/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/about/license/</loc>
+         <loc>https://docs.httptap.dev/about/license/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/api/core/</loc>
+         <loc>https://docs.httptap.dev/api/core/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/api/interfaces/</loc>
+         <loc>https://docs.httptap.dev/api/interfaces/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/api/overview/</loc>
+         <loc>https://docs.httptap.dev/api/overview/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/development/contributing/</loc>
+         <loc>https://docs.httptap.dev/development/contributing/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/development/release/</loc>
+         <loc>https://docs.httptap.dev/development/release/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/getting-started/installation/</loc>
+         <loc>https://docs.httptap.dev/getting-started/installation/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/getting-started/quick-start/</loc>
+         <loc>https://docs.httptap.dev/getting-started/quick-start/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/security/assurance-case/</loc>
+         <loc>https://docs.httptap.dev/security/assurance-case/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/usage/advanced/</loc>
+         <loc>https://docs.httptap.dev/usage/advanced/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/usage/basic/</loc>
+         <loc>https://docs.httptap.dev/usage/basic/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/usage/output-formats/</loc>
+         <loc>https://docs.httptap.dev/usage/output-formats/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
     <url>
-         <loc>https://httptap.dev/usage/slo/</loc>
+         <loc>https://docs.httptap.dev/usage/slo/</loc>
          <lastmod>2026-08-23</lastmod>
     </url>
 </urlset>
