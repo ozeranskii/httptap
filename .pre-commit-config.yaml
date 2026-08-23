@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.22
+    rev: v0.16.4
     hooks:
       - id: ruff-check
         args:
@@ -8,7 +8,7 @@ repos:
           - --show-fixes
       - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.3.0
+    rev: v2.3.1
     hooks:
       - id: mypy
         additional_dependencies:
@@ -46,6 +46,6 @@ repos:
           - "--conf"
           - ".yamlfmt"
   - repo: https://github.com/crate-ci/typos
-    rev: v1.48.0
+    rev: v1.49.0
     hooks:
       - id: typos
