@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.4] - 2026-08-23
+
+### Documentation
+
+- Add uvx as recommended install method ([d7d4116](https://github.com/ozeranskii/httptap/commit/d7d411689b3ddfb7f2f32c564d472355328d9759))
+- **mkdocs:** Point site_url to docs.httptap.dev ([71920c7](https://github.com/ozeranskii/httptap/commit/71920c7d309876633f8c317fa7a998f03eeb0478))
+
+
+### New Contributors
+
+- @cr2007 made their first contribution in [#234](https://github.com/ozeranskii/httptap/pull/234)
+
 ## [0.5.3] - 2026-07-19
 
 ### Bug Fixes
