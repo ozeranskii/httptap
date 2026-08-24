@@ -110,6 +110,60 @@ plugins:
             About: 关于
             License: 许可证
             Changelog: 更新日志
+        - locale: ja
+          name: 日本語
+          build: true
+          site_name: httptap ドキュメント
+          nav_translations:
+            Home: ホーム
+            Getting Started: はじめに
+            Installation: インストール
+            Quick Start: クイックスタート
+            Usage: 使い方
+            Basic Usage: 基本的な使い方
+            Output Formats: 出力形式
+            SLO Threshold Checking: SLOしきい値チェック
+            Advanced Features: 高度な機能
+            Troubleshooting & FAQ: トラブルシューティングとFAQ
+            Security: セキュリティ
+            Assurance Case: 保証ケース
+            API Reference: APIリファレンス
+            Overview: 概要
+            Core Components: コアコンポーネント
+            Interfaces: インターフェース
+            Development: 開発
+            Contributing: コントリビュート
+            Release Process: リリースプロセス
+            About: このプロジェクトについて
+            License: ライセンス
+            Changelog: 変更履歴
+        - locale: es
+          name: Español
+          build: true
+          site_name: httptap Documentación
+          nav_translations:
+            Home: Inicio
+            Getting Started: Primeros pasos
+            Installation: Instalación
+            Quick Start: Guía rápida
+            Usage: Uso
+            Basic Usage: Uso básico
+            Output Formats: Formatos de salida
+            SLO Threshold Checking: Comprobación de umbrales SLO
+            Advanced Features: Funciones avanzadas
+            Troubleshooting & FAQ: Resolución de problemas y preguntas frecuentes
+            Security: Seguridad
+            Assurance Case: Caso de garantía
+            API Reference: Referencia de la API
+            Overview: Descripción general
+            Core Components: Componentes principales
+            Interfaces: Interfaces
+            Development: Desarrollo
+            Contributing: Contribuir
+            Release Process: Proceso de publicación
+            About: Acerca de
+            License: Licencia
+            Changelog: Registro de cambios
   - social:
       cards: true
       cards_dir: assets/images/social
