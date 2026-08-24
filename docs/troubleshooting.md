@@ -53,7 +53,7 @@ The explicit `-x/--proxy` flag always wins over environment variables. Check:
 2. The scheme matches the target — `HTTPS_PROXY` is used for `https://` URLs,
    `HTTP_PROXY` for `http://`.
 3. The target host isn't matched by `NO_PROXY`. Check the `proxy_source` field
-   in the JSON export; if it says `env:no_proxy`, your host is excluded.
+   in the JSON export; if it says `NO_PROXY`, your host is excluded.
 
 ### `NO_PROXY` pattern reference
 

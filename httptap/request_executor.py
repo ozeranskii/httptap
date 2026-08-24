@@ -29,7 +29,32 @@ if TYPE_CHECKING:
 
 @dataclass(slots=True)
 class RequestOptions:
-    """Aggregates all parameters required to perform a single HTTP request."""
+    """Aggregates all parameters required to perform a single HTTP request.
+
+    Attributes:
+        url: Target URL to request. Must be a valid HTTP/HTTPS URL.
+        timeout: Request timeout in seconds.
+        method: HTTP method to use for the request.
+        content: Optional request body as bytes.
+        http2: Whether to enable HTTP/2 support.
+        verify_ssl: Whether to verify TLS certificates.
+        ca_bundle_path: Path to a custom CA certificate bundle (PEM format).
+            Only used when verify_ssl is True. If None, the system CA bundle
+            is used.
+        dns_resolver: Custom DNS resolver implementation. If None, the executor
+            uses its default resolver.
+        tls_inspector: Custom TLS inspector implementation. If None, the executor
+            uses its default inspector.
+        timing_collector: Timing collector instance used to measure request
+            phases. If None, no phase timing is collected for this request.
+        force_new_connection: Whether to force a fresh connection instead of
+            reusing a pooled one, ensuring per-request timing is accurate.
+        headers: Optional mapping of request headers to send.
+        proxy: Optional proxy URL (http/https/socks5/socks5h) applied to the
+            request.
+        noproxy: When True, ignore proxy environment variables and connect
+            directly.
+    """
 
     url: str
     timeout: float
@@ -49,7 +74,13 @@ class RequestOptions:
 
 @dataclass(slots=True)
 class RequestOutcome:
-    """Wraps the collected timing, network, and response objects."""
+    """Wraps the collected timing, network, and response objects.
+
+    Attributes:
+        timing: Timing metrics gathered for the request phases.
+        network: Network and TLS/certificate information for the connection.
+        response: HTTP response metadata (status, headers, body size).
+    """
 
     timing: TimingMetrics
     network: NetworkInfo
@@ -58,19 +89,59 @@ class RequestOutcome:
 
 @runtime_checkable
 class RequestExecutor(Protocol):
-    """Protocol describing modern request executors used by the analyzer."""
+    """Protocol describing modern request executors used by the analyzer.
+
+    Implementations perform a single HTTP request described by a
+    :class:`RequestOptions` instance and return the collected metrics as a
+    :class:`RequestOutcome`. This lets the analyzer delegate the actual
+    transport work to interchangeable backends.
+
+    Examples:
+        >>> class CustomExecutor:
+        ...     def execute(self, options: RequestOptions) -> RequestOutcome:
+        ...         ...  # perform the request and collect metrics
+    """
 
     def execute(self, options: RequestOptions) -> RequestOutcome:
-        """Perform an HTTP request based on provided options."""
+        """Perform an HTTP request based on the provided options.
+
+        Args:
+            options: Fully populated request parameters, including URL,
+                timeout, method, and any injected collaborators.
+
+        Returns:
+            A RequestOutcome bundling the timing, network, and response data.
+
+        Raises:
+            httptap.http_client.HTTPClientError: If the request cannot be
+                completed. Implementations should surface transport failures
+                using this error type so the analyzer can record partial data.
+        """
 
 
 class HTTPClientRequestExecutor:
-    """RequestExecutor that delegates to the built-in http client."""
+    """RequestExecutor that delegates to the built-in HTTP client.
+
+    This is the default executor used by :class:`~httptap.analyzer.HTTPTapAnalyzer`.
+    It forwards each request to :func:`httptap.http_client.make_request`, which
+    instruments DNS, connection, TLS, and transfer timing.
+    """
 
     __slots__ = ()
 
     def execute(self, options: RequestOptions) -> RequestOutcome:
-        """Perform an HTTP request using the default client."""
+        """Perform an HTTP request using the default client.
+
+        Args:
+            options: Fully populated request parameters.
+
+        Returns:
+            A RequestOutcome bundling the timing, network, and response data.
+
+        Raises:
+            httptap.http_client.HTTPClientError: If the underlying HTTP request
+                fails.
+        """
         timing, network, response = make_request(
             options.url,
             options.timeout,

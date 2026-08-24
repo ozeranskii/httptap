@@ -1,3 +1,7 @@
+---
+description: Choose between rich, compact, metrics-only, and JSON output modes to suit debugging or automation.
+---
+
 # Output Formats
 
 httptap supports multiple output formats to suit different use cases, from interactive troubleshooting to automated
@@ -115,6 +119,11 @@ httptap --json output.json https://httpbin.io
     {
       "url": "https://httpbin.io",
       "step_number": 1,
+      "request": {
+        "method": "GET",
+        "headers": {},
+        "body_bytes": 0
+      },
       "timing": {
         "dns_ms": 8.947,
         "connect_ms": 96.977,
@@ -150,10 +159,15 @@ httptap --json output.json https://httpbin.io
         "server": null,
         "date": "2025-10-23T19:20:36+00:00",
         "location": null,
-        "headers": {}
+        "headers": {
+          "date": "Thu, 23 Oct 2025 19:20:36 GMT",
+          "content-type": "application/json",
+          "server": "gunicorn/19.9.0"
+        }
       },
       "error": null,
-      "note": null
+      "note": null,
+      "proxy": null
     }
   ],
   "summary": {

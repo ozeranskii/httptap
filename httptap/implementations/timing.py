@@ -9,7 +9,13 @@ from httptap.models import TimingMetrics
 
 
 class PerfCounterTimingCollector:
-    """High-precision timing collector using time.perf_counter()."""
+    """High-precision timing collector using time.perf_counter().
+
+    Records monotonic timestamps as each request phase is marked and derives
+    DNS, TTFB, and total durations from them. Implements the
+    :class:`~httptap.interfaces.TimingCollector` protocol and is the default
+    collector used by the analyzer. A fresh instance is created per request.
+    """
 
     __slots__ = (
         "_dns_end",
@@ -50,7 +56,13 @@ class PerfCounterTimingCollector:
         self._end_time = time.perf_counter()
 
     def get_metrics(self) -> TimingMetrics:
-        """Build a TimingMetrics instance populated with collected timings."""
+        """Build a TimingMetrics instance populated with collected timings.
+
+        Returns:
+            A TimingMetrics with ``dns_ms``, ``ttfb_ms``, and ``total_ms``
+            computed from the recorded marks. Call ``calculate_derived()`` on
+            the result to populate ``wait_ms`` and ``xfer_ms``.
+        """
         timing = TimingMetrics()
         timing.dns_ms = (self._dns_end - self._dns_start) * MS_IN_SECOND
         timing.total_ms = (self._end_time - self._start_time) * MS_IN_SECOND

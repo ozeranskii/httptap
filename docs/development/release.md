@@ -1,3 +1,7 @@
+---
+description: The automated GitHub Actions release process for httptap, plus manual release steps.
+---
+
 # Release Process
 
 This document describes the automated release process for httptap.
@@ -77,22 +81,22 @@ The release process is triggered manually via GitHub Actions.
    uv build  # Create wheel and sdist
    ```
 
-5. **Publish to TestPyPI**
+6. **Publish to TestPyPI**
     - Uploads to TestPyPI first via OIDC Trusted Publishing, with PEP 740
       attestations, as a smoke test before the production push.
 
-6. **Publish to PyPI**
+7. **Publish to PyPI**
     - Uses OIDC Trusted Publishing (no tokens required)
     - Uploads wheel and source distribution with PEP 740 attestations
 
-7. **Publish container image to GHCR**
+8. **Publish container image to GHCR**
     - Builds multi-arch (linux/amd64, linux/arm64) image
     - Pushes to `ghcr.io/ozeranskii/httptap` with `{version}`, `{major}.{minor}`,
       `{major}`, and `latest` tags
     - Signs the image with cosign (keyless Sigstore)
     - Attaches SLSA build provenance via `actions/attest-build-provenance`
 
-8. **GitHub Release**
+9. **GitHub Release**
     - Creates release with generated notes
     - Attaches build artifacts, SBOMs, VEX, and the man page
 
@@ -244,7 +248,7 @@ uv build
 uv publish  # Requires PyPI credentials
 ```
 
-### 7. Create GitHub Release
+### 8. Create GitHub Release
 
 Use `gh` CLI or web interface to create release with changelog notes.
 
@@ -289,7 +293,7 @@ After successful release:
 1. Verify package on PyPI: https://pypi.org/project/httptap/
 2. Check GitHub release: https://github.com/ozeranskii/httptap/releases
 3. Test installation: `uv pip install httptap=={version}`
-4. Announce release (Twitter, Discord, etc.)
+4. Announce release (e.g. GitHub Discussions, Telegram)
 
 ## Release Checklist
 

@@ -7,6 +7,20 @@ repo_name: ozeranskii/httptap
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2025-2026 Sergei Ozeranskii
 
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: warn
+    unrecognized_links: warn
+
 theme:
   name: material
   custom_dir: docs/overrides
@@ -28,14 +42,16 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   features:
-    - navigation.instant
     - navigation.tracking
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.footer
     - search.suggest
     - search.highlight
     - search.share
+    - content.action.edit
+    - content.action.view
     - content.code.copy
     - content.code.annotate
     - content.tabs.link
@@ -56,14 +72,85 @@ extra:
       name: PyPI Package
 
 plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+  - i18n:
+      docs_structure: suffix
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: zh
+          name: 简体中文
+          build: true
+          site_name: httptap 文档
+          nav_translations:
+            Home: 首页
+            Getting Started: 快速上手
+            Installation: 安装
+            Quick Start: 快速开始
+            Usage: 使用
+            Basic Usage: 基础用法
+            Output Formats: 输出格式
+            SLO Threshold Checking: SLO 阈值检查
+            Advanced Features: 高级功能
+            Troubleshooting & FAQ: 故障排查与常见问题
+            Security: 安全
+            Assurance Case: 保障案例
+            API Reference: API 参考
+            Overview: 概览
+            Core Components: 核心组件
+            Interfaces: 接口
+            Development: 开发
+            Contributing: 贡献指南
+            Release Process: 发布流程
+            About: 关于
+            License: 许可证
+            Changelog: 更新日志
   - social:
       cards: true
       cards_dir: assets/images/social
       cards_layout_options:
         background_color: "#1a1f4b"
         color: "#f5f7ff"
-  - search:
-      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: date
+      fallback_to_build_date: true
+  - autorefs:
+      resolve_closest: true
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_section_style: list
+            docstring_options:
+              ignore_init_summary: true
+            merge_init_into_class: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            separate_signature: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            members_order: source
+            filters:
+              - "!^_"
+            summary: true
+            show_if_no_docstring: false
+            show_source: true
+  - redirects:
+      redirect_maps: {}
+  - minify:
+      minify_html: true
+      htmlmin_opts:
+        remove_comments: true
 
 markdown_extensions:
   # Python Markdown

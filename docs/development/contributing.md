@@ -1,3 +1,7 @@
+---
+description: How to set up a development environment and contribute code, tests, and docs to httptap.
+---
+
 # Contributing
 
 We welcome contributions to httptap! This guide will help you get started.
@@ -292,6 +296,7 @@ docs/
 Build docs locally:
 
 ```bash
+uv sync --group docs
 uv run mkdocs serve
 ```
 

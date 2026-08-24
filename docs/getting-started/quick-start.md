@@ -1,3 +1,7 @@
+---
+description: Get started with httptap through basic requests and common command-line examples.
+---
+
 # Quick Start
 
 This guide will walk you through the basic usage of httptap.
