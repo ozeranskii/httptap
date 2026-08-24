@@ -208,4 +208,11 @@ certifi = "certifi"
 wrk = "wrk"
 
 [tool.typos.files]
-extend-exclude = [".gitignore"]
+extend-exclude = [
+    ".gitignore",
+    "mkdocs.yml",
+    "*.zh.md",
+    "*.ja.md",
+    "*.es.md",
+    "README.*.md",
+]
