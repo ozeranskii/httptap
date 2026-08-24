@@ -1,34 +1,35 @@
+---
+title: API Overview
+description: High-level tour of the public httptap API surface exported from the package root.
+---
+
 # API Overview
 
-httptap provides a clean Python API for programmatic usage and extension. This page gives an overview of the main
-components.
+httptap provides a clean Python API for programmatic use and extension. This page maps the
+public surface exported from the `httptap` package root; the linked pages drill into the core
+classes and the extensibility protocols.
 
 ## Architecture
 
-httptap is built around a modular architecture with clear interfaces:
+httptap is built around a modular architecture with clear, injectable interfaces:
 
 ```
 ┌─────────────────┐
-│  CLI Interface  │
+│  CLI / Renderer │  wires Visualizers & Exporters
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  HTTPTapAnalyzer│ ◄── Main entry point
+│  HTTPTapAnalyzer│  ◄── main entry point
 └────────┬────────┘
-         │
-         ├─► DNS Resolver (Protocol)
-         ├─► TLS Inspector (Protocol)
+         │  (injectable collaborators)
+         ├─► DNS Resolver     (Protocol)
+         ├─► TLS Inspector    (Protocol)
          ├─► Timing Collector (Protocol)
-         ├─► Visualizer (Protocol)
-         └─► Exporter (Protocol)
+         └─► Request Executor (Protocol)
 ```
 
-## Core Components
-
-### HTTPTapAnalyzer
-
-The main analyzer class that orchestrates HTTP request analysis.
+## Main entry point
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -52,224 +53,58 @@ steps = analyzer.analyze_url(
 )
 ```
 
-### StepMetrics
+::: httptap.analyzer.HTTPTapAnalyzer
+    options:
+      members: false
+      show_bases: false
 
-Data model representing a single request/response cycle.
+See **[Core Components](core.md)** for the full method and data-model reference.
 
-```python
-from httptap.models import StepMetrics
+## Core data model
 
-step: StepMetrics
-print(step.url)  # Request URL
-print(step.timing)  # TimingMetrics object
-print(step.network)  # NetworkInfo object
-print(step.response)  # ResponseInfo object
-```
+A single request/response cycle is captured by `StepMetrics`, which nests timing, network,
+and response detail. Full field-level docs live on the [Core Components](core.md) page.
 
-### Timing Information
+- [`StepMetrics`](core.md#httptap.models.StepMetrics) — one request in a redirect chain
+- [`TimingMetrics`](core.md#httptap.models.TimingMetrics) — phase-by-phase timing
+- [`NetworkInfo`](core.md#httptap.models.NetworkInfo) — IP, TLS, certificate, and proxy detail
+- [`ResponseInfo`](core.md#httptap.models.ResponseInfo) — status, headers, body size
 
-```python
-step.timing.dns_ms  # DNS resolution time
-step.timing.connect_ms  # TCP connection time
-step.timing.tls_ms  # TLS handshake time
-step.timing.ttfb_ms  # Time to first byte
-step.timing.total_ms  # Total request time
-step.timing.wait_ms  # Server processing time
-step.timing.xfer_ms  # Body transfer time
-step.timing.is_estimated  # Whether timing is estimated
-```
+## Protocol interfaces
 
-### Network Information
+httptap uses `Protocol` classes (PEP 544) for type-safe, inheritance-free extensibility.
+Each protocol and a worked custom implementation is documented on the
+**[Protocol Interfaces](interfaces.md)** page:
+`DNSResolver`, `TLSInspector`, `TimingCollector`, `Visualizer`, `Exporter`, and `RequestExecutor`.
 
-```python
-step.network.ip  # IP address (str | None)
-step.network.ip_family  # IPv4 or IPv6 (str | None)
-step.network.http_version  # HTTP protocol (str | None)
-step.network.tls_version  # TLS protocol version (str | None)
-step.network.tls_cipher  # Cipher suite (str | None)
-step.network.cert_cn  # Certificate common name (str | None)
-step.network.cert_days_left  # Days until expiration (int | None)
-step.network.cert_sans  # Subject Alternative Names (list[str])
-step.network.cert_issuer  # Issuer common name (str | None)
-step.network.cert_serial  # Certificate serial number (str | None)
-step.network.cert_not_before  # Validity start (datetime | None)
-step.network.cert_not_after  # Validity end (datetime | None)
-step.network.tls_verified  # Whether TLS was verified (bool | None)
-step.network.tls_custom_ca  # Custom CA bundle used (bool | None)
-```
+## Request executor
 
-### Response Data
+For fully customised HTTP behaviour, implement the `RequestExecutor` protocol and pass an
+instance as `request_executor=` to `HTTPTapAnalyzer`. The protocol contract and its
+`RequestOptions` / `RequestOutcome` data classes are documented on the
+**[Protocol Interfaces](interfaces.md#requestexecutor)** page.
 
-```python
-step.response.status  # HTTP status code (int | None)
-step.response.bytes  # Response body size (int)
-step.response.content_type  # Content-Type header (str | None)
-step.response.server  # Server header (str | None)
-step.response.date  # Response date (datetime | None)
-step.response.location  # Location header (str | None)
-step.response.headers  # All headers dict
-```
+## Built-in implementations
 
-## Protocol Interfaces
+httptap ships production-ready defaults for every protocol; all are importable from the
+package root.
 
-httptap uses Protocol classes (PEP 544) for type-safe extensibility.
+::: httptap.implementations.dns.SystemDNSResolver
 
-### DNSResolver
+::: httptap.implementations.tls.SocketTLSInspector
 
-Interface for custom DNS resolution implementations.
+::: httptap.implementations.timing.PerfCounterTimingCollector
 
-```python
-from httptap.interfaces import DNSResolver
+::: httptap.visualizer.WaterfallVisualizer
 
+::: httptap.exporter.JSONExporter
 
-class CustomResolver:
-    def resolve(self, host: str, port: int, timeout: float) -> tuple[str, str, float]:
-        """Resolve host to IP address.
+::: httptap.request_executor.HTTPClientRequestExecutor
 
-        Returns:
-            tuple[str, str, float]: (ip_address, family, duration_ms)
-        """
-        ...
-```
+## SLO evaluation
 
-### TLSInspector
-
-Interface for TLS certificate and connection inspection.
-
-```python
-from httptap.interfaces import TLSInspector
-from httptap.models import NetworkInfo
-
-
-class CustomTLSInspector:
-    def inspect(self, host: str, port: int, timeout: float) -> NetworkInfo:
-        """Inspect TLS connection and certificate.
-
-        Returns:
-            NetworkInfo with TLS version, cipher, and certificate data.
-        """
-        ...
-```
-
-### TimingCollector
-
-Interface for request timing implementations. A new instance is created for each request.
-
-```python
-from httptap.interfaces import TimingCollector
-from httptap.models import TimingMetrics
-
-
-class CustomTimingCollector:
-    def mark_dns_start(self) -> None: ...
-    def mark_dns_end(self) -> None: ...
-    def mark_request_start(self) -> None: ...
-    def mark_ttfb(self) -> None: ...
-    def mark_request_end(self) -> None: ...
-    def get_metrics(self) -> TimingMetrics: ...
-```
-
-### Visualizer
-
-Interface for custom output visualization.
-
-```python
-from httptap.interfaces import Visualizer
-from httptap.models import StepMetrics
-
-
-class CustomVisualizer:
-    def render(self, step: StepMetrics) -> None:
-        """Render a single request step for display."""
-        ...
-```
-
-### Exporter
-
-Interface for custom data export formats.
-
-```python
-from httptap.interfaces import Exporter
-from httptap.models import StepMetrics
-from collections.abc import Sequence
-
-
-class CustomExporter:
-    def export(self, steps: Sequence[StepMetrics], initial_url: str, output_path: str) -> None:
-        """Export request data to file."""
-        ...
-```
-
-## Built-in Implementations
-
-httptap provides default implementations of all protocols:
-
-### SystemDNSResolver
-
-Uses Python's `socket.getaddrinfo()` for DNS resolution.
-
-```python
-from httptap import SystemDNSResolver
-
-resolver = SystemDNSResolver()
-ip, family, duration = resolver.resolve("httpbin.io", 443, timeout=5.0)
-```
-
-### SocketTLSInspector
-
-Uses Python's `ssl` module to inspect TLS connections.
-
-```python
-from httptap import SocketTLSInspector
-
-inspector = SocketTLSInspector()
-network_info = inspector.inspect("httpbin.io", 443, 5.0)
-print(network_info.tls_version, network_info.tls_cipher)
-```
-
-### PerfCounterTimingCollector
-
-Uses `time.perf_counter()` for precise timing.
-
-```python
-from httptap import PerfCounterTimingCollector
-
-collector = PerfCounterTimingCollector()
-collector.mark_dns_start()
-# ... perform DNS ...
-collector.mark_dns_end()
-metrics = collector.get_metrics()
-```
-
-### WaterfallVisualizer
-
-Uses Rich library for waterfall terminal output.
-
-```python
-from rich.console import Console
-from httptap import WaterfallVisualizer
-
-visualizer = WaterfallVisualizer(Console())
-visualizer.render(step)
-```
-
-### JSONExporter
-
-Exports request data to JSON format.
-
-```python
-from rich.console import Console
-from httptap import JSONExporter
-
-exporter = JSONExporter(Console())
-exporter.export(steps, "https://httpbin.io", "output.json")
-```
-
-## SLO Evaluation
-
-The SLO module is exposed at the package root so programmatic callers
-can parse, evaluate, and serialize latency budgets the same way the
-CLI does.
+The SLO helpers are exposed at the package root so programmatic callers can parse, evaluate,
+and serialize latency budgets exactly as the CLI does.
 
 ```python
 from httptap import HTTPTapAnalyzer, evaluate_slo, parse_slo_spec, select_step_for_evaluation
@@ -283,63 +118,26 @@ if target is not None:
     result = evaluate_slo(target, thresholds)
     if not result.passed:
         for violation in result.violations:
-            print(
-                f"{violation.key}: {violation.actual_ms:.1f}ms "
-                f"> {violation.threshold_ms:g}ms "
-                f"(+{violation.delta_ms:.1f}ms)"
-            )
+            print(f"{violation.key}: {violation.actual_ms:.1f}ms > {violation.threshold_ms:g}ms")
 ```
 
-Key symbols (all importable from `httptap`):
+::: httptap.slo.parse_slo_spec
 
-| Symbol                        | Kind       | Purpose                                                    |
-|-------------------------------|------------|------------------------------------------------------------|
-| `SLO_KEYS`                    | frozenset  | Valid phase keys: `dns/connect/tls/ttfb/wait/xfer/total`.  |
-| `parse_slo_spec(raw)`         | function   | Parse `"total=500,ttfb=200"` → `dict[str, float]`.         |
-| `evaluate_slo(step, th)`      | function   | Run thresholds against one `StepMetrics`, return `SLOResult`. |
-| `select_step_for_evaluation(steps)` | function | Pick the final successful step of a chain.              |
-| `SLOSpecError`                | exception  | `ValueError` subclass raised on malformed specifications.  |
-| `SLOResult`                   | dataclass  | `pass`, frozen `thresholds_ms`, tuple of `violations`.     |
-| `SLOViolation`                | dataclass  | `key`, `threshold_ms`, `actual_ms`, `delta_ms`.            |
+::: httptap.slo.evaluate_slo
 
-`SLOResult` is a frozen dataclass; both `thresholds_ms` (read-only
-mapping view) and `violations` (tuple) are immutable. `SLOResult.to_dict()`
-produces the same structure as the `summary.slo` key in the JSON
-export.
+::: httptap.slo.select_step_for_evaluation
 
-## Request Executor
+::: httptap.slo.SLOResult
 
-For fully customized HTTP behavior, implement the `RequestExecutor` protocol.
+::: httptap.slo.SLOViolation
 
-```python
-from httptap import RequestExecutor, RequestOptions, RequestOutcome
+::: httptap.slo.SLOSpecError
 
+::: httptap.slo.SLO_KEYS
 
-class CustomExecutor:
-    def execute(self, options: RequestOptions) -> RequestOutcome:
-        """Perform an HTTP request based on provided options."""
-        ...
-```
+## Error handling
 
-## Type Hints
-
-All public APIs are fully type-hinted for excellent IDE support.
-
-```python
-from httptap import HTTPTapAnalyzer
-from httptap.models import StepMetrics
-
-
-def analyze_api(url: str) -> list[StepMetrics]:
-    """Analyze API endpoint and return steps."""
-    analyzer: HTTPTapAnalyzer = HTTPTapAnalyzer()
-    steps: list[StepMetrics] = analyzer.analyze_url(url)
-    return steps
-```
-
-## Error Handling
-
-httptap returns errors as part of `StepMetrics` rather than raising exceptions during analysis.
+httptap returns errors as part of `StepMetrics` rather than raising during analysis.
 
 ```python
 from httptap import HTTPTapAnalyzer

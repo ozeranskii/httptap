@@ -1,3 +1,7 @@
+---
+description: Run httptap from the command line and read the per-phase timing breakdown of any HTTP request.
+---
+
 # Basic Usage
 
 ## Command-Line Interface

@@ -1,14 +1,14 @@
 ---
-description: Proxies, custom CA bundles, the Python API, and extension patterns for advanced httptap usage.
+description: 代理、自定义 CA 包、Python API 以及用于 httptap 高级用法的扩展模式。
 ---
 
-# Advanced Features
+# 高级功能
 
-This guide covers advanced usage patterns and customization options for httptap.
+本指南介绍 httptap 的高级用法模式和自定义选项。
 
-## Custom DNS Resolution
+## 自定义 DNS 解析
 
-You can provide custom DNS resolver implementations by using the Python API. httptap always dials the resolved IP address (IPv4/IPv6) while preserving the original hostname for the `Host` header and TLS SNI. IPv6 literals are bracketed automatically, so custom resolvers only need to return the correct IP/family tuple.
+你可以通过 Python API 提供自定义的 DNS 解析器实现。httptap 始终拨号连接到解析出的 IP 地址（IPv4/IPv6），同时为 `Host` 请求头和 TLS SNI 保留原始主机名。IPv6 字面量会被自动加上方括号，因此自定义解析器只需返回正确的 IP/地址族元组即可。
 
 ```python
 from httptap import HTTPTapAnalyzer, SystemDNSResolver
@@ -29,9 +29,9 @@ analyzer = HTTPTapAnalyzer(dns_resolver=CustomDNSResolver())
 steps = analyzer.analyze_url("https://httpbin.io")
 ```
 
-## Custom TLS Inspection
+## 自定义 TLS 检查
 
-Implement custom TLS inspection logic to extract additional certificate information.
+实现自定义的 TLS 检查逻辑，以提取额外的证书信息。
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -51,11 +51,11 @@ class CustomTLSInspector:
 analyzer = HTTPTapAnalyzer(tls_inspector=CustomTLSInspector())
 ```
 
-## Programmatic Usage
+## 编程化使用
 
-Use httptap as a Python library for integration into your applications.
+将 httptap 作为 Python 库使用，以集成到你自己的应用程序中。
 
-### Basic Analysis
+### 基础分析
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -69,7 +69,7 @@ for step in steps:
     print(f"Total time: {step.timing.total_ms:.2f}ms")
 ```
 
-### With Custom Headers
+### 使用自定义请求头
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -80,7 +80,7 @@ headers = {"Authorization": "Bearer token123", "Accept": "application/json"}
 steps = analyzer.analyze_url("https://httpbin.io/bearer", headers=headers)
 ```
 
-### Following Redirects
+### 跟随重定向
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -91,7 +91,7 @@ steps = analyzer.analyze_url("https://httpbin.io/redirect/3")
 print(f"Total steps in redirect chain: {len(steps)}")
 ```
 
-### Sending Request Body
+### 发送请求体
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -106,24 +106,20 @@ steps = analyzer.analyze_url(
 )
 ```
 
-## Ignoring TLS Verification
+## 忽略 TLS 校验
 
-When troubleshooting staging environments or hosts with self-signed certificates, you can skip TLS validation:
+在排查预发布环境或使用自签名证书的主机时，你可以跳过 TLS 校验：
 
 ```shell
 httptap --ignore-ssl https://self-signed.badssl.com
 ```
 
-The request still records TLS metadata, but certificate errors are suppressed so you can focus on the protocol flow. Only use this flag in trusted environments because it disables protection against man-in-the-middle attacks.
-The client relaxes many cipher and protocol requirements (weak hashes,
-older TLS versions, small DH groups) so that legacy endpoints are more
-likely to complete the handshake. Extremely deprecated algorithms that
-OpenSSL removes entirely (e.g., RC4, 3DES on some platforms) may still
-fail even in this mode.
+请求仍会记录 TLS 元数据，但证书错误会被抑制，以便你专注于协议流程。请仅在可信环境中使用此参数，因为它会禁用针对中间人攻击的保护。
+客户端会放宽许多加密套件和协议要求（弱哈希、较老的 TLS 版本、较小的 DH 群），使旧式端点更有可能完成握手。某些被 OpenSSL 完全移除的极度弃用算法（例如某些平台上的 RC4、3DES）即使在此模式下仍可能失败。
 
-## Using Proxies { #using-proxies }
+## 使用代理 { #using-proxies }
 
-Direct requests through an outbound proxy (HTTP, HTTPS, SOCKS5/SOCKS5H):
+通过出站代理（HTTP、HTTPS、SOCKS5/SOCKS5H）转发请求：
 
 ```shell
 httptap --proxy https://proxy.internal:8443 https://httpbin.io/get
@@ -133,62 +129,58 @@ httptap --proxy https://proxy.internal:8443 https://httpbin.io/get
 httptap --proxy socks5h://proxy.internal:1080 https://httpbin.io/get
 ```
 
-Ignore all proxy environment variables and connect directly:
+忽略所有代理环境变量并直接连接：
 
 ```shell
 httptap --proxy "" https://httpbin.io/get
 ```
 
-The Rich output and JSON export include the proxy URI and its source
-(e.g., `(from arg --proxy)`, `(from env HTTPS_PROXY)`,
-`(bypassed by env no_proxy)`) so you can confirm which path was used.
+Rich 输出和 JSON 导出会包含代理 URI 及其来源（例如 `(from arg --proxy)`、`(from env HTTPS_PROXY)`、`(bypassed by env no_proxy)`），以便你确认实际使用的路径。
 
-### Proxy Protocols and DNS Resolution
+### 代理协议与 DNS 解析
 
-httptap supports four proxy protocols, each with different DNS resolution behavior:
+httptap 支持四种代理协议，每种协议的 DNS 解析行为各不相同：
 
 | Protocol   | DNS Resolved By | Use Case |
 |------------|----------------|----------|
-| `socks5h://` | Proxy server | Privacy, corporate networks, access to internal DNS |
-| `http://`    | Proxy server | Standard HTTP proxies (CONNECT method) |
-| `https://`   | Proxy server | Encrypted connection to proxy |
-| `socks5://`  | Client (local) | When you need to control DNS resolution |
+| `socks5h://` | 代理服务器 | 隐私保护、企业网络、访问内部 DNS |
+| `http://`    | 代理服务器 | 标准 HTTP 代理（CONNECT 方法） |
+| `https://`   | 代理服务器 | 与代理之间的加密连接 |
+| `socks5://`  | 客户端（本地） | 当你需要控制 DNS 解析时 |
 
-The `h` suffix in `socks5h` stands for "hostname" (a curl convention). With `socks5h://`, the hostname is sent to the proxy which resolves it. With `socks5://`, the client resolves DNS locally and sends the IP to the proxy.
+`socks5h` 中的 `h` 后缀代表 "hostname"（一种 curl 约定）。使用 `socks5h://` 时，主机名会被发送到代理，由代理进行解析。使用 `socks5://` 时，客户端在本地解析 DNS，并将 IP 发送给代理。
 
-### Environment Variable Proxies
+### 环境变量代理
 
-When no `--proxy` flag is provided, httptap checks environment variables:
+当未提供 `--proxy` 参数时，httptap 会检查环境变量：
 
-1. `no_proxy` / `NO_PROXY` - Comma-separated list of hosts to bypass (lowercase takes priority)
-2. `https_proxy` / `HTTPS_PROXY` - Proxy for HTTPS requests (lowercase takes priority)
-3. `http_proxy` / `HTTP_PROXY` - Proxy for HTTP requests (lowercase takes priority)
-4. `all_proxy` / `ALL_PROXY` - Fallback proxy for all protocols
+1. `no_proxy` / `NO_PROXY` - 逗号分隔的需要绕过代理的主机列表（小写优先）
+2. `https_proxy` / `HTTPS_PROXY` - 用于 HTTPS 请求的代理（小写优先）
+3. `http_proxy` / `HTTP_PROXY` - 用于 HTTP 请求的代理（小写优先）
+4. `all_proxy` / `ALL_PROXY` - 用于所有协议的回退代理
 
-The `--proxy` flag always takes precedence over environment variables.
+`--proxy` 参数始终优先于环境变量。
 
-**NO_PROXY patterns:**
+**NO_PROXY 模式：**
 
-- `*` - Bypass proxy for all hosts
-- `example.com` - Exact hostname match
-- `.example.com` - All subdomains of example.com
-- `sub.example.com` - Exact subdomain match
+- `*` - 对所有主机绕过代理
+- `example.com` - 精确主机名匹配
+- `.example.com` - example.com 的所有子域名
+- `sub.example.com` - 精确子域名匹配
 
-## Custom CA Bundles
+## 自定义 CA 包
 
-For internal endpoints signed by a private CA, supply a PEM bundle with `--cacert`:
+对于由私有 CA 签名的内部端点，使用 `--cacert` 提供一个 PEM 包：
 
 ```bash
 httptap --cacert ~/certs/company-ca.pem https://internal-api.example.com/health
 ```
 
-CLI output will show `TLS CA: custom bundle` to indicate the non-system trust store was used. JSON exports include `network.tls_custom_ca: true` so downstream tools can detect custom trust. The flag is mutually exclusive with `--ignore-ssl`.
+CLI 输出会显示 `TLS CA: custom bundle`，以表明使用了非系统信任库。JSON 导出会包含 `network.tls_custom_ca: true`，以便下游工具检测自定义信任配置。该参数与 `--ignore-ssl` 互斥。
 
-## Custom Request Executors
+## 自定义请求执行器
 
-For fully customized behavior you can provide your own request executor.
-Executors receive all parameters packaged inside `RequestOptions`, so new
-flags added by httptap remain backward compatible.
+对于完全自定义的行为，你可以提供你自己的请求执行器。执行器会接收打包在 `RequestOptions` 中的所有参数，因此 httptap 新增的参数仍保持向后兼容。
 
 ```python
 from httptap import HTTPTapAnalyzer, RequestExecutor, RequestOptions, RequestOutcome
@@ -223,9 +215,9 @@ analyzer.analyze_url("https://httpbin.io/get", headers={"X-Debug": "1"})
 print(executor.last_options.headers)  # {'X-Debug': '1'}
 ```
 
-## Custom Visualization
+## 自定义可视化
 
-Create your own visualization by implementing the `Visualizer` protocol.
+通过实现 `Visualizer` 协议来创建你自己的可视化。
 
 ```python
 from httptap.models import StepMetrics
@@ -249,9 +241,9 @@ for step in steps:
     visualizer.render(step)
 ```
 
-## Custom Export Formats
+## 自定义导出格式
 
-Implement custom export formats beyond JSON.
+实现 JSON 之外的自定义导出格式。
 
 ```python
 from collections.abc import Sequence
@@ -291,9 +283,9 @@ exporter = CSVExporter()
 exporter.export(steps, "https://httpbin.io", "output.csv")
 ```
 
-## Performance Monitoring
+## 性能监控
 
-Use httptap for continuous performance monitoring.
+使用 httptap 进行持续的性能监控。
 
 ```python
 import time
@@ -323,9 +315,9 @@ def monitor_endpoint(url: str, interval: int = 60):
 monitor_endpoint("https://httpbin.io/status/200", interval=60)
 ```
 
-## Batch Analysis
+## 批量分析
 
-Analyze multiple URLs concurrently.
+并发分析多个 URL。
 
 ```python
 from concurrent.futures import ThreadPoolExecutor
@@ -351,9 +343,9 @@ for url, total_ms in results:
     print(f"{url}: {total_ms:.2f}ms")
 ```
 
-## Error Handling
+## 错误处理
 
-Handle errors gracefully when analyzing URLs.
+在分析 URL 时优雅地处理错误。
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -368,9 +360,9 @@ else:
     print(f"Status: {step.response.status}")
 ```
 
-## Integration with Testing Frameworks
+## 与测试框架集成
 
-Use httptap in your test suites to verify performance requirements.
+在你的测试套件中使用 httptap 来验证性能要求。
 
 ```python
 import pytest
@@ -403,9 +395,9 @@ def test_tls_configuration():
     assert steps[0].network.cert_days_left > 30, f"Certificate expiring soon: {steps[0].network.cert_days_left} days"
 ```
 
-## Environment-Specific Configuration
+## 特定环境配置
 
-Configure httptap differently for various environments.
+为不同环境分别配置 httptap。
 
 ```python
 import os
@@ -437,9 +429,9 @@ analyzer = HTTPTapAnalyzer(
 steps = analyzer.analyze_url("https://httpbin.io/status/200")
 ```
 
-## Debugging Tips
+## 调试技巧
 
-### Enable Detailed Logging
+### 启用详细日志
 
 ```python
 import logging
@@ -453,7 +445,7 @@ analyzer = HTTPTapAnalyzer()
 steps = analyzer.analyze_url("https://httpbin.io")
 ```
 
-### Inspect Raw HTTP Traffic
+### 检查原始 HTTP 流量
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -470,26 +462,26 @@ for key, value in step.response.headers.items():
 
 ---
 
-## What's Next?
+## 下一步？
 
 <div class="grid cards" markdown>
 
--   :material-api:{ .lg .middle } **[API Reference](../api/overview.md)**
+-   :material-api:{ .lg .middle } **[API 参考](../api/overview.md)**
 
     ---
 
-    Detailed interface documentation
+    详细的接口文档
 
--   :material-account-group:{ .lg .middle } **[Contributing Guide](../development/contributing.md)**
-
-    ---
-
-    Extend httptap and contribute
-
--   :material-rocket-launch:{ .lg .middle } **[Release Process](../development/release.md)**
+-   :material-account-group:{ .lg .middle } **[贡献指南](../development/contributing.md)**
 
     ---
 
-    How releases work
+    扩展 httptap 并参与贡献
+
+-   :material-rocket-launch:{ .lg .middle } **[发布流程](../development/release.md)**
+
+    ---
+
+    发布是如何进行的
 
 </div>

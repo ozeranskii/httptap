@@ -1,3 +1,7 @@
+---
+description: Where to find the httptap changelog and how it is formatted.
+---
+
 # Changelog
 
 All notable changes to httptap are documented in the

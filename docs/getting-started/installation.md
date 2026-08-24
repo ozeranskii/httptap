@@ -1,10 +1,14 @@
+---
+description: Install httptap with uvx, Homebrew, PyPI, a container, or from source, and enable shell completion.
+---
+
 # Installation
 
 ## Requirements
 
 Before installing httptap, ensure you have:
 
-- **Python 3.10 or higher** (CPython recommended)
+- **Python 3.10-3.15** (CPython recommended)
 - **pip** or **uv** package manager
 - **macOS, Linux, or Windows** operating system
 
@@ -35,12 +39,12 @@ uvx --from "httptap[completion]" httptap https://example.com
     brew install httptap
     ```
 
-!!! tip "Recommended for macOS/Linux users"
+!!! tip "Convenient for macOS/Linux users"
     Homebrew installation is the simplest method and includes automatic shell completion setup.
 
 ## Installing from PyPI
 
-=== "Using uv (recommended)"
+=== "Using uv"
 
     ```bash
     uv pip install httptap
@@ -82,7 +86,7 @@ cosign verify ghcr.io/ozeranskii/httptap:latest \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-Pinned major/minor tags (e.g. `:0`, `:0.5`, `:0.5.0`) are also published.
+Pinned major/minor tags (e.g. `:0`, `:0.6`, `:0.6.0`) are also published.
 
 ## Installing from Source
 
@@ -97,7 +101,6 @@ cd httptap
 
 ```bash
 uv sync
-uv pip install -e .
 ```
 
 ### Install with pip
@@ -225,10 +228,16 @@ If you installed httptap via `pip`, `uv`, or `pipx`, you need to install the opt
     source .venv/bin/activate
     ```
 
-2. Run the global activation script:
+2. Enable completion for bash/zsh. Either register it globally once:
 
     ```bash
     activate-global-python-argcomplete
+    ```
+
+    Or, to enable it only for `httptap`, add this to your shell startup file (e.g. `~/.bashrc` or `~/.zshrc`):
+
+    ```bash
+    eval "$(register-python-argcomplete httptap)"
     ```
 
 3. Restart your shell.

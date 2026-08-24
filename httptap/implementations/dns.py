@@ -53,16 +53,43 @@ def _extract_sockaddr(entry: Iterable[Any]) -> tuple[Any, ...]:
 
 
 class DNSResolutionError(Exception):
-    """Raised when DNS resolution fails."""
+    """Raised when DNS resolution fails.
+
+    Signals that a hostname could not be resolved to an IP address, whether
+    due to a lookup failure, a timeout, or an empty address list. Wraps the
+    originating ``socket`` error where one is available.
+    """
 
 
 class SystemDNSResolver:
-    """DNS resolver using the system getaddrinfo implementation."""
+    """DNS resolver using the system getaddrinfo implementation.
+
+    Resolves hostnames with :func:`socket.getaddrinfo` on a background thread so
+    the lookup can be bounded by a timeout. It implements the
+    :class:`~httptap.interfaces.DNSResolver` protocol and is the default resolver
+    used by the analyzer.
+    """
 
     __slots__ = ()
 
     def resolve(self, host: str, port: int, timeout: float) -> tuple[str, str, float]:
-        """Resolve host and return IP, family label, and elapsed milliseconds."""
+        """Resolve host and return IP, family label, and elapsed milliseconds.
+
+        Args:
+            host: Hostname to resolve (e.g., "example.com").
+            port: Port number used to hint the address lookup.
+            timeout: Maximum time to wait for resolution, in seconds.
+
+        Returns:
+            Tuple of ``(ip_address, ip_family, elapsed_ms)`` where ``ip_family``
+            is one of ``"IPv4"``, ``"IPv6"``, or ``"AF_<num>"`` for other
+            address families, and ``elapsed_ms`` is the resolution time in
+            milliseconds.
+
+        Raises:
+            DNSResolutionError: If resolution times out, the lookup fails, or no
+                usable address record is returned.
+        """
         start_time = time.perf_counter()
 
         addr_info: list[AddrInfo] | None = None

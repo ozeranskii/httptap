@@ -104,7 +104,7 @@ summarising the SLO evaluation:
 │ Thresholds: total≤500ms, ttfb≤200ms            │
 │ Violations:                                    │
 │   • total: 723.4ms > 500ms (+223.4ms)          │
-│   • ttfb:  315.2ms > 200ms (+115.2ms)          │
+│   • ttfb: 315.2ms > 200ms (+115.2ms)          │
 ╰────────────────────────────────────────────────╯
 ```
 

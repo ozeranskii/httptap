@@ -12,11 +12,23 @@ from httptap.utils import create_ssl_context
 
 
 class TLSInspectionError(Exception):
-    """Raised when TLS inspection fails."""
+    """Raised when TLS inspection fails.
+
+    Signals that a dedicated TLS probe could not complete, for example because
+    the TCP connection failed or the TLS handshake could not be established.
+    Wraps the originating exception as its cause.
+    """
 
 
 class SocketTLSInspector:
-    """TLS inspector that performs a dedicated TLS handshake using ``ssl``."""
+    """TLS inspector that performs a dedicated TLS handshake using ``ssl``.
+
+    Opens a short-lived TCP connection, performs a TLS handshake, and extracts
+    the negotiated version, cipher suite, and leaf-certificate details into a
+    :class:`~httptap.models.NetworkInfo`. Implements the
+    :class:`~httptap.interfaces.TLSInspector` protocol and is the default
+    inspector used by the analyzer.
+    """
 
     __slots__ = ("_ca_bundle_path", "_verify")
 
@@ -33,7 +45,21 @@ class SocketTLSInspector:
         self._ca_bundle_path = ca_bundle_path
 
     def inspect(self, host: str, port: int, timeout: float) -> NetworkInfo:
-        """Inspect TLS connection and extract metadata."""
+        """Inspect TLS connection and extract metadata.
+
+        Args:
+            host: Hostname to connect to, also used for SNI.
+            port: Port number (typically 443 for HTTPS).
+            timeout: Connection timeout in seconds. The probe is additionally
+                capped by ``TLS_PROBE_MAX_TIMEOUT_SECONDS``.
+
+        Returns:
+            A NetworkInfo populated with the resolved IP, negotiated TLS
+            version and cipher, and leaf-certificate details when available.
+
+        Raises:
+            TLSInspectionError: If the connection or TLS handshake fails.
+        """
         network_info = NetworkInfo()
         network_info.tls_verified = self._verify
         probe_timeout = min(timeout, TLS_PROBE_MAX_TIMEOUT_SECONDS)

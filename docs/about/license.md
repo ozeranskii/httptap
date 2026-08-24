@@ -1,3 +1,7 @@
+---
+description: httptap is released under the Apache License 2.0.
+---
+
 # License
 
 httptap is licensed under the Apache License 2.0.

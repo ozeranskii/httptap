@@ -14,19 +14,41 @@ from .models import StepMetrics
 
 
 class WaterfallVisualizer(Visualizer):
-    """Creates waterfall diagrams showing request phase timelines."""
+    """Creates waterfall diagrams showing request phase timelines.
+
+    Renders each request phase (DNS, connect, TLS, wait, transfer) as a
+    horizontally offset bar in the terminal using Rich, so the relative cost of
+    each phase is visible at a glance. Implements the
+    :class:`~httptap.interfaces.Visualizer` protocol.
+
+    Attributes:
+        console: Rich console used for output.
+        max_bar_width: Maximum width, in characters, of the timeline bars.
+    """
 
     __slots__ = ("console", "max_bar_width")
 
     BAR_CHAR = "⠿"
 
     def __init__(self, console: Console, max_bar_width: int = 80) -> None:
-        """Configure the visualizer with a console and maximum bar width."""
+        """Configure the visualizer with a console and maximum bar width.
+
+        Args:
+            console: Rich console instance used to print the timeline.
+            max_bar_width: Maximum width, in characters, of the timeline bars.
+        """
         self.console = console
         self.max_bar_width = max_bar_width
 
     def render(self, step: StepMetrics) -> None:
-        """Render a waterfall timeline for the provided step if data is valid."""
+        """Render a waterfall timeline for the provided step if data is valid.
+
+        Steps that errored or have a non-positive total time are skipped and
+        produce no output.
+
+        Args:
+            step: Step metrics containing timing, network, and response data.
+        """
         if step.has_error or step.timing.total_ms <= 0:
             return
 
