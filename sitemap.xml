@@ -1,67 +1,227 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
     <url>
-         <loc>https://docs.httptap.dev/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/troubleshooting/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/troubleshooting/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/troubleshooting/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/about/changelog/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/about/changelog/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/about/changelog/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/about/changelog/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/about/license/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/about/license/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/about/license/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/about/license/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/api/core/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/api/core/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/api/core/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/api/core/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/api/interfaces/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/api/interfaces/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/api/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/api/interfaces/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/api/overview/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/api/overview/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/api/overview/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/api/overview/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/development/contributing/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/development/contributing/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/development/contributing/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/development/contributing/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/development/release/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/development/release/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/development/release/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/development/release/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/getting-started/installation/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/getting-started/installation/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/getting-started/installation/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/getting-started/installation/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/getting-started/quick-start/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/getting-started/quick-start/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/getting-started/quick-start/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/getting-started/quick-start/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/security/assurance-case/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/security/assurance-case/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/security/assurance-case/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/security/assurance-case/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/usage/advanced/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/usage/advanced/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/usage/advanced/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/usage/advanced/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/usage/basic/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/usage/basic/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/usage/basic/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/usage/basic/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/usage/output-formats/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/usage/output-formats/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/usage/output-formats/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/usage/output-formats/"/>
     </url>
     <url>
-         <loc>https://docs.httptap.dev/usage/slo/</loc>
-         <lastmod>2026-08-23</lastmod>
+        <loc>https://docs.httptap.dev/usage/slo/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/usage/slo/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/usage/slo/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/troubleshooting/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/troubleshooting/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/about/changelog/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/about/changelog/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/about/changelog/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/about/license/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/about/license/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/about/license/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/api/core/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/api/core/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/api/core/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/api/interfaces/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/api/interfaces/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/api/interfaces/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/api/overview/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/api/overview/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/api/overview/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/development/contributing/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/development/contributing/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/development/contributing/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/development/release/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/development/release/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/development/release/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/getting-started/installation/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/getting-started/installation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/getting-started/installation/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/getting-started/quick-start/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/getting-started/quick-start/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/getting-started/quick-start/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/security/assurance-case/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/security/assurance-case/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/security/assurance-case/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/usage/advanced/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/usage/advanced/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/usage/advanced/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/usage/basic/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/usage/basic/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/usage/basic/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/usage/output-formats/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/usage/output-formats/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/usage/output-formats/"/>
+    </url>
+    <url>
+        <loc>https://docs.httptap.dev/zh/usage/slo/</loc>
+        <lastmod>2026-08-24</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://docs.httptap.dev/zh/usage/slo/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://docs.httptap.dev/usage/slo/"/>
     </url>
 </urlset>
