@@ -4,7 +4,7 @@ description: 基于 Rich 的命令行工具，将一次 HTTP 请求拆解为每�
 ---
 
 <p align="center">
-  <img src="assets/httptap-banner.svg" alt="httptap" style="width: 100%; max-width: 1280px; height: auto;" />
+  <img src="../assets/httptap-banner.svg" alt="httptap" style="width: 100%; max-width: 1280px; height: auto;" />
 </p>
 
 # httptap
