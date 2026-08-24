@@ -60,7 +60,7 @@
 </table>
 
 <p align="center">
-  <b>English</b> | <a href="README.zh-CN.md">简体中文</a>
+  <b>English</b> | <a href="README.zh-CN.md">简体中文</a> | <a href="README.ja.md">日本語</a> | <a href="README.es.md">Español</a>
 </p>
 
 `httptap` is a rich-powered CLI that dissects an HTTP request into every meaningful phase-DNS, TCP connect, TLS

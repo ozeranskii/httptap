@@ -60,7 +60,7 @@
 </table>
 
 <p align="center">
-  <a href="README.md">English</a> | <b>简体中文</b>
+  <a href="README.md">English</a> | <b>简体中文</b> | <a href="README.ja.md">日本語</a> | <a href="README.es.md">Español</a>
 </p>
 
 > **说明：** 本文档为社区翻译，可能落后于英文版本。如有出入，请以 [英文 README](README.md) 为准。
