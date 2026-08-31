@@ -2,6 +2,10 @@
   <img src="docs/assets/httptap-banner.svg" alt="httptap" width="100%" />
 </p>
 
+<p align="center">
+  <a href="https://trendshift.io/repositories/23438?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-23438" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/23438/daily?language=Python" alt="ozeranskii%2Fhttptap | Trendshift" width="250" height="55" /></a>
+</p>
+
 # httptap
 
 <table>
