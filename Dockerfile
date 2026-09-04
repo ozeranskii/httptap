@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM ghcr.io/astral-sh/uv:0.12.7-python3.14-trixie-slim@sha256:0e664b12a6be9cd16be1015ec5cc3feebdeb42078ab587389707afbdfab8b10f AS builder
+FROM ghcr.io/astral-sh/uv:0.12.9-python3.14-trixie-slim@sha256:534fc12aa1797528813e0528cb1963550aebb613ac0879e2120fca63522655b2 AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -26,7 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
         --no-group typing --no-group precommit
 
 
-FROM python:3.14-slim-trixie@sha256:cae66f2ef0ec51a9891263eeee7f987dacf0a9879e8aa9353d5606e0530619a5 AS runtime
+FROM python:3.14-slim-trixie@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS runtime
 
 ENV PATH="/app/.venv/bin:$PATH" \
     HOME=/tmp \
