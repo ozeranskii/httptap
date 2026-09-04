@@ -107,7 +107,7 @@ jobs:
         run: touch ${CHANGELOG_FILE}
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@b6ff580856c41316412a0b9b60540fbc6f8c82cc # v2.86.7
+        uses: taiki-e/install-action@37f7c5781271959fb65b6b35224e28652ff2b63d # v2.87.0
         with:
           tool: git-cliff
 
@@ -193,7 +193,7 @@ jobs:
         run: mkdir -p sbom
 
       - name: Generate SBOM (CycloneDX)
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
           artifact-name: ${{ env.PACKAGE_NAME }}-${{ needs.prepare.outputs.version }}.cdx.json
           format: cyclonedx-json
@@ -202,7 +202,7 @@ jobs:
           upload-release-assets: false
 
       - name: Generate SBOM (SPDX)
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
           artifact-name: ${{ env.PACKAGE_NAME }}-${{ needs.prepare.outputs.version }}.spdx.json
           format: spdx-json
