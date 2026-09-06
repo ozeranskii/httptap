@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-09-06
+
+### Documentation
+
+- **i18n:** Add Simplified Chinese translation and mkdocstrings API reference ([84b6702](https://github.com/ozeranskii/httptap/commit/84b670273396788da3d3dad56c73a7b07e502226))
+- **i18n:** Fix banner image path on the Chinese home page ([e12e6a1](https://github.com/ozeranskii/httptap/commit/e12e6a10efcb8508813db580376b9da6928f944d))
+- **i18n:** Add Japanese and Spanish translations ([63158e5](https://github.com/ozeranskii/httptap/commit/63158e52513a909d529390d5f8c90d0a02ee6a4a))
+- **readme:** Add Trendshift badge ([cd3cbe4](https://github.com/ozeranskii/httptap/commit/cd3cbe4dae0a1a9e922b771ad297842ba39de929))
+
+
 ## [0.6.0] - 2026-08-23
 
 ### Bug Fixes
