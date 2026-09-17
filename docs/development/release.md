@@ -1,5 +1,5 @@
 ---
-description: The automated GitHub Actions release process for httptap, plus manual release steps.
+description: The automated GitHub Actions release process for httptap.
 ---
 
 # Release Process
@@ -198,59 +198,6 @@ During pre-1.0 development (0.x.x):
 - Minor version may include breaking changes
 - Patch version for bug fixes and minor features
 - Move to 1.0.0 when API is stable
-
-## Manual Release Steps
-
-If you need to release manually (not recommended):
-
-### 1. Update Version
-
-```bash
-uv version 0.2.0
-```
-
-### 2. Regenerate Lockfile
-
-```bash
-uv lock
-```
-
-### 3. Generate Changelog
-
-```bash
-git cliff --tag v0.2.0 --unreleased --prepend CHANGELOG.md
-```
-
-### 4. Commit Changes
-
-```bash
-git add pyproject.toml uv.lock CHANGELOG.md
-git commit -m "chore: release v0.2.0"
-```
-
-### 5. Create Tag
-
-```bash
-git tag -a v0.2.0 -m "Release v0.2.0"
-```
-
-### 6. Push
-
-```bash
-git push origin main
-git push origin v0.2.0
-```
-
-### 7. Build and Publish
-
-```bash
-uv build
-uv publish  # Requires PyPI credentials
-```
-
-### 8. Create GitHub Release
-
-Use `gh` CLI or web interface to create release with changelog notes.
 
 ## Troubleshooting
 
