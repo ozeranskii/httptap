@@ -68,8 +68,10 @@ If you've set up pre-commit hooks (recommended), they will automatically run bef
 
 - **Ruff**: Lints and formats your code
 - **MyPy**: Performs type checking
-- **YAML/TOML**: Validates configuration files
-- **File formatting**: Fixes line endings, removes BOM, ensures files end with newline
+- **TOML/JSON**: Validates configuration files (`check-toml`, `check-json`)
+- **YAML**: Formats YAML files (`yamlfmt`)
+- **Typos**: Catches common spelling mistakes (`typos`)
+- **File formatting and hygiene**: Formats files, fixes trailing whitespace, ensures files end with a newline, and checks for common file issues
 
 **If hooks fail:**
 
@@ -80,15 +82,12 @@ If you've set up pre-commit hooks (recommended), they will automatically run bef
 **Manual pre-commit run:**
 
 ```bash
-# Run hooks on all files
 uv run pre-commit run --all-files
-
-# Run specific hook
 uv run pre-commit run ruff-check
+uv run pre-commit run ruff-format
 uv run pre-commit run mypy
-uv run pre-commit run check-yaml
-
-# Validate configuration
+uv run pre-commit run yamlfmt
+uv run pre-commit run typos
 uv run pre-commit validate-config
 ```
 
@@ -164,7 +163,7 @@ Use `--codspeed-mode=walltime` to check an optimization locally without waiting 
 - Follow naming convention: `test_*.py`
 - Use descriptive test names: `test_get_metrics_calculates_dns_ms`
 - Mock external dependencies when possible (see `tests/test_implementations_timing.py`)
-- Aim for high coverage (current: ~90%)
+- Aim for high coverage (current: 100%)
 
 **Example test:**
 
@@ -390,14 +389,18 @@ Update `README.md` when:
 
 ## Release Process
 
-(For maintainers)
+Releases are automated through the GitHub Actions **Release** workflow.
 
-1. Update version in `pyproject.toml`
-2. Update `CHANGELOG.md`
-3. Create release tag: `git tag -a v0.2.0 -m "Release v0.2.0"`
-4. Push tag: `git push origin v0.2.0`
-5. Build and publish to PyPI: `uv build && uv publish`
-6. Create GitHub release with changelog
+To create a release:
+
+1. Go to **Actions** → **Release** in the GitHub repository.
+2. Select **Run workflow**.
+3. Choose the desired release version or version bump type.
+4. Start the workflow.
+
+The workflow handles versioning, changelog generation, testing, tagging, building, publishing to PyPI, and creating the GitHub release.
+
+See [`docs/development/release.md`](docs/development/release.md) for the complete release process and prerequisites.
 
 ## Getting Help
 

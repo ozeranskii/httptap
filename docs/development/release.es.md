@@ -1,5 +1,5 @@
 ---
-description: El proceso de publicación automatizado con GitHub Actions para httptap, además de los pasos de publicación manuals.
+description: El proceso de publicación automatizado con GitHub Actions para httptap.
 ---
 
 # Proceso de publicación
@@ -198,59 +198,6 @@ Durante el desarrollo pre-1.0 (0.x.x):
 - La versión menor puede incluir cambios incompatibles
 - La versión de parche para correcciones de errores y funcionalidades menores
 - Pasar a 1.0.0 cuando la API sea estable
-
-## Pasos de publicación manuals
-
-Si necesitas publicar manualmente (no recomendado):
-
-### 1. Actualizar la versión
-
-```bash
-uv version 0.2.0
-```
-
-### 2. Regenerar el lockfile
-
-```bash
-uv lock
-```
-
-### 3. Generar el registro de cambios
-
-```bash
-git cliff --tag v0.2.0 --unreleased --prepend CHANGELOG.md
-```
-
-### 4. Hacer commit de los cambios
-
-```bash
-git add pyproject.toml uv.lock CHANGELOG.md
-git commit -m "chore: release v0.2.0"
-```
-
-### 5. Crear la etiqueta
-
-```bash
-git tag -a v0.2.0 -m "Release v0.2.0"
-```
-
-### 6. Hacer push
-
-```bash
-git push origin main
-git push origin v0.2.0
-```
-
-### 7. Compilar y publicar
-
-```bash
-uv build
-uv publish  # Requires PyPI credentials
-```
-
-### 8. Crear la GitHub Release
-
-Usa la CLI de `gh` o la interfaz web para crear la publicación con las notas del registro de cambios.
 
 ## Resolución de problemas
 
