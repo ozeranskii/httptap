@@ -772,7 +772,7 @@ wheels = [
 
 [[package]]
 name = "httptap"
-version = "0.6.2"
+version = "0.6.3"
 source = { editable = "." }
 dependencies = [
     { name = "dnspython" },

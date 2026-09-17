@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.3] - 2026-09-17
+
+### Bug Fixes
+
+- **cli:** Warn when --compact is ignored by --metrics-only ([88bef58](https://github.com/ozeranskii/httptap/commit/88bef5838856c79672560daa6632b5f2cc74f9df))
+- **render:** Prevent metrics-only and compact lines from wrapping in pipes ([17078dd](https://github.com/ozeranskii/httptap/commit/17078dd1bd1fca885f9a0e299168f6da42c96287))
+
+### Documentation
+
+- **changelog:** Add security notes for 0.6.2 ([9a7ff07](https://github.com/ozeranskii/httptap/commit/9a7ff0761a09e951910fc80bfe21e0f07f71e6ae))
+- **vex:** Record GHSA-pgxm-hj3g-p7wv status ([e5d3f07](https://github.com/ozeranskii/httptap/commit/e5d3f07c760ab7137c45cfd62cb6b6ba7828b29f))
+- **security:** Update policy and usage docs for 0.6.2 security fixes ([20c33d7](https://github.com/ozeranskii/httptap/commit/20c33d7e00fa8f357fdb1cf63382f21f466045d9))
+
+
+### New Contributors
+
+- @adnandispatch9-jpg made their first contribution in [#310](https://github.com/ozeranskii/httptap/pull/310)
+- @HarshRajSinghania made their first contribution in [#307](https://github.com/ozeranskii/httptap/pull/307)
+
 ## [0.6.2] - 2026-09-17
 
 ### Security
