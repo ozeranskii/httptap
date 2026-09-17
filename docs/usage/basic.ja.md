@@ -96,6 +96,11 @@ httptap --follow https://httpbin.io/redirect/3
 
 デフォルトでは、httptap はリダイレクトを追跡せず、最初のリダイレクトレスポンス（3xx ステータスコード）で停止します。
 
+リダイレクトを追跡する際、httptap は curl やブラウザと同じルールを適用します:
+
+- `Authorization`、`Cookie`、`Proxy-Authorization` ヘッダーは元のオリジン（スキーム、ホスト、ポート）にのみ送信されます。リダイレクト先が別のオリジンになると、それ以降のチェーンではこれらのヘッダーは送信されません。同じホストでデフォルトポートのまま `http` → `https` にアップグレードする場合（80 → 443）は保持されます。
+- `303 See Other`、および `POST` 後の `301`/`302` では、次のリクエストはボディなしの `GET` に切り替わります。`307` と `308` はメソッドとボディを保持します。
+
 #### `-m, --max-time, --timeout SECONDS`
 
 経過時間の合計が指定した秒数を超えた場合、リクエストチェーンを中止します。
@@ -154,6 +159,8 @@ httptap --proxy "" https://httpbin.io/get
 ```
 
 `--proxy` フラグは環境変数（`HTTP_PROXY`、`HTTPS_PROXY`、`NO_PROXY`）よりも優先されます。すべてのプロキシ環境変数を無視して直接接続するには `--proxy ""` を使用してください。プロキシプロトコル、名前解決、環境変数の設定の詳細については [高度な機能](advanced.md#using-proxies) を参照してください。
+
+プロキシ URL に含まれる認証情報（`http://user:password@proxy:3128`、環境変数から取得したものを含む）は接続に使用されますが、出力と JSON エクスポートではマスクされます（`http://user:****@proxy:3128`）。
 
 #### `--cacert, --ca-bundle PATH`
 

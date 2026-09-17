@@ -7,7 +7,7 @@ description: httptap の脅威モデル、信頼境界、適用されたセキ�
 
 この文書は httptap のセキュリティ保証ケースです。それらのセキュリティ特性が**何であるか**だけでなく、プロジェクトがそれらのセキュリティ特性が成立すると考える**理由**を説明します。OpenSSF Best Practices の silver レベルの `assurance_case` 基準に従って構成されています。
 
-**最終レビュー:** 2026-04-13、httptap 0.5.0 について。
+**最終レビュー:** 2026-09-17、httptap 0.6.2 について。
 
 保証ケースは生きた文書です。すべてのメジャーリリース時、および脅威の状況や機能セットに重大な変化があるたびにレビューされます。修正の提案はこのファイルに対するプルリクエストとして受け付けます。
 
@@ -70,7 +70,7 @@ httptap はコマンドラインの診断ツールです。開発者は単一の
 | **Tampering** | 侵害されたサードパーティアクションを介して CI パイプラインが汚染される。 | すべてのアクションは SHA でピン留めされている（Scorecard Pinned-Dependencies 10/10 と zizmor pedantic により強制）; Dependabot がピンを更新する PR を作成する（SR-6、SR-7）。 |
 | **Repudiation** | — | 範囲外; httptap はマルチユーザーシステムではない。 |
 | **Information disclosure** | `-H Authorization` の認証情報が、異なるホスト上のリダイレクトターゲットに漏洩する。 | httptap はリダイレクトを自身で処理し（httpx では `follow_redirects=False`）、スキーム・ホスト・ポートが変わるリダイレクトでは `Authorization`、`Cookie`、`Proxy-Authorization` を削除する; `303`、および `POST` 後の `301`/`302` はボディなしの `GET` に切り替える（SR-3）。 |
-| **Information disclosure** | `--json` エクスポートがディスク上に認証ヘッダーを含む。 | ユーザーは、エクスポートを共有する前に認証ヘッダーを削除するよう、SECURITY.md および docs/troubleshooting.md で助言される。 |
+| **Information disclosure** | `--json` エクスポートがディスク上に認証ヘッダーやプロキシの認証情報を含む。 | `Authorization`、`Proxy-Authorization`、`Cookie`、`Set-Cookie`、API キーのヘッダーは出力とエクスポートでマスクされ、プロキシ URL の認証情報は伏せられる; それでも共有前にエクスポートを確認するよう、SECURITY.md および docs/troubleshooting.md で助言される。 |
 | **Information disclosure** | 安全でないプロキシ上での MITM。 | プロキシ URL のスキームは検証される; 機密性の高いターゲットには `socks5h://` / `https://` が推奨される; プロキシのソースは監査のために出力および JSON で報告される。 |
 | **Denial of service** | 悪意のあるサーバーが無制限のボディをストリーミングする。 | `--timeout` によるリクエストごとのタイムアウト（デフォルト 20 秒）; 転送フェーズは同じ期限によって制限される。 |
 | **Denial of service** | 悪意のあるサーバーが zip 爆弾や巨大なボディをストリーミングする。 | httptap は、タイミングメトリクスのためにバイト数をカウントする以外にボディをデコードしたり永続化したりしないため、メモリコストは線形でありタイムアウトによって制限される。 |
@@ -115,7 +115,7 @@ Saltzer & Schroeder (1975) に現代的な追加を加えたものにマッピ�
 | CWE-89 | SQL インジェクション | データベースなし。 |
 | CWE-94 | コードインジェクション | `eval`/`exec` は使用されない; レスポンスボディが解析されることは決してない。 |
 | CWE-116 | 不適切な出力エンコーディング | サーバーが制御する文字列は Rich のマークアップレンダリング前にエスケープされる; JSON エクスポートは厳格なエスケープを伴う `json.dumps` を使用する。 |
-| CWE-200 | 機密情報の漏洩 | 認証ヘッダーはログ出力にコピーされない; SECURITY.md とドキュメントは、共有前に JSON エクスポートを削除するようユーザーに警告する。 |
+| CWE-200 | 機密情報の漏洩 | 機密ヘッダーは出力と JSON エクスポートでマスクされ、プロキシ URL の認証情報は伏せられる; リダイレクト時に認証ヘッダーは別のオリジンに転送されない（SR-3）; SECURITY.md とドキュメントは共有前にエクスポートを確認するよう助言する。 |
 | CWE-295 | 不適切な証明書検証 | TLS 検証はデフォルトで有効; `--ignore-ssl` はオプトインのみであり、明示的に文書化されている。 |
 | CWE-319 | 平文送信 | HTTPS を優先; 平文 HTTP には明示的な `http://` URL が必要; プロキシのソースが報告される。 |
 | CWE-327 | 壊れた暗号 | stdlib の `ssl` に委譲されている; 弱いアルゴリズムはリモートサーバーを診断するときにのみ表面化する。 |
@@ -161,6 +161,7 @@ gh attestation verify dist/httptap-X.Y.Z-py3-none-any.whl \
 |------|-------|
 | 2026-04-12 | httptap 0.4.7 の初期保証ケース（silver 提出）。 |
 | 2026-04-13 | 0.5.0 に向けた OSS のハードニング: gitsign で署名されたリリースコミット/タグ、TestPyPI の事前チェック、SLSA プロベナンスを伴う署名済み GHCR コンテナイメージ、CI での hadolint、man ページの成果物。 |
+| 2026-09-17 | 0.6.2 のセキュリティ修正（[GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)）: リダイレクト時の明示的なオリジンチェックで SR-3 を担保、サーバーが制御する値を Rich のレンダリング前にエスケープ（CWE-79/116）、プロキシの認証情報を伏せる（CWE-200）; OpenVEX でアドバイザリーの状態を記録。 |
 
 ---
 

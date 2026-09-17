@@ -91,6 +91,8 @@ steps = analyzer.analyze_url("https://httpbin.io/redirect/3")
 print(f"Total steps in redirect chain: {len(steps)}")
 ```
 
+各リダイレクトホップには CLI と同じヘッダーとメソッドのルールが適用されます。認証ヘッダーは別のオリジンには送信されず、`303`（または `POST` 後の `301`/`302`）はボディなしの `GET` に切り替わります。詳細は [`--follow`](basic.md) を参照してください。
+
 ### リクエストボディの送信
 
 ```python

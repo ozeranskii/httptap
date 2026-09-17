@@ -6,8 +6,8 @@ We release patches for security vulnerabilities in the following versions:
 
 | Version | Supported          |
 |---------|--------------------|
-| 0.4.x   | :white_check_mark: |
-| < 0.4   | :x:                |
+| 0.6.x   | :white_check_mark: |
+| < 0.6   | :x:                |
 
 **Note:** This project is still pre-1.0. Security patches are only backported to the latest minor series; always use the most recent release.
 
@@ -177,8 +177,8 @@ httptap is designed for network diagnostics. Follow these guidelines:
 # ❌ Bad: Exposing sensitive headers in logs
 httptap https://api.example.com -H "Authorization: Bearer secret_token"
 
-# ✅ Good: Headers are automatically masked in logs
-# The tool masks Authorization, Cookie, and other sensitive headers
+# ✅ Good: Headers are automatically masked in output and JSON export
+# The tool masks Authorization, Proxy-Authorization, Cookie, and other sensitive headers
 ```
 
 ### Environment Variables
@@ -197,28 +197,39 @@ export API_KEY="secret_token"  # Don't commit this
 
 httptap includes several security features:
 
-### 1. **Automatic Header Masking**
+### 1. **Automatic Credential Masking**
 
-Sensitive headers are automatically masked in output:
+Sensitive headers are automatically masked in terminal output and JSON export
+(only the first and last four characters are kept; short values are fully masked):
 - `Authorization`
+- `Proxy-Authorization`
 - `Cookie`
 - `Set-Cookie`
-- `X-API-Key`
-- And other authentication headers
+- `Api-Key`, `X-API-Key`
 
-### 2. **TLS Certificate Validation**
+Credentials in proxy URLs are masked as well (`http://user:****@proxy:3128`),
+while the real credentials are still used for the connection.
+
+### 2. **Redirect Credential Scoping**
+
+When following redirects (`-L`/`--follow`), `Authorization`, `Cookie` and
+`Proxy-Authorization` are not sent to a different origin (scheme, host or port).
+`303`, and `301`/`302` after `POST`, switch to `GET` without a request body.
+See [GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv).
+
+### 3. **TLS Certificate Validation**
 
 - TLS certificates are validated by default
 - Certificate information is displayed for transparency
 - Warnings are shown for expiring certificates
 
-### 3. **No Data Collection**
+### 4. **No Data Collection**
 
 - httptap does not collect or transmit telemetry
 - All operations are local
 - Network requests only go to user-specified URLs
 
-### 4. **Input Validation**
+### 5. **Input Validation**
 
 - URL validation prevents malformed requests
 - Header validation prevents injection attacks
