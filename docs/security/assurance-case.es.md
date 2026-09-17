@@ -10,7 +10,7 @@ el proyecto cree que sus propiedades de seguridad se sostienen, no solo **cuále
 son esas propiedades. Está estructurado conforme al criterio `assurance_case`
 del nivel plata de las OpenSSF Best Practices.
 
-**Última revisión:** 2026-04-13 para httptap 0.5.0.
+**Última revisión:** 2026-09-17 para httptap 0.6.2.
 
 El caso de garantía es un documento vivo; se revisa en cada versión mayor
 y siempre que el panorama de amenazas o el conjunto de funcionalidades cambie
@@ -90,7 +90,7 @@ explícitamente como no objetivos.
 | **Tampering** | Canalización de CI envenenada mediante una action de terceros comprometida. | Toda action está fijada por SHA (impuesto por Scorecard Pinned-Dependencies 10/10 y zizmor pedantic); Dependabot abre PRs para actualizar los pines (SR-6, SR-7). |
 | **Repudiation** | — | Fuera de alcance; httptap no es un sistema multiusuario. |
 | **Information disclosure** | Las credenciales en `-H Authorization` se filtran al destino de redirección en un host diferente. | httptap sigue las redirecciones por sí mismo (`follow_redirects=False` en httpx) y descarta `Authorization`, `Cookie` y `Proxy-Authorization` cuando una redirección cambia el esquema, el host o el puerto; `303`, y `301`/`302` tras `POST`, pasan a `GET` sin cuerpo (SR-3). |
-| **Information disclosure** | La exportación `--json` incluye cabeceras de autenticación en disco. | Se aconseja a los usuarios en SECURITY.md y docs/troubleshooting.md que redacten las cabeceras de autenticación antes de compartir las exportaciones. |
+| **Information disclosure** | La exportación `--json` incluye cabeceras de autenticación o credenciales de proxy en disco. | Las cabeceras `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie` y de claves de API se enmascaran en la salida y en la exportación, y las credenciales de la URL del proxy se ocultan; aun así, SECURITY.md y docs/troubleshooting.md aconsejan revisar las exportaciones antes de compartirlas. |
 | **Information disclosure** | MITM en un proxy inseguro. | El esquema de la URL del proxy se valida; se recomienda `socks5h://` / `https://` para destinos sensibles; el origen del proxy se reporta en la salida y en el JSON para auditoría. |
 | **Denial of service** | Un servidor malicioso transmite un cuerpo sin límite. | Tiempo de espera por solicitud mediante `--timeout` (20s por defecto); la fase de transferencia está acotada por el mismo plazo. |
 | **Denial of service** | Un servidor malicioso transmite una bomba zip o un cuerpo gigantesco. | httptap no decodifica ni persiste los cuerpos más allá de contar los bytes para la métrica de tiempos, así que el coste de memoria es lineal y está acotado por el tiempo de espera. |
@@ -141,7 +141,7 @@ de forma ascendente.
 | CWE-89 | Inyección SQL | Sin base de datos. |
 | CWE-94 | Inyección de código | No se usan `eval`/`exec`; los cuerpos de respuesta nunca se analizan. |
 | CWE-116 | Codificación de salida indebida | Las cadenas controladas por el servidor se escapan antes del renderizado de marcado de Rich; la exportación JSON usa `json.dumps` con escapado estricto. |
-| CWE-200 | Divulgación de información sensible | Las cabeceras de autenticación no se copian a la salida de registro; SECURITY.md y la documentación advierten a los usuarios que redacten las exportaciones JSON antes de compartirlas. |
+| CWE-200 | Divulgación de información sensible | Las cabeceras sensibles se enmascaran y las credenciales de la URL del proxy se ocultan en la salida y en la exportación JSON; las cabeceras de credenciales no se reenvían a otros orígenes en las redirecciones (SR-3); SECURITY.md y la documentación aconsejan revisar las exportaciones antes de compartirlas. |
 | CWE-295 | Validación de certificado indebida | Verificación TLS activada por defecto; `--ignore-ssl` solo de habilitación explícita, documentado explícitamente. |
 | CWE-319 | Transmisión en texto claro | HTTPS preferido; el HTTP simple require una URL `http://` explícita; se reporta el origen del proxy. |
 | CWE-327 | Criptografía rota | Delegada a la `ssl` de la biblioteca estándar; los algorithms débiles solo afloran al diagnosticar servidores remotos. |
@@ -219,6 +219,7 @@ que son explícitas en lugar de descuidos.
 |------|-------|
 | 2026-04-12 | Caso de garantía inicial para httptap 0.4.7 (envío para nivel plata). |
 | 2026-04-13 | Endurecimiento OSS para 0.5.0: commits/etiquetas de publicación firmados con gitsign, verificación previa en TestPyPI, imágenes de contenedor GHCR firmadas con procedencia SLSA, hadolint en CI, artefacto de página de manual. |
+| 2026-09-17 | Correcciones de seguridad en 0.6.2 ([GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)): SR-3 se garantiza con una comprobación explícita de origen en las redirecciones, los valores controlados por el servidor se escapan antes del renderizado de Rich (CWE-79/116) y las credenciales de proxy se ocultan (CWE-200); OpenVEX registra ahora el estado del aviso. |
 
 ---
 

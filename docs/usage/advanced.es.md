@@ -91,6 +91,8 @@ steps = analyzer.analyze_url("https://httpbin.io/redirect/3")
 print(f"Total steps in redirect chain: {len(steps)}")
 ```
 
+Cada salto de redirección sigue las mismas reglas de cabeceras y métodos que la CLI: las cabeceras de credenciales no se envían a otro origen, y `303` (o `301`/`302` tras `POST`) cambia a `GET` sin cuerpo. Consulta [`--follow`](basic.md) para más detalles.
+
 ### Enviar el cuerpo de la solicitud
 
 ```python

@@ -91,6 +91,8 @@ steps = analyzer.analyze_url("https://httpbin.io/redirect/3")
 print(f"Total steps in redirect chain: {len(steps)}")
 ```
 
+每一跳重定向都遵循与 CLI 相同的请求头和方法规则：凭证请求头不会发送到不同的源，`303`（或 `POST` 之后的 `301`/`302`）会切换为不带请求体的 `GET`。详情请参见 [`--follow`](basic.md)。
+
 ### 发送请求体
 
 ```python
