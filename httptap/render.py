@@ -148,9 +148,9 @@ class OutputRenderer:
 
         for step in steps:
             if step.has_error:
-                self.console.print(f"Step {step.step_number}: ERROR - {step.error}", markup=False)
+                self.console.print(f"Step {step.step_number}: ERROR - {step.error}", markup=False, soft_wrap=True)
             else:
-                self.console.print(format_compact_line(step), markup=False)
+                self.console.print(format_compact_line(step), markup=False, soft_wrap=True)
 
         if len(steps) > 1:
             self._render_redirect_summary(steps)
