@@ -96,6 +96,11 @@ httptap --follow https://httpbin.io/redirect/3
 
 默认情况下，httptap 不会跟随重定向，会在第一个重定向响应（3xx 状态码）处停止。
 
+跟随重定向时，httptap 采用与 curl 和浏览器相同的规则：
+
+- `Authorization`、`Cookie` 和 `Proxy-Authorization` 请求头只发送到原始源（协议、主机和端口）。一旦重定向指向不同的源，后续整个重定向链都不再发送这些请求头；同一主机在默认端口上从 `http` 升级到 `https`（80 → 443）时会保留。
+- `303 See Other`，以及 `POST` 之后的 `301`/`302`，会将下一个请求切换为不带请求体的 `GET`。`307` 和 `308` 保留原方法和请求体。
+
 #### `-m, --max-time, --timeout SECONDS`
 
 如果总耗时超过指定的秒数，则中止请求链。
@@ -154,6 +159,8 @@ httptap --proxy "" https://httpbin.io/get
 ```
 
 `--proxy` 参数优先于环境变量（`HTTP_PROXY`、`HTTPS_PROXY`、`NO_PROXY`）。使用 `--proxy ""` 可忽略所有代理环境变量并直连。有关代理协议、DNS 解析和环境变量配置的详细信息，请参见 [高级功能](advanced.md#using-proxies)。
+
+代理 URL 中的凭证（`http://user:password@proxy:3128`，包括来自环境变量的代理）会用于建立连接，但在输出和 JSON 导出中会被遮蔽（`http://user:****@proxy:3128`）。
 
 #### `--cacert, --ca-bundle PATH`
 

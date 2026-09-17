@@ -96,6 +96,11 @@ httptap --follow https://httpbin.io/redirect/3
 
 Por defecto, httptap no sigue las redirecciones y se detiene en la primera respuesta de redirección (código de estado 3xx).
 
+Al seguir redirecciones, httptap aplica las mismas reglas que curl y los navegadores:
+
+- Las cabeceras `Authorization`, `Cookie` y `Proxy-Authorization` solo se envían al origen original (esquema, host y puerto). En cuanto una redirección apunta a otro origen, se descartan para el resto de la cadena; una actualización de `http` a `https` en el mismo host con los puertos por defecto (80 → 443) las conserva.
+- `303 See Other`, y `301`/`302` tras un `POST`, cambian la siguiente solicitud a `GET` sin cuerpo. `307` y `308` conservan el método y el cuerpo.
+
 #### `-m, --max-time, --timeout SECONDS`
 
 Aborta la cadena de solicitudes si el tiempo total transcurrido supera el número de segundos especificado.
@@ -154,6 +159,8 @@ httptap --proxy "" https://httpbin.io/get
 ```
 
 El flag `--proxy` tiene prioridad sobre las variables de entorno (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`). Usa `--proxy ""` para ignorar todas las variables de entorno de proxy y conectar directamente. Consulta [Funciones avanzadas](advanced.md#using-proxies) para más detalles sobre los protocols de proxy, la resolución DNS y la configuración mediante variables de entorno.
+
+Las credenciales de la URL del proxy (`http://user:password@proxy:3128`), incluidas las que proceden de variables de entorno, se usan para la conexión pero se enmascaran en la salida y en la exportación JSON (`http://user:****@proxy:3128`).
 
 #### `--cacert, --ca-bundle PATH`
 

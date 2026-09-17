@@ -10,7 +10,7 @@ project believes its security properties hold, not just **what** those
 properties are. It is structured according to the OpenSSF Best Practices
 silver-level `assurance_case` criterion.
 
-**Last reviewed:** 2026-04-13 for httptap 0.5.0.
+**Last reviewed:** 2026-09-17 for httptap 0.6.2.
 
 The assurance case is a living document; it is reviewed at every major
 release and whenever the threat landscape or feature set changes
@@ -88,7 +88,7 @@ server-side DoS) are explicitly excluded as non-goals.
 | **Tampering** | CI pipeline poisoned via compromised third-party action. | Every action is SHA-pinned (enforced by Scorecard Pinned-Dependencies 10/10 and zizmor pedantic); Dependabot raises PRs to update pins (SR-6, SR-7). |
 | **Repudiation** | — | Out of scope; httptap is not a multi-user system. |
 | **Information disclosure** | Credentials in `-H Authorization` leak to redirect target on a different host. | httptap follows redirects itself (`follow_redirects=False` in httpx) and drops `Authorization`, `Cookie` and `Proxy-Authorization` when a redirect changes scheme, host or port; `303`, and `301`/`302` after `POST`, switch to `GET` without a body (SR-3). |
-| **Information disclosure** | `--json` export includes auth headers on disk. | Users are advised in SECURITY.md and docs/troubleshooting.md to redact auth headers before sharing exports. |
+| **Information disclosure** | `--json` export includes auth headers or proxy credentials on disk. | `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie` and API-key headers are masked in output and export, and proxy URL credentials are redacted; users are still advised in SECURITY.md and docs/troubleshooting.md to review exports before sharing. |
 | **Information disclosure** | MITM on insecure proxy. | Proxy URL scheme is validated; `socks5h://` / `https://` recommended for sensitive targets; proxy source is reported in output and JSON for audit. |
 | **Denial of service** | Malicious server streams unbounded body. | Per-request timeout via `--timeout` (default 20s); transfer phase is bounded by the same deadline. |
 | **Denial of service** | Malicious server streams zip bomb or gigantic body. | httptap does not decode or persist bodies beyond counting bytes for the timing metric, so memory cost is linear and bounded by the timeout. |
@@ -139,7 +139,7 @@ upstream.
 | CWE-89 | SQL injection | No database. |
 | CWE-94 | Code injection | `eval`/`exec` are not used; response bodies are never parsed. |
 | CWE-116 | Improper output encoding | Server-controlled strings are escaped before Rich markup rendering; JSON export uses `json.dumps` with strict escaping. |
-| CWE-200 | Sensitive information disclosure | Auth headers are not copied to log output; SECURITY.md and docs warn users to redact JSON exports before sharing. |
+| CWE-200 | Sensitive information disclosure | Sensitive headers are masked and proxy URL credentials are redacted in output and JSON export; credential headers are not forwarded to other origins on redirects (SR-3); SECURITY.md and docs advise reviewing exports before sharing. |
 | CWE-295 | Improper certificate validation | TLS verification on by default; `--ignore-ssl` opt-in only, explicitly documented. |
 | CWE-319 | Cleartext transmission | HTTPS preferred; plain HTTP requires explicit `http://` URL; proxy source reported. |
 | CWE-327 | Broken crypto | Delegated to stdlib `ssl`; weak algorithms surface only when diagnosing remote servers. |
@@ -216,6 +216,7 @@ that are explicit rather than oversights.
 |------|-------|
 | 2026-04-12 | Initial assurance case for httptap 0.4.7 (silver submission). |
 | 2026-04-13 | OSS hardening for 0.5.0: gitsign-signed release commits/tags, TestPyPI pre-flight, signed GHCR container images with SLSA provenance, hadolint in CI, man-page artifact. |
+| 2026-09-17 | Security fixes in 0.6.2 ([GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)): SR-3 is enforced by an explicit origin check on redirects, server-controlled values are escaped before Rich rendering (CWE-79/116), proxy credentials are redacted (CWE-200); OpenVEX now records the advisory status. |
 
 ---
 

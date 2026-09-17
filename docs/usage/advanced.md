@@ -91,6 +91,8 @@ steps = analyzer.analyze_url("https://httpbin.io/redirect/3")
 print(f"Total steps in redirect chain: {len(steps)}")
 ```
 
+Each redirect hop follows the same header and method rules as the CLI: credential headers are not sent to a different origin, and `303` (or `301`/`302` after `POST`) switches to `GET` without a body. See [`--follow`](basic.md) for details.
+
 ### Sending Request Body
 
 ```python
