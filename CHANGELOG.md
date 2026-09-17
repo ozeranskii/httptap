@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [0.6.2] - 2026-09-17
 
+### Security
+
+- Credentials (`Authorization`, `Cookie`, `Proxy-Authorization`) and request bodies are no longer forwarded to a different origin when following redirects ([GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)). Reported by @iam-niranjan.
+- Server-controlled values (URL, `Server`, `Location`, certificate fields, error messages) are escaped before Rich rendering, so a server can no longer inject markup or crash the output ([GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)).
+- Proxy credentials are redacted in terminal output and JSON export ([#302](https://github.com/ozeranskii/httptap/issues/302)).
+
 ### Bug Fixes
 
 - **analyzer:** Apply RFC 9110 rules when following redirects ([f8bb8e1](https://github.com/ozeranskii/httptap/commit/f8bb8e10afa7c6e5bc4a5185cbbc1fc8588083ff))
@@ -17,6 +23,7 @@ All notable changes to this project will be documented in this file.
 ### New Contributors
 
 - @Voyagerroc-Lab made their first contribution in [#304](https://github.com/ozeranskii/httptap/pull/304)
+
 
 ## [0.6.1] - 2026-09-06
 
