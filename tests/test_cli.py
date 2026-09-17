@@ -471,6 +471,47 @@ def test_cli_integration_full_run(
     assert not stderr
 
 
+def test_cli_compact_ignored_when_metrics_only(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--metrics-only wins over --compact and warns on stderr."""
+    step = _make_step()
+
+    class FakeAnalyzer:
+        def analyze_url(
+            self,
+            url: str,
+            *,
+            method: str = "GET",
+            content: bytes | None = None,
+            headers: Mapping[str, str] | None = None,
+        ) -> list[StepMetrics]:
+            del method
+            del content
+            del headers
+            assert url == "https://example.test"
+            return [step]
+
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", lambda *_a, **_k: FakeAnalyzer())
+    monkeypatch.setattr("httptap.cli.Progress", DummyProgress)
+    monkeypatch.setattr("httptap.cli.signal.signal", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["httptap", "--compact", "--metrics-only", "https://example.test"],
+    )
+
+    exit_code = main()
+    stdout, stderr = capsys.readouterr()
+
+    assert exit_code == EXIT_SUCCESS
+    assert "dns=" in stdout
+    assert "status=" in stdout
+    assert "Warning" in stderr
+    assert "--compact is ignored" in stderr
+    assert "--metrics-only takes precedence" in stderr
+
+
 def test_cli_integration_metrics_only_error_exit(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

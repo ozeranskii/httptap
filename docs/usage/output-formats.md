@@ -90,6 +90,12 @@ Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=
 - Integration with monitoring tools
 - Parsing with awk/grep/sed
 
+### Combined with `--compact`
+
+`--metrics-only` takes precedence over `--compact`. Passing both flags still
+emits the machine-readable `key=value` line (so existing scripts keep working)
+and prints a warning to stderr that `--compact` was ignored.
+
 ### Parsing Examples
 
 ```bash

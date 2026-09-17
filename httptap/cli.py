@@ -265,12 +265,14 @@ Exit codes:
     output_group.add_argument(
         "--compact",
         action="store_true",
-        help="Print one summary line per step instead of the waterfall view.",
+        help=(
+            "Print one summary line per step instead of the waterfall view. Ignored when --metrics-only is also set."
+        ),
     )
     output_group.add_argument(
         "--metrics-only",
         action="store_true",
-        help="Emit key=value metrics without Rich visuals or progress spinners.",
+        help="Emit key=value metrics without Rich visuals or progress spinners. Takes precedence over --compact.",
     )
     output_group.add_argument(
         "--json",
@@ -537,6 +539,9 @@ def main() -> int:
 
         if not validate_arguments(args):
             return EXIT_USAGE_ERROR
+
+        if args.compact and args.metrics_only:
+            console.print("[yellow]Warning:[/yellow] --compact is ignored because --metrics-only takes precedence.")
 
         try:
             content, auto_headers = read_request_data(args.data)
