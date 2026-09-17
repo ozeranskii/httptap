@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from io import StringIO
 from typing import TYPE_CHECKING
 
 import pytest
 from rich.console import Console
 
+from httptap.formatters import format_compact_line, format_metrics_line
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
 from httptap.render import OutputRenderer
 from httptap.slo import SLOResult, SLOViolation
@@ -478,3 +480,32 @@ def test_render_analysis_escapes_markup_in_error_lines() -> None:
     renderer.render_analysis([step], "https://example.test")
 
     assert "ERROR - bad [/red] response" in console.export_text()
+
+
+@pytest.mark.parametrize("width", [20, 80, 120])
+def test_render_analysis_metrics_only_records_do_not_wrap(width: int) -> None:
+    output = StringIO()
+    console = Console(file=output, width=width, color_system=None)
+    renderer = OutputRenderer(console=console, metrics_only=True)
+    success = build_step("https://example.test/", 200, 123.4)
+    error = build_step("https://example.test/", 0, 0.0, step_number=2, error="Connection failed " + "details " * 30)
+
+    renderer.render_analysis([success, error], success.url)
+
+    assert output.getvalue().splitlines() == [format_metrics_line(success), f"Step 2: ERROR - {error.error}"]
+
+
+@pytest.mark.parametrize("width", [20, 80, 120])
+def test_render_analysis_compact_lines_do_not_wrap(width: int) -> None:
+    output = StringIO()
+    console = Console(file=output, width=width, color_system=None)
+    renderer = OutputRenderer(console=console, compact=True)
+    long_url = "https://example.test/" + "segment/" * 15
+    success = build_step(long_url, 200, 123.4)
+    error = build_step(long_url, 0, 0.0, step_number=2, error="Connection failed " + "details " * 30)
+
+    renderer.render_analysis([success, error], long_url)
+
+    lines = output.getvalue().splitlines()
+    assert format_compact_line(success) in lines
+    assert f"Step 2: ERROR - {error.error}" in lines

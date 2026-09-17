@@ -148,9 +148,9 @@ class OutputRenderer:
 
         for step in steps:
             if step.has_error:
-                self.console.print(f"Step {step.step_number}: ERROR - {step.error}", markup=False)
+                self.console.print(f"Step {step.step_number}: ERROR - {step.error}", markup=False, soft_wrap=True)
             else:
-                self.console.print(format_compact_line(step), markup=False)
+                self.console.print(format_compact_line(step), markup=False, soft_wrap=True)
 
         if len(steps) > 1:
             self._render_redirect_summary(steps)
@@ -252,11 +252,11 @@ class OutputRenderer:
 
         for step in steps:
             if step.has_error:
-                self.console.print(f"Step {step.step_number}: ERROR - {step.error}", markup=False)
+                self.console.print(f"Step {step.step_number}: ERROR - {step.error}", markup=False, soft_wrap=True)
                 continue
 
             step_slo = slo_result if step is slo_target else None
-            self.console.print(format_metrics_line(step, slo_result=step_slo), markup=False)
+            self.console.print(format_metrics_line(step, slo_result=step_slo), markup=False, soft_wrap=True)
 
     def _render_redirect_summary(self, steps: Sequence[StepMetrics]) -> None:
         """Render redirect chain summary table.
