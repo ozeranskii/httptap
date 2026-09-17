@@ -93,7 +93,7 @@ uv run pre-commit validate-config
 ```
 
 **CI Validation:**
-The CI automatically validates that the pre-commit configuration stays in sync and all hooks work correctly. This ensures consistency across all contributors.
+The CI automatically validates the pre-commit configuration and runs pre-commit hooks on all files on every pull request and push to `main` (skipping `ruff-check`, `ruff-format`, and `mypy` which are covered by the main CI pipeline). This ensures code quality and formatting consistency across all contributors.
 
 ### Code Style
 
