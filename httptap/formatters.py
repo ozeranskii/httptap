@@ -4,6 +4,7 @@ This module provides formatters for converting metrics and data
 into human-readable formats with Rich markup support.
 """
 
+from rich.markup import escape
 from rich.panel import Panel
 from rich.text import Text
 
@@ -34,7 +35,7 @@ def format_step_header(step: StepMetrics) -> str:
         Formatted header string with rich markup.
 
     """
-    return f"[bold cyan]Step {step.step_number}:[/bold cyan] [dim]{step.url}[/dim]"
+    return f"[bold cyan]Step {step.step_number}:[/bold cyan] [dim]{escape(step.url)}[/dim]"
 
 
 def format_error(step: StepMetrics) -> Panel:
@@ -77,7 +78,7 @@ def _format_proxy_part(step: StepMetrics) -> str:
     source = step.network.proxy_source
     if step.proxied_via:
         hint = "from arg --proxy" if source == PROXY_SOURCE_CLI else f"from env {source}"
-        return f"Proxy: {step.proxied_via} ({hint})"
+        return f"Proxy: {escape(step.proxied_via)} ({hint})"
     if source == PROXY_SOURCE_NO_PROXY:
         return "[yellow]Proxy: none (bypassed by env no_proxy)[/yellow]"
     if source == PROXY_SOURCE_DISABLED:
@@ -102,11 +103,11 @@ def format_network_info(step: StepMetrics) -> str | None:
     ip = step.network.ip
     if ip:
         family = step.network.ip_family
-        parts.append(f"IP: {ip} ({family})" if family else f"IP: {ip}")
+        parts.append(f"IP: {escape(ip)} ({family})" if family else f"IP: {escape(ip)}")
 
     http_version = step.network.http_version
     if http_version:
-        parts.append(f"HTTP: {http_version}")
+        parts.append(f"HTTP: {escape(http_version)}")
 
     parts.append(_format_proxy_part(step))
 
@@ -117,7 +118,7 @@ def format_network_info(step: StepMetrics) -> str | None:
         ("Issuer", step.network.cert_issuer),
     ):
         if value:
-            parts.append(f"{label}: {value}")
+            parts.append(f"{label}: {escape(value)}")
 
     days_left = step.network.cert_days_left
     if days_left is not None:
@@ -164,9 +165,9 @@ def format_response_info(step: StepMetrics) -> str | None:
         parts.append(f"Size: {size_str}")
 
     if step.response.server:
-        parts.append(f"Server: {step.response.server}")
+        parts.append(f"Server: {escape(step.response.server)}")
     if step.response.location:
-        parts.append(f"→ [cyan]{step.response.location}[/cyan]")
+        parts.append(f"→ [cyan]{escape(step.response.location)}[/cyan]")
 
     return f"  {' | '.join(parts)}" if parts else None
 

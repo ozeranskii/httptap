@@ -6,16 +6,24 @@ collecting metrics, and managing the overall request flow.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from http import HTTPStatus
 from typing import TYPE_CHECKING
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 if TYPE_CHECKING:
     from httpx._types import ProxyTypes
 else:  # pragma: no cover - typing helper
     ProxyTypes = object  # type: ignore[assignment]
 
-from .constants import DEFAULT_TIMEOUT_SECONDS, HTTPMethod
+from .constants import (
+    BODY_HEADERS,
+    DEFAULT_TIMEOUT_SECONDS,
+    HTTP_DEFAULT_PORT,
+    HTTPS_DEFAULT_PORT,
+    ORIGIN_BOUND_HEADERS,
+    POST_TO_GET_REDIRECT_STATUSES,
+    HTTPMethod,
+)
 from .http_client import HTTPClientError
 from .models import StepMetrics
 from .request_executor import HTTPClientRequestExecutor, RequestExecutor, RequestOptions, RequestOutcome
@@ -25,6 +33,53 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from .interfaces import DNSResolver, TimingCollector, TLSInspector
+
+
+def _origin(url: str) -> tuple[str, str, int]:
+    """Return the (scheme, host, port) origin of a URL with default ports filled in."""
+    parts = urlsplit(url)
+    scheme = parts.scheme.lower()
+    default_port = HTTPS_DEFAULT_PORT if scheme == "https" else HTTP_DEFAULT_PORT
+    return scheme, (parts.hostname or "").lower(), parts.port or default_port
+
+
+def _is_same_origin_or_https_upgrade(current_url: str, next_url: str) -> bool:
+    """Check whether credentials may be kept when redirecting from current_url to next_url.
+
+    Mirrors httpx: credentials survive a redirect to the same origin and an
+    ``http`` to ``https`` upgrade on the same host with default ports.
+    """
+    current = _origin(current_url)
+    target = _origin(next_url)
+    if current == target:
+        return True
+    return current == ("http", target[1], HTTP_DEFAULT_PORT) and target == ("https", current[1], HTTPS_DEFAULT_PORT)
+
+
+def _redirect_method(status: int, method: HTTPMethod) -> HTTPMethod:
+    """Return the method for the next hop per RFC 9110 and curl/browser behavior."""
+    if status == HTTPStatus.SEE_OTHER and method != HTTPMethod.HEAD:
+        return HTTPMethod.GET
+    if status in POST_TO_GET_REDIRECT_STATUSES and method == HTTPMethod.POST:
+        return HTTPMethod.GET
+    return method
+
+
+def _redirect_headers(
+    headers: Mapping[str, str] | None,
+    *,
+    keep_credentials: bool,
+    keep_body_headers: bool,
+) -> dict[str, str] | None:
+    """Drop origin-bound credentials and body headers that must not follow a redirect."""
+    if headers is None:
+        return None
+    return {
+        name: value
+        for name, value in headers.items()
+        if (keep_credentials or name.lower() not in ORIGIN_BOUND_HEADERS)
+        and (keep_body_headers or name.lower() not in BODY_HEADERS)
+    }
 
 
 class HTTPTapAnalyzer:
@@ -181,7 +236,17 @@ class HTTPTapAnalyzer:
                 next_url = step.response.location
                 if next_url:
                     # Handle relative URLs
-                    current_url = urljoin(current_url, next_url)
+                    next_url = urljoin(current_url, next_url)
+                    next_method = _redirect_method(step.response.status or 0, method)
+                    headers = _redirect_headers(
+                        headers,
+                        keep_credentials=_is_same_origin_or_https_upgrade(current_url, next_url),
+                        keep_body_headers=next_method == method,
+                    )
+                    if next_method != method:
+                        content = None
+                    method = next_method
+                    current_url = next_url
                     redirect_count += 1
                 else:
                     # No Location header despite 3xx status

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 from rich.console import Console
+from rich.markup import escape
 
 from .interfaces import Exporter
 from .models import StepMetrics
@@ -168,4 +169,4 @@ class JSONExporter(Exporter):
             output_path: Path where file was written.
 
         """
-        self.console.print(f"\n[green]✓ Exported analysis to {output_path}[/green]")
+        self.console.print(f"\n[green]✓ Exported analysis to {escape(str(output_path))}[/green]")

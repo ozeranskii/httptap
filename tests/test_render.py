@@ -242,7 +242,7 @@ class TestOutputRenderer:
         result = SLOResult(thresholds_ms={"total": 100.0}, violations=(violation,))
 
         printed: list[str] = []
-        monkeypatch.setattr(console, "print", lambda msg: printed.append(str(msg)))
+        monkeypatch.setattr(console, "print", lambda msg, **_kwargs: printed.append(str(msg)))
 
         renderer._render_metrics_only(steps, slo_result=result)
 
@@ -438,3 +438,43 @@ class TestOutputRenderer:
         output = console.export_text()
         # Should have separation between steps
         assert len(output) > 0
+
+
+def build_hostile_step() -> StepMetrics:
+    step = build_step("https://example.test/[bold]x[/bold]", 302, 50.0)
+    step.response.server = "x [/dim]"
+    step.response.location = "/next[/bold]"
+    step.network.cert_cn = "[red]evil[/red]"
+    step.network.tls_version = "TLSv1.3"
+    return step
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [{}, {"compact": True}, {"metrics_only": True}],
+)
+def test_render_analysis_escapes_server_controlled_markup(mode: dict[str, bool]) -> None:
+    console = Console(record=True, width=300)
+    renderer = OutputRenderer(console=console, **mode)
+    steps = [build_hostile_step(), build_step("https://example.test/next[/bold]", 200, 20.0, step_number=2)]
+
+    renderer.render_analysis(steps, "https://example.test/[bold]x[/bold]")
+    output = console.export_text()
+
+    assert "Step 2:" in output
+    if not mode.get("metrics_only"):
+        assert "https://example.test/[bold]x[/bold]" in output
+    if not mode:
+        assert "Server: x [/dim]" in output
+        assert "/next[/bold]" in output
+        assert "Cert: [red]evil[/red]" in output
+
+
+def test_render_analysis_escapes_markup_in_error_lines() -> None:
+    console = Console(record=True, width=300)
+    renderer = OutputRenderer(console=console, metrics_only=True)
+    step = build_step("https://example.test", 0, 0.0, error="bad [/red] response")
+
+    renderer.render_analysis([step], "https://example.test")
+
+    assert "ERROR - bad [/red] response" in console.export_text()

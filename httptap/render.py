@@ -7,6 +7,7 @@ to present analysis results to the user.
 from collections.abc import Sequence
 
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
@@ -147,9 +148,9 @@ class OutputRenderer:
 
         for step in steps:
             if step.has_error:
-                self.console.print(f"Step {step.step_number}: ERROR - {step.error}")
+                self.console.print(f"Step {step.step_number}: ERROR - {step.error}", markup=False)
             else:
-                self.console.print(format_compact_line(step))
+                self.console.print(format_compact_line(step), markup=False)
 
         if len(steps) > 1:
             self._render_redirect_summary(steps)
@@ -251,11 +252,11 @@ class OutputRenderer:
 
         for step in steps:
             if step.has_error:
-                self.console.print(f"Step {step.step_number}: ERROR - {step.error}")
+                self.console.print(f"Step {step.step_number}: ERROR - {step.error}", markup=False)
                 continue
 
             step_slo = slo_result if step is slo_target else None
-            self.console.print(format_metrics_line(step, slo_result=step_slo))
+            self.console.print(format_metrics_line(step, slo_result=step_slo), markup=False)
 
     def _render_redirect_summary(self, steps: Sequence[StepMetrics]) -> None:
         """Render redirect chain summary table.
@@ -290,7 +291,7 @@ class OutputRenderer:
 
             table.add_row(
                 str(step.step_number),
-                step.url,
+                escape(step.url),
                 status_str,
                 time_str,
             )

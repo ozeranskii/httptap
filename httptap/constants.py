@@ -58,6 +58,12 @@ HTTP_SUCCESS_MIN = HTTPStatus.OK.value
 HTTP_SUCCESS_MAX = HTTPStatus.MULTIPLE_CHOICES.value - 1
 HTTP_REDIRECT_MIN = HTTPStatus.MULTIPLE_CHOICES.value
 HTTP_REDIRECT_MAX = HTTPStatus.BAD_REQUEST.value - 1
+POST_TO_GET_REDIRECT_STATUSES = frozenset({HTTPStatus.MOVED_PERMANENTLY.value, HTTPStatus.FOUND.value})
+
+# Request headers bound to the origin they were sent to; dropped on cross-origin redirects.
+ORIGIN_BOUND_HEADERS = frozenset({"authorization", "cookie", "proxy-authorization"})
+# Request headers describing the body; dropped when a redirect discards the body.
+BODY_HEADERS = frozenset({"content-type", "content-length", "content-encoding", "transfer-encoding"})
 
 # Proxy source identifiers returned by _resolve_effective_proxy.
 # Used in formatters to render proxy hints consistently.

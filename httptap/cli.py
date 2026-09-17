@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
 from rich.console import Console
 from rich.logging import RichHandler
+from rich.markup import escape
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.text import Text
@@ -84,7 +85,7 @@ class RichArgumentParser(argparse.ArgumentParser):
         """Override error to provide Rich formatted error messages."""
         console.print(
             Panel(
-                f"[red]{message}[/red]",
+                f"[red]{escape(message)}[/red]",
                 title="[bold red]❌ Argument Error[/bold red]",
                 border_style="red",
                 padding=(1, 2),
@@ -326,7 +327,7 @@ def _execute_analysis(
         console=Console(),
         transient=True,
     ) as progress:
-        task = progress.add_task("analyze", url=args.url, total=None)
+        task = progress.add_task("analyze", url=escape(args.url), total=None)
         steps = analyzer.analyze_url(args.url, method=method, content=content, headers=headers)
         progress.update(task, completed=True)
         return steps
@@ -347,7 +348,7 @@ def _export_results(
         renderer.export_json(steps, args.url, args.json, slo_result=slo_result)
     except OSError as export_error:
         console.print(
-            f"[yellow]⚠ Warning:[/yellow] Failed to export JSON: {export_error}",
+            f"[yellow]⚠ Warning:[/yellow] Failed to export JSON: {escape(str(export_error))}",
         )
 
 
@@ -434,7 +435,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
     except ValueError as exc:
         console.print(
             Panel(
-                str(exc),
+                escape(str(exc)),
                 title="[bold red]❌ Header Error[/bold red]",
                 border_style="red",
             )
@@ -466,7 +467,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
         except SLOSpecError as exc:
             console.print(
                 Panel(
-                    f"[red]{exc}[/red]",
+                    f"[red]{escape(str(exc))}[/red]",
                     title="[bold red]❌ SLO Error[/bold red]",
                     border_style="red",
                     padding=(1, 2),
@@ -540,7 +541,7 @@ def main() -> int:
         try:
             content, auto_headers = read_request_data(args.data)
         except (FileNotFoundError, OSError) as e:
-            console.print(f"[red]Error reading data: {e}[/red]")
+            console.print(f"[red]Error reading data: {escape(str(e))}[/red]")
             return EXIT_USAGE_ERROR
         method = args.method if args.method is not None else HTTPMethod.GET
         method_was_explicit = args.method is not None
@@ -590,7 +591,7 @@ def main() -> int:
         logger.exception("Unexpected error")
 
         error_panel = Panel(
-            f"[red]{e}[/red]",
+            f"[red]{escape(str(e))}[/red]",
             title="[bold red]❌ Internal Error[/bold red]",
             border_style="red",
             padding=(1, 2),

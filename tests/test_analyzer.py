@@ -3,7 +3,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
+import pytest
+
 from httptap.analyzer import HTTPTapAnalyzer
+from httptap.constants import HTTPMethod
 from httptap.http_client import HTTPClientError
 from httptap.models import NetworkInfo, ResponseInfo, TimingMetrics
 from httptap.request_executor import RequestOptions, RequestOutcome
@@ -514,3 +517,130 @@ def test_analyze_url_proxy_with_authentication() -> None:
     assert steps[0].response.status == 200
     assert executor.proxies == ["socks5h://user:password@gateway:1080"]
     assert steps[0].proxied_via == "socks5h://user:password@gateway:1080"
+
+
+class RecordingExecutor:
+    def __init__(self, results: list[tuple[int, str | None]]) -> None:
+        self.results = results
+        self.calls: list[RequestOptions] = []
+
+    def execute(self, options: RequestOptions) -> RequestOutcome:
+        self.calls.append(options)
+        status, location = self.results.pop(0)
+        timing = TimingMetrics(total_ms=10.0)
+        network = NetworkInfo(ip="203.0.113.5", ip_family="IPv4")
+        response = ResponseInfo(status=status, location=location)
+        return RequestOutcome(timing=timing, network=network, response=response)
+
+
+CREDENTIAL_HEADERS = {
+    "Authorization": "Bearer secret",
+    "Cookie": "session=1",
+    "Proxy-Authorization": "Basic cHJveHk6cHc=",
+    "X-Trace": "abc",
+}
+
+
+@pytest.mark.parametrize(
+    ("initial_url", "location"),
+    [
+        ("https://example.test/start", "https://attacker.test/landing"),
+        ("https://example.test/start", "http://example.test/landing"),
+        ("https://example.test/start", "https://example.test:8443/landing"),
+        ("http://example.test:8080/start", "https://example.test/landing"),
+    ],
+)
+def test_analyze_url_drops_credentials_on_cross_origin_redirect(initial_url: str, location: str) -> None:
+    executor = RecordingExecutor([(302, location), (200, None)])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+
+    steps = analyzer.analyze_url(initial_url, headers=CREDENTIAL_HEADERS)
+
+    assert executor.calls[0].headers == CREDENTIAL_HEADERS
+    assert executor.calls[1].headers == {"X-Trace": "abc"}
+    assert steps[1].request_headers == {"X-Trace": "abc"}
+
+
+@pytest.mark.parametrize(
+    ("initial_url", "location"),
+    [
+        ("https://example.test/start", "/landing"),
+        ("https://example.test/start", "https://EXAMPLE.test:443/landing"),
+        ("http://example.test/start", "https://example.test/landing"),
+    ],
+)
+def test_analyze_url_keeps_credentials_on_same_origin_or_https_upgrade(initial_url: str, location: str) -> None:
+    executor = RecordingExecutor([(301, location), (200, None)])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+
+    analyzer.analyze_url(initial_url, headers=CREDENTIAL_HEADERS)
+
+    assert executor.calls[1].headers == CREDENTIAL_HEADERS
+
+
+def test_analyze_url_drops_credentials_for_rest_of_chain_after_cross_origin_hop() -> None:
+    executor = RecordingExecutor(
+        [(302, "https://other.test/a"), (302, "https://example.test/b"), (200, None)],
+    )
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+
+    analyzer.analyze_url("https://example.test/start", headers=CREDENTIAL_HEADERS)
+
+    assert executor.calls[2].headers == {"X-Trace": "abc"}
+
+
+@pytest.mark.parametrize(
+    ("status", "method", "expected_method"),
+    [
+        (303, HTTPMethod.POST, HTTPMethod.GET),
+        (303, HTTPMethod.PUT, HTTPMethod.GET),
+        (301, HTTPMethod.POST, HTTPMethod.GET),
+        (302, HTTPMethod.POST, HTTPMethod.GET),
+    ],
+)
+def test_analyze_url_switches_to_get_without_body(
+    status: int,
+    method: HTTPMethod,
+    expected_method: HTTPMethod,
+) -> None:
+    executor = RecordingExecutor([(status, "/landing"), (200, None)])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+    headers = {"Content-Type": "application/json", "X-Trace": "abc"}
+
+    steps = analyzer.analyze_url("https://example.test/form", method=method, content=b'{"a":1}', headers=headers)
+
+    assert executor.calls[1].method == expected_method
+    assert executor.calls[1].content is None
+    assert executor.calls[1].headers == {"X-Trace": "abc"}
+    assert steps[1].request_method == expected_method.value
+    assert steps[1].request_body_bytes == 0
+
+
+@pytest.mark.parametrize(
+    ("status", "method"),
+    [
+        (307, HTTPMethod.POST),
+        (308, HTTPMethod.POST),
+        (302, HTTPMethod.PUT),
+        (303, HTTPMethod.HEAD),
+    ],
+)
+def test_analyze_url_preserves_method_and_body(status: int, method: HTTPMethod) -> None:
+    executor = RecordingExecutor([(status, "/landing"), (200, None)])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+    headers = {"Content-Type": "application/json"}
+
+    analyzer.analyze_url("https://example.test/form", method=method, content=b'{"a":1}', headers=headers)
+
+    assert executor.calls[1].method == method
+    assert executor.calls[1].content == b'{"a":1}'
+    assert executor.calls[1].headers == headers
+
+
+def test_analyze_url_redirect_without_headers() -> None:
+    executor = RecordingExecutor([(302, "https://other.test/"), (200, None)])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+
+    analyzer.analyze_url("https://example.test/")
+
+    assert executor.calls[1].headers is None

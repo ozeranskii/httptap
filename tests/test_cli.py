@@ -545,6 +545,23 @@ def test_main_handles_unexpected_exception(
     assert stdout == ""
 
 
+def test_main_escapes_markup_in_unexpected_exception(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        "httptap.cli._execute_analysis",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("closing tag [/dim] mismatch")),
+    )
+    monkeypatch.setattr("sys.argv", ["httptap", "https://example.test"])
+
+    exit_code = main()
+    _, stderr = capsys.readouterr()
+
+    assert exit_code == EXIT_FATAL_ERROR
+    assert "[/dim]" in stderr
+
+
 def test_main_handles_data_read_errors(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

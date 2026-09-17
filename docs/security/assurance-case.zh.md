@@ -28,7 +28,7 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 |---|-------------|-----------|
 | SR-1 | 对每个 HTTPS 目标默认启用 TLS 证书校验。 | 默认阻止被动和主动的中间人攻击（MITM）。 |
 | SR-2 | 明文 HTTP、削弱的 TLS 或自定义 CA 包均需用户显式选择启用。 | 确保不安全的配置始终是有意为之。 |
-| SR-3 | 用户提供的凭证（例如 `Authorization` 请求头）仅转发到原始 URL，不会泄露给位于不同主机上的重定向目标。 | 防止通过开放重定向窃取凭证。 |
+| SR-3 | 用户提供的凭证（`Authorization`、`Cookie`、`Proxy-Authorization` 请求头）不会发送到不同源（协议、主机或端口）的重定向目标；在将方法切换为 `GET` 的重定向之后，也不会重新发送请求体。 | 防止通过开放重定向窃取凭证。 |
 | SR-4 | 工具不会执行远程主机所提供的内容。 | 服务器无从获得任何代码执行原语。 |
 | SR-5 | 发布制品（PyPI wheel/sdist、容器镜像、git 标签和发布提交）均经过签名，且其构建来源可验证。 | 保护用户免受被篡改的分发包侵害。 |
 | SR-6 | 所有 CI 工作流令牌均遵循最小权限并按 SHA 固定。 | 缩减构建流水线的攻击面。 |
@@ -69,7 +69,7 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 | **Tampering（篡改）** | GitHub Releases 上被修改的制品。 | 同上——构建来源证明允许独立验证。 |
 | **Tampering（篡改）** | CI 流水线因第三方 action 被攻陷而遭投毒。 | 每个 action 都按 SHA 固定（由 Scorecard Pinned-Dependencies 10/10 和 zizmor pedantic 强制执行）；Dependabot 提交 PR 以更新固定项（SR-6、SR-7）。 |
 | **Repudiation（抵赖）** | — | 超出范围；httptap 不是多用户系统。 |
-| **Information disclosure（信息泄露）** | `-H Authorization` 中的凭证泄露给位于不同主机上的重定向目标。 | 按 httpx 默认行为，重定向链保留按主机限定的请求头；跨源重定向会丢弃敏感请求头（SR-3）。 |
+| **Information disclosure（信息泄露）** | `-H Authorization` 中的凭证泄露给位于不同主机上的重定向目标。 | httptap 自行处理重定向（httpx 中 `follow_redirects=False`），当重定向改变协议、主机或端口时丢弃 `Authorization`、`Cookie` 和 `Proxy-Authorization`；`303`，以及 `POST` 之后的 `301`/`302`，会切换为不带请求体的 `GET`（SR-3）。 |
 | **Information disclosure（信息泄露）** | `--json` 导出将认证请求头写入磁盘。 | SECURITY.md 和 docs/troubleshooting.md 建议用户在共享导出前对认证请求头进行脱敏。 |
 | **Information disclosure（信息泄露）** | 在不安全的代理上发生 MITM。 | 代理 URL 的协议方案会被校验；对敏感目标推荐使用 `socks5h://` / `https://`；代理来源会在输出和 JSON 中报告以供审计。 |
 | **Denial of service（拒绝服务）** | 恶意服务器流式发送无界的请求体。 | 通过 `--timeout` 设定每请求超时（默认 20 秒）；传输阶段受同一截止时限约束。 |
@@ -111,10 +111,10 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 | CWE-20 | 不当的输入校验 | `argparse` 的枚举/类型强制转换；对 URL/方法/超时/代理进行显式检查。 |
 | CWE-22 | 路径遍历（在 `@file` 数据加载器中） | 路径原样取自用户；从不使用服务器提供的路径来打开文件。 |
 | CWE-78 | 操作系统命令注入 | 请求路径中不对用户可控数据调用 `subprocess`/`os.system`。 |
-| CWE-79 | XSS | 不进行 HTML 渲染；输出为纯文本或经转义的 Rich 渲染标记。 |
+| CWE-79 | XSS | 不进行 HTML 渲染；服务器控制的值（URL、`Server`、`Location`、证书字段、错误信息）在 Rich 渲染前使用 `rich.markup.escape` 转义，单行模式不解析标记直接输出。 |
 | CWE-89 | SQL 注入 | 无数据库。 |
 | CWE-94 | 代码注入 | 不使用 `eval`/`exec`；从不解析响应体。 |
-| CWE-116 | 不当的输出编码 | Rich 安全地处理终端转义序列；JSON 导出使用带严格转义的 `json.dumps`。 |
+| CWE-116 | 不当的输出编码 | 服务器控制的字符串在 Rich 标记渲染前进行转义；JSON 导出使用带严格转义的 `json.dumps`。 |
 | CWE-200 | 敏感信息泄露 | 认证请求头不会被复制到日志输出；SECURITY.md 与文档提醒用户在共享前对 JSON 导出脱敏。 |
 | CWE-295 | 不当的证书校验 | 默认启用 TLS 校验；`--ignore-ssl` 仅在显式选择时启用，并有明确记载。 |
 | CWE-319 | 明文传输 | 优先使用 HTTPS；纯 HTTP 需显式的 `http://` URL；代理来源会被报告。 |
@@ -123,7 +123,7 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 | CWE-352 | CSRF | 不适用——httptap 是客户端，不是服务器。 |
 | CWE-400 | 不受控的资源消耗 | 每请求超时；有界的重定向链（最多 10 次）。 |
 | CWE-502 | 不安全的反序列化 | 仅使用 `json.loads`；不使用 pickle、yaml.load 或 marshal。 |
-| CWE-601 | 开放重定向（凭证泄露） | 按主机限定的请求头处理继承自 httpx 的行为——跨源重定向会丢弃敏感的认证请求头。 |
+| CWE-601 | 开放重定向（凭证泄露） | httptap 通过显式的源检查处理重定向：跨源跳转时丢弃 `Authorization`、`Cookie` 和 `Proxy-Authorization`。 |
 | CWE-918 | SSRF | httptap 是客户端；它不代表其他系统代理请求。 |
 
 ## 供应链保障

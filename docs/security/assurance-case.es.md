@@ -38,7 +38,7 @@ Cada una se asigna a arguments de apoyo en las secciones siguientes.
 |---|-------------|-----------|
 | SR-1 | La verificación del certificado TLS está habilitada de forma predeterminada para todo destino HTTPS. | Previene por defecto los ataques MITM pasivos y activos. |
 | SR-2 | El HTTP en texto plano, el TLS debilitado o los paquetes de CA personalizados requieren una habilitación explícita por parte del usuario. | Garantiza que las configuraciones inseguras sean siempre deliberadas. |
-| SR-3 | Las credenciales proporcionadas por el usuario (por ejemplo, las cabeceras `Authorization`) se reenvían solo a la URL original y no se filtran a destinos de redirección en hosts diferentes. | Previene el robo de credenciales mediante redirecciones abiertas. |
+| SR-3 | Las credenciales proporcionadas por el usuario (cabeceras `Authorization`, `Cookie`, `Proxy-Authorization`) no se envían a destinos de redirección de otro origen (esquema, host o puerto), y el cuerpo de la petición no se reenvía tras una redirección que cambia el método a `GET`. | Previene el robo de credenciales mediante redirecciones abiertas. |
 | SR-4 | La herramienta no ejecuta contenido servido por el host remoto. | Ninguna primitiva de ejecución de código desde el servidor. |
 | SR-5 | Los artefactos de publicación (wheels/sdist de PyPI, imágenes de contenedor, etiquetas de git y commits de publicación) están firmados y su procedencia de compilación es verificable. | Protege a los usuarios de distribuciones manipuladas. |
 | SR-6 | Todos los tokens del flujo de trabajo de CI siguen el menor privilegio y están fijados por SHA. | Reduce la superficie de ataque de la canalización de compilación. |
@@ -89,7 +89,7 @@ explícitamente como no objetivos.
 | **Tampering** | Artefacto modificado en GitHub Releases. | Igual que arriba: las atestaciones de procedencia de compilación permiten una verificación independiente. |
 | **Tampering** | Canalización de CI envenenada mediante una action de terceros comprometida. | Toda action está fijada por SHA (impuesto por Scorecard Pinned-Dependencies 10/10 y zizmor pedantic); Dependabot abre PRs para actualizar los pines (SR-6, SR-7). |
 | **Repudiation** | — | Fuera de alcance; httptap no es un sistema multiusuario. |
-| **Information disclosure** | Las credenciales en `-H Authorization` se filtran al destino de redirección en un host diferente. | La cadena de redirecciones preserva las cabeceras con alcance de host según el valor predeterminado de httpx; las redirecciones entre orígenes descartan las cabeceras sensibles (SR-3). |
+| **Information disclosure** | Las credenciales en `-H Authorization` se filtran al destino de redirección en un host diferente. | httptap sigue las redirecciones por sí mismo (`follow_redirects=False` en httpx) y descarta `Authorization`, `Cookie` y `Proxy-Authorization` cuando una redirección cambia el esquema, el host o el puerto; `303`, y `301`/`302` tras `POST`, pasan a `GET` sin cuerpo (SR-3). |
 | **Information disclosure** | La exportación `--json` incluye cabeceras de autenticación en disco. | Se aconseja a los usuarios en SECURITY.md y docs/troubleshooting.md que redacten las cabeceras de autenticación antes de compartir las exportaciones. |
 | **Information disclosure** | MITM en un proxy inseguro. | El esquema de la URL del proxy se valida; se recomienda `socks5h://` / `https://` para destinos sensibles; el origen del proxy se reporta en la salida y en el JSON para auditoría. |
 | **Denial of service** | Un servidor malicioso transmite un cuerpo sin límite. | Tiempo de espera por solicitud mediante `--timeout` (20s por defecto); la fase de transferencia está acotada por el mismo plazo. |
@@ -137,10 +137,10 @@ de forma ascendente.
 | CWE-20 | Validación de entrada indebida | Coerción de enum/tipo de `argparse`; URL/método/tiempo de espera/proxy verificados explícitamente. |
 | CWE-22 | Traversal de rutas (en el cargador de datos `@file`) | La ruta se toma literalmente del usuario; nunca se usa una ruta proporcionada por el servidor para abrir un archivo. |
 | CWE-78 | Inyección de commandos del SO | Ninguna llamada a `subprocess`/`os.system` sobre datos controlados por el usuario en la ruta de la solicitud. |
-| CWE-79 | XSS | Sin renderizado de HTML; la salida es texto plano o marcado renderizado por Rich con escapado. |
+| CWE-79 | XSS | Sin renderizado de HTML; los valores controlados por el servidor (URL, `Server`, `Location`, campos del certificado, mensajes de error) se escapan con `rich.markup.escape` antes del renderizado de Rich, y los modos de una línea se imprimen sin marcado. |
 | CWE-89 | Inyección SQL | Sin base de datos. |
 | CWE-94 | Inyección de código | No se usan `eval`/`exec`; los cuerpos de respuesta nunca se analizan. |
-| CWE-116 | Codificación de salida indebida | Rich maneja las secuencias de escape del terminal de forma segura; la exportación JSON usa `json.dumps` con escapado estricto. |
+| CWE-116 | Codificación de salida indebida | Las cadenas controladas por el servidor se escapan antes del renderizado de marcado de Rich; la exportación JSON usa `json.dumps` con escapado estricto. |
 | CWE-200 | Divulgación de información sensible | Las cabeceras de autenticación no se copian a la salida de registro; SECURITY.md y la documentación advierten a los usuarios que redacten las exportaciones JSON antes de compartirlas. |
 | CWE-295 | Validación de certificado indebida | Verificación TLS activada por defecto; `--ignore-ssl` solo de habilitación explícita, documentado explícitamente. |
 | CWE-319 | Transmisión en texto claro | HTTPS preferido; el HTTP simple require una URL `http://` explícita; se reporta el origen del proxy. |
@@ -149,7 +149,7 @@ de forma ascendente.
 | CWE-352 | CSRF | No aplica: httptap es un cliente, no un servidor. |
 | CWE-400 | Consumo de recursos no controlado | Tiempo de espera por solicitud; cadena de redirecciones acotada (máximo 10). |
 | CWE-502 | Deserialización insegura | Solo `json.loads`; sin pickle, yaml.load ni marshal. |
-| CWE-601 | Redirección abierta (filtración de credenciales) | El manejo de cabeceras con alcance de host hereda el comportamiento de httpx: las redirecciones entre orígenes descartan las cabeceras de autenticación sensibles. |
+| CWE-601 | Redirección abierta (filtración de credenciales) | httptap sigue las redirecciones con una comprobación explícita de origen: `Authorization`, `Cookie` y `Proxy-Authorization` se descartan en saltos entre orígenes. |
 | CWE-918 | SSRF | httptap es el cliente; no actúa como proxy de solicitudes en nombre de otros sistemas. |
 
 ## Garantía de la cadena de suministro

@@ -38,7 +38,7 @@ is mapped to supporting arguments in the sections below.
 |---|-------------|-----------|
 | SR-1 | TLS certificate verification is enabled by default for every HTTPS target. | Prevents passive and active MITM by default. |
 | SR-2 | Plaintext HTTP, weakened TLS, or custom CA bundles require an explicit user opt-in. | Ensures insecure configurations are always deliberate. |
-| SR-3 | Credentials supplied by the user (e.g., `Authorization` headers) are forwarded only to the original URL and are not leaked to redirect targets on different hosts. | Prevents credential theft via open redirects. |
+| SR-3 | Credentials supplied by the user (`Authorization`, `Cookie`, `Proxy-Authorization` headers) are not sent to redirect targets on a different origin (scheme, host or port), and request bodies are not re-sent after a redirect that switches the method to `GET`. | Prevents credential theft via open redirects. |
 | SR-4 | The tool does not execute content served by the remote host. | No code-execution primitive from the server. |
 | SR-5 | Release artifacts (PyPI wheels/sdist, container images, git tags and release commits) are signed and their build provenance is verifiable. | Protects users from tampered distributions. |
 | SR-6 | All CI workflow tokens follow least privilege and are pinned by SHA. | Reduces the attack surface of the build pipeline. |
@@ -87,7 +87,7 @@ server-side DoS) are explicitly excluded as non-goals.
 | **Tampering** | Modified artifact on GitHub Releases. | Same as above — build provenance attestations allow independent verification. |
 | **Tampering** | CI pipeline poisoned via compromised third-party action. | Every action is SHA-pinned (enforced by Scorecard Pinned-Dependencies 10/10 and zizmor pedantic); Dependabot raises PRs to update pins (SR-6, SR-7). |
 | **Repudiation** | — | Out of scope; httptap is not a multi-user system. |
-| **Information disclosure** | Credentials in `-H Authorization` leak to redirect target on a different host. | Redirect chain preserves host-scoped headers per httpx default; cross-origin redirects drop sensitive headers (SR-3). |
+| **Information disclosure** | Credentials in `-H Authorization` leak to redirect target on a different host. | httptap follows redirects itself (`follow_redirects=False` in httpx) and drops `Authorization`, `Cookie` and `Proxy-Authorization` when a redirect changes scheme, host or port; `303`, and `301`/`302` after `POST`, switch to `GET` without a body (SR-3). |
 | **Information disclosure** | `--json` export includes auth headers on disk. | Users are advised in SECURITY.md and docs/troubleshooting.md to redact auth headers before sharing exports. |
 | **Information disclosure** | MITM on insecure proxy. | Proxy URL scheme is validated; `socks5h://` / `https://` recommended for sensitive targets; proxy source is reported in output and JSON for audit. |
 | **Denial of service** | Malicious server streams unbounded body. | Per-request timeout via `--timeout` (default 20s); transfer phase is bounded by the same deadline. |
@@ -135,10 +135,10 @@ upstream.
 | CWE-20 | Improper input validation | `argparse` enum/type coercion; URL/method/timeout/proxy explicitly checked. |
 | CWE-22 | Path traversal (in `@file` data loader) | Path is taken verbatim from the user; no server-supplied path is ever used to open a file. |
 | CWE-78 | OS command injection | No `subprocess`/`os.system` call on user-controlled data in the request path. |
-| CWE-79 | XSS | No HTML rendering; output is plain text or Rich-rendered markup with escaping. |
+| CWE-79 | XSS | No HTML rendering; server-controlled values (URL, `Server`, `Location`, certificate fields, error messages) are escaped with `rich.markup.escape` before Rich rendering, and single-line modes print without markup. |
 | CWE-89 | SQL injection | No database. |
 | CWE-94 | Code injection | `eval`/`exec` are not used; response bodies are never parsed. |
-| CWE-116 | Improper output encoding | Rich handles terminal escape sequences safely; JSON export uses `json.dumps` with strict escaping. |
+| CWE-116 | Improper output encoding | Server-controlled strings are escaped before Rich markup rendering; JSON export uses `json.dumps` with strict escaping. |
 | CWE-200 | Sensitive information disclosure | Auth headers are not copied to log output; SECURITY.md and docs warn users to redact JSON exports before sharing. |
 | CWE-295 | Improper certificate validation | TLS verification on by default; `--ignore-ssl` opt-in only, explicitly documented. |
 | CWE-319 | Cleartext transmission | HTTPS preferred; plain HTTP requires explicit `http://` URL; proxy source reported. |
@@ -147,7 +147,7 @@ upstream.
 | CWE-352 | CSRF | Not applicable — httptap is a client, not a server. |
 | CWE-400 | Uncontrolled resource consumption | Per-request timeout; bounded redirect chain (max 10). |
 | CWE-502 | Unsafe deserialization | `json.loads` only; no pickle, yaml.load, or marshal. |
-| CWE-601 | Open redirect (credential leak) | Host-scoped header handling inherits httpx behavior — cross-origin redirects drop sensitive auth headers. |
+| CWE-601 | Open redirect (credential leak) | Redirects are followed by httptap with an explicit origin check: `Authorization`, `Cookie` and `Proxy-Authorization` are dropped on cross-origin hops. |
 | CWE-918 | SSRF | httptap is the client; it does not proxy requests on behalf of other systems. |
 
 ## Supply-Chain Assurance
