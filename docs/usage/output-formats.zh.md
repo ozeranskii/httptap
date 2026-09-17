@@ -84,6 +84,11 @@ Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=
 - 与监控工具集成
 - 使用 awk/grep/sed 解析
 
+### 与 `--compact` 同时使用
+
+`--metrics-only` 优先于 `--compact`。同时传入两个参数时，仍会输出机器可读的
+`key=value` 行（现有脚本不受影响），并在 stderr 上打印一条警告，提示 `--compact` 已被忽略。
+
 ### 解析示例
 
 ```bash

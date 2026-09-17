@@ -84,6 +84,12 @@ Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=
 - 監視ツールとの統合
 - awk/grep/sed による解析
 
+### `--compact` との併用
+
+`--metrics-only` は `--compact` より優先されます。両方のフラグを指定した場合も、
+機械可読な `key=value` 行がそのまま出力され（既存のスクリプトはそのまま動作します）、
+`--compact` が無視されたことを知らせる警告が stderr に出力されます。
+
 ### 解析の例
 
 ```bash

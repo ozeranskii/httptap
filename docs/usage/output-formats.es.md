@@ -90,6 +90,12 @@ Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=
 - Integración con herramientas de monitorización
 - Análisis con awk/grep/sed
 
+### Combinado con `--compact`
+
+`--metrics-only` tiene prioridad sobre `--compact`. Si se pasan ambas opciones,
+se sigue emitiendo la línea legible por máquina `key=value` (los scripts existentes
+siguen funcionando) y se muestra en stderr un aviso de que `--compact` se ha ignorado.
+
 ### Ejemplos de análisis
 
 ```bash
