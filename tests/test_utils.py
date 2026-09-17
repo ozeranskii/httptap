@@ -13,6 +13,7 @@ from httptap.utils import (
     parse_certificate_date,
     parse_http_date,
     read_request_data,
+    redact_url_credentials,
     sanitize_headers,
     validate_url,
 )
@@ -65,12 +66,30 @@ class TestMaskSensitiveValue:
         assert "****" in result
 
 
+class TestRedactUrlCredentials:
+    """Test suite for redact_url_credentials function."""
+
+    @pytest.mark.parametrize(
+        ("url", "expected"),
+        [
+            ("http://user:secret@proxy:3128", "http://user:****@proxy:3128"),
+            ("socks5h://user:p%40ss@[::1]:1080", "socks5h://user:****@[::1]:1080"),
+            ("http://user:@proxy:3128", "http://user:****@proxy:3128"),
+            ("socks5://token@gateway:1080", "socks5://****@gateway:1080"),
+            ("http://proxy:3128", "http://proxy:3128"),
+            ("http://proxy:3128/path?q=a@b", "http://proxy:3128/path?q=a@b"),
+        ],
+    )
+    def test_redact_url_credentials(self, url: str, expected: str) -> None:
+        assert redact_url_credentials(url) == expected
+
+
 class TestSanitizeHeaders:
     """Test suite for sanitize_headers function."""
 
     @pytest.mark.parametrize(
         "header",
-        ["Authorization", "Cookie", "Set-Cookie"],
+        ["Authorization", "Proxy-Authorization", "Cookie", "Set-Cookie"],
     )
     def test_sanitize_headers_masks_sensitive_values(
         self,

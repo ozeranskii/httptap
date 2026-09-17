@@ -12,7 +12,7 @@ from collections.abc import Mapping
 from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 try:  # pragma: no cover - exercised indirectly
     from datetime import UTC  # type: ignore[attr-defined]
@@ -29,12 +29,14 @@ __all__ = [
     "parse_certificate_date",
     "parse_http_date",
     "read_request_data",
+    "redact_url_credentials",
     "sanitize_headers",
     "validate_url",
 ]
 
 SENSITIVE_HEADERS: set[str] = {
     "authorization",
+    "proxy-authorization",
     "cookie",
     "set-cookie",
     "api-key",
@@ -65,6 +67,35 @@ def mask_sensitive_value(value: str, show_chars: int = 4) -> str:
         return MASK_PATTERN
 
     return f"{value[:show_chars]}{MASK_PATTERN}{value[-show_chars:]}"
+
+
+def redact_url_credentials(url: str) -> str:
+    """Mask the password (or a bare token) in the userinfo part of a URL.
+
+    Args:
+        url: URL that may contain ``user:password@`` credentials.
+
+    Returns:
+        URL with the password replaced by the mask, or the original URL
+        when it has no userinfo.
+
+    Examples:
+        >>> redact_url_credentials("http://user:secret@proxy:3128")
+        'http://user:****@proxy:3128'
+        >>> redact_url_credentials("socks5h://token@gateway:1080")
+        'socks5h://****@gateway:1080'
+        >>> redact_url_credentials("http://proxy:3128")
+        'http://proxy:3128'
+
+    """
+    parts = urlsplit(url)
+    userinfo, separator, hostport = parts.netloc.rpartition("@")
+    if not separator:
+        return url
+
+    username, has_password, _ = userinfo.partition(":")
+    masked = f"{username}:{MASK_PATTERN}" if has_password else MASK_PATTERN
+    return urlunsplit(parts._replace(netloc=f"{masked}@{hostport}"))
 
 
 def sanitize_headers(headers: Mapping[str, str]) -> dict[str, str]:

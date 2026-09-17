@@ -1200,6 +1200,51 @@ class TestMakeRequest:
         assert created_clients
         assert created_clients[0].kwargs["proxy"] == proxy_url
 
+    def test_make_request_redacts_proxy_credentials_in_network_info(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        url = "https://proxy.test"
+        proxy_url = "http://user:secret@gateway:3128"
+        created_clients: list[Any] = []
+
+        class DummyClient:
+            def __init__(self, *_: object, **kwargs: object) -> None:
+                self.kwargs = kwargs
+                self.headers: dict[str, str] = {}
+                created_clients.append(self)
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(self, *_args: object, **_kwargs: object) -> object:
+                class _Stream:
+                    def __enter__(self) -> httpx.Response:
+                        request = httpx.Request("GET", url)
+                        return httpx.Response(200, request=request)
+
+                    def __exit__(self, *_exc: object) -> None:
+                        return None
+
+                return _Stream()
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        _, network, _ = make_request(
+            url,
+            timeout=5.0,
+            proxy=proxy_url,
+            dns_resolver=FakeDNSResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+            force_new_connection=True,
+        )
+
+        assert created_clients[0].kwargs["proxy"] == proxy_url
+        assert network.proxy_url == "http://user:****@gateway:3128"
+
     @pytest.mark.parametrize(
         ("proxy_url", "expect_dns_called", "expect_hostname_in_url"),
         [

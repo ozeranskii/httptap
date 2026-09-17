@@ -76,7 +76,7 @@ from .tls_inspector import (
     apply_certificate_info,
     extract_certificate_info,
 )
-from .utils import create_ssl_context, parse_http_date, sanitize_headers
+from .utils import create_ssl_context, parse_http_date, redact_url_credentials, sanitize_headers
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -520,7 +520,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             host,
             noproxy=noproxy,
         )
-        network_info.proxy_url = effective_proxy_url
+        network_info.proxy_url = redact_url_credentials(effective_proxy_url) if effective_proxy_url else None
         network_info.proxy_source = proxy_source
         skip_local_dns = effective_proxy_url is not None and _needs_remote_dns(effective_proxy_url)
 
