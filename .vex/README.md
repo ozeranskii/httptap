@@ -10,12 +10,19 @@ itself is actually affected. Automated scanners read VEX alongside the
 SBOM to suppress false-positive alerts when the vulnerable code path
 is not reachable from `httptap`.
 
+It also records the status of vulnerabilities in `httptap` itself,
+published as GitHub Security Advisories: `affected` for the vulnerable
+releases (with an `action_statement`) and `fixed` for the release that
+contains the fix.
+
 ## When to update
 
 Open a pull request touching `httptap.openvex.json` whenever:
 
 - A new CVE is published against a direct or transitive dependency of
   `httptap` (watch GitHub Security Advisories and Dependabot alerts).
+- A security advisory for `httptap` is published or gets a CVE ID
+  (add the CVE to the statement's `aliases`).
 - An existing VEX statement needs to be revised (e.g., status changes
   from `under_investigation` to `not_affected` after analysis).
 

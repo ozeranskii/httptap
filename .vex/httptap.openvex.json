@@ -3,8 +3,106 @@
   "@id": "https://github.com/ozeranskii/httptap/.vex/httptap.openvex.json",
   "author": "Sergei Ozeranskii",
   "role": "project maintainer",
-  "timestamp": "2026-04-12T00:00:00Z",
-  "version": 1,
+  "timestamp": "2026-09-17T12:00:00Z",
+  "version": 2,
   "tooling": "manual",
-  "statements": []
+  "statements": [
+    {
+      "vulnerability": {
+        "@id": "https://github.com/advisories/GHSA-pgxm-hj3g-p7wv",
+        "name": "GHSA-pgxm-hj3g-p7wv",
+        "description": "Credentials and request body leak to cross-origin redirect targets when using --follow; unescaped server-controlled Rich markup in output."
+      },
+      "timestamp": "2026-09-17T12:00:00Z",
+      "products": [
+        {
+          "@id": "pkg:pypi/httptap@0.6.2"
+        }
+      ],
+      "status": "fixed",
+      "status_notes": "Fixed in 0.6.2 (commits f8bb8e1 and 6c0df77)."
+    },
+    {
+      "vulnerability": {
+        "@id": "https://github.com/advisories/GHSA-pgxm-hj3g-p7wv",
+        "name": "GHSA-pgxm-hj3g-p7wv",
+        "description": "Credentials and request body leak to cross-origin redirect targets when using --follow; unescaped server-controlled Rich markup in output."
+      },
+      "timestamp": "2026-09-17T12:00:00Z",
+      "products": [
+        {
+          "@id": "pkg:pypi/httptap@0.1.0"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.1.1"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.2.0"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.2.1"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.3.0"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.3.1"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.4.0"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.4.1"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.4.2"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.4.3"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.4.4"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.4.5"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.4.6"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.4.7"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.4.8"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.4.9"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.5.0"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.5.1"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.5.2"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.5.3"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.5.4"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.6.0"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.6.1"
+        }
+      ],
+      "status": "affected",
+      "action_statement": "Upgrade to httptap 0.6.2 or later. Until then, do not combine -L/--follow with credential headers or request bodies.",
+      "action_statement_timestamp": "2026-09-17T12:00:00Z"
+    }
+  ]
 }
