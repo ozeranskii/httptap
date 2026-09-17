@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2026-09-17
+
+### Bug Fixes
+
+- **analyzer:** Apply RFC 9110 rules when following redirects ([f8bb8e1](https://github.com/ozeranskii/httptap/commit/f8bb8e10afa7c6e5bc4a5185cbbc1fc8588083ff))
+- **utils:** Redact proxy credentials in output and export ([6c0df77](https://github.com/ozeranskii/httptap/commit/6c0df77c593b651d5dbb2a934240b36f15b3863e))
+
+### Miscellaneous Tasks
+
+- **infra:** Read ruff version from uv.lock in ruff-action ([b2d1837](https://github.com/ozeranskii/httptap/commit/b2d1837c2a52a08cc759147e8afc5ad9fec19438))
+
+
+### New Contributors
+
+- @Voyagerroc-Lab made their first contribution in [#304](https://github.com/ozeranskii/httptap/pull/304)
+
 ## [0.6.1] - 2026-09-06
 
 ### Documentation
