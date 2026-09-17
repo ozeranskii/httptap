@@ -68,7 +68,9 @@ If you've set up pre-commit hooks (recommended), they will automatically run bef
 
 - **Ruff**: Lints and formats your code
 - **MyPy**: Performs type checking
-- **YAML/TOML**: Validates configuration files
+- **TOML/JSON**: Validates configuration files (`check-toml`, `check-json`)
+- **YAML**: Formats YAML files (`yamlfmt`)
+- **Typos**: Catches common spelling mistakes (`typos`)
 - **File formatting and hygiene**: Formats files, fixes trailing whitespace, ensures files end with a newline, and checks for common file issues
 
 **If hooks fail:**
