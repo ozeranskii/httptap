@@ -4,22 +4,10 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - ".pre-commit-config.yaml"
-      - ".yamlfmt"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".github/workflows/pre-commit.yml"
 
   push:
     branches:
       - main
-    paths:
-      - ".pre-commit-config.yaml"
-      - ".yamlfmt"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".github/workflows/pre-commit.yml"
 
 permissions:
   contents: read
@@ -32,7 +20,7 @@ jobs:
   pre-commit-policy-check:
     name: Validate pre-commit config & hooks
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -50,12 +38,23 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Cache pre-commit environments
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-${{ runner.os }}-
+
       - name: Sync only precommit dependencies
         run: |
           uv sync --locked --no-dev --group precommit
           uv run pre-commit --version
 
       - name: Validate pre-commit config
-        run: |-
-          uv run pre-commit validate-config
-          uv run pre-commit validate-manifest
+        run: uv run pre-commit validate-config
+
+      - name: Run pre-commit hooks
+        env:
+          SKIP: ruff-check,ruff-format,mypy
+        run: uv run pre-commit run --all-files --show-diff-on-failure
