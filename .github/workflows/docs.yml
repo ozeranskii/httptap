@@ -6,12 +6,18 @@ on:
       - main
     paths:
       - 'docs/**'
+      - 'httptap/**'
       - 'mkdocs.yml'
+      - 'pyproject.toml'
+      - 'uv.lock'
       - '.github/workflows/docs.yml'
   pull_request:
     paths:
       - 'docs/**'
+      - 'httptap/**'
       - 'mkdocs.yml'
+      - 'pyproject.toml'
+      - 'uv.lock'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
