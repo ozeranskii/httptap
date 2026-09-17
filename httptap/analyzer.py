@@ -27,7 +27,7 @@ from .constants import (
 from .http_client import HTTPClientError
 from .models import StepMetrics
 from .request_executor import HTTPClientRequestExecutor, RequestExecutor, RequestOptions, RequestOutcome
-from .utils import sanitize_headers
+from .utils import redact_url_credentials, sanitize_headers
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -317,7 +317,9 @@ class HTTPTapAnalyzer:
             step.timing = outcome.timing
             step.network = outcome.network
             step.response = outcome.response
-            step.proxied_via = outcome.network.proxy_url or (str(self._proxy) if self._proxy else None)
+            step.proxied_via = outcome.network.proxy_url or (
+                redact_url_credentials(str(self._proxy)) if self._proxy else None
+            )
 
         except HTTPClientError as e:
             # Request failed, but we have partial data

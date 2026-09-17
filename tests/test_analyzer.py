@@ -516,7 +516,7 @@ def test_analyze_url_proxy_with_authentication() -> None:
     assert len(steps) == 1
     assert steps[0].response.status == 200
     assert executor.proxies == ["socks5h://user:password@gateway:1080"]
-    assert steps[0].proxied_via == "socks5h://user:password@gateway:1080"
+    assert steps[0].proxied_via == "socks5h://user:****@gateway:1080"
 
 
 class RecordingExecutor:
