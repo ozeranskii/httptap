@@ -1,5 +1,5 @@
 ---
-description: httptap の自動化された GitHub Actions リリースプロセス、および手動リリース手順。
+description: httptap の自動化された GitHub Actions リリースプロセス。
 ---
 
 # リリースプロセス
@@ -192,59 +192,6 @@ httptap は [Semantic Versioning](https://semver.org/) に従います:
 - マイナーバージョンは破壊的変更を含む場合がある
 - パッチバージョンはバグ修正と小さな機能のため
 - API が安定したら 1.0.0 に移行する
-
-## 手動リリース手順
-
-手動でリリースする必要がある場合（推奨されません）:
-
-### 1. バージョンの更新
-
-```bash
-uv version 0.2.0
-```
-
-### 2. ロックファイルの再生成
-
-```bash
-uv lock
-```
-
-### 3. 変更履歴の生成
-
-```bash
-git cliff --tag v0.2.0 --unreleased --prepend CHANGELOG.md
-```
-
-### 4. 変更のコミット
-
-```bash
-git add pyproject.toml uv.lock CHANGELOG.md
-git commit -m "chore: release v0.2.0"
-```
-
-### 5. タグの作成
-
-```bash
-git tag -a v0.2.0 -m "Release v0.2.0"
-```
-
-### 6. プッシュ
-
-```bash
-git push origin main
-git push origin v0.2.0
-```
-
-### 7. ビルドと公開
-
-```bash
-uv build
-uv publish  # Requires PyPI credentials
-```
-
-### 8. GitHub Release の作成
-
-`gh` CLI または web インターフェースを使用して、変更履歴のノートとともにリリースを作成する。
 
 ## トラブルシューティング
 

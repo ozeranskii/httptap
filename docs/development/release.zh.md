@@ -1,5 +1,5 @@
 ---
-description: httptap 基于 GitHub Actions 的自动化发布流程，以及手动发布步骤。
+description: httptap 基于 GitHub Actions 的自动化发布流程。
 ---
 
 # 发布流程
@@ -198,59 +198,6 @@ httptap 遵循 [语义化版本控制](https://semver.org/)：
 - 次版本号可能包含破坏性变更
 - 修订版本号用于缺陷修复和小功能
 - 当 API 稳定后升级到 1.0.0
-
-## 手动发布步骤
-
-如果你需要手动发布（不推荐）：
-
-### 1. 更新版本
-
-```bash
-uv version 0.2.0
-```
-
-### 2. 重新生成锁文件
-
-```bash
-uv lock
-```
-
-### 3. 生成变更日志
-
-```bash
-git cliff --tag v0.2.0 --unreleased --prepend CHANGELOG.md
-```
-
-### 4. 提交更改
-
-```bash
-git add pyproject.toml uv.lock CHANGELOG.md
-git commit -m "chore: release v0.2.0"
-```
-
-### 5. 创建标签
-
-```bash
-git tag -a v0.2.0 -m "Release v0.2.0"
-```
-
-### 6. 推送
-
-```bash
-git push origin main
-git push origin v0.2.0
-```
-
-### 7. 构建并发布
-
-```bash
-uv build
-uv publish  # Requires PyPI credentials
-```
-
-### 8. 创建 GitHub Release
-
-使用 `gh` CLI 或网页界面创建带有变更日志说明的 release。
 
 ## 故障排查
 
