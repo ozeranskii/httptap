@@ -343,11 +343,13 @@ class FakeSSLObject:
         version: str | None = "TLSv1.3",
         cipher: tuple[str, str, int] | None = ("TLS_AES_128_GCM_SHA256", "TLSv1.3", 128),
         cert: dict[str, Any] | None = None,
+        cert_der: bytes | None = None,
         cipher_error: bool = False,
     ) -> None:
         self._version = version
         self._cipher = cipher
         self._cert = CERT_DICT if cert is None else cert
+        self._cert_der = cert_der
         self._cipher_error = cipher_error
 
     def version(self) -> str | None:
@@ -359,8 +361,8 @@ class FakeSSLObject:
             raise AttributeError(msg)
         return self._cipher
 
-    def getpeercert(self) -> dict[str, Any] | None:
-        return self._cert
+    def getpeercert(self, binary_form: bool = False) -> dict[str, Any] | bytes | None:  # noqa: FBT001, FBT002
+        return self._cert_der if binary_form else self._cert
 
 
 class FakeStream:
