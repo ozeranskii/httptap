@@ -224,7 +224,7 @@ The JSON file contains:
 - Complete redirect chain (when using `--follow`)
 - SLO evaluation (when `--slo` is supplied)
 
-#### `--slo KEY=MS[,KEY=MS...]`
+#### `--slo KEY=MS[,KEY=MS...]`, `--slo-file PATH`
 
 Check the final successful step against per-phase latency budgets. On
 violation `httptap` still renders the full report but exits with code
@@ -233,6 +233,9 @@ readiness checks.
 
 ```bash
 httptap --slo total=500,ttfb=200 https://httpbin.io/get
+
+# One threshold per line; inline values override file values.
+httptap --slo-file slo.txt --slo total=1000 https://httpbin.io/get
 ```
 
 Supported keys: `dns`, `connect`, `tls`, `ttfb`, `wait`, `xfer`,
