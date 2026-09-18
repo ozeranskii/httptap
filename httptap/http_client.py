@@ -201,6 +201,7 @@ class TraceCollector:
 
     CONNECT_EVENT = "connection.connect_tcp"
     TLS_EVENT = "connection.start_tls"
+    PROXY_TLS_EVENT = "proxy.start_tls"
 
     def __init__(self) -> None:
         """Initialize empty event store for trace durations."""
@@ -233,8 +234,13 @@ class TraceCollector:
 
     @property
     def tls_ms(self) -> float | None:
-        """Return measured TLS handshake duration in milliseconds."""
-        return self._duration_ms(self.TLS_EVENT)
+        """Return measured TLS handshake duration in milliseconds.
+
+        HTTPS requests through CONNECT proxies emit the origin handshake as
+        ``proxy.start_tls``. Prefer it over a proxy connection handshake.
+        """
+        proxy_tls_ms = self._duration_ms(self.PROXY_TLS_EVENT)
+        return proxy_tls_ms if proxy_tls_ms is not None else self._duration_ms(self.TLS_EVENT)
 
 
 # Proxy schemes where DNS resolution happens on the proxy side.
