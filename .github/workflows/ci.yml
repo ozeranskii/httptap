@@ -151,6 +151,12 @@ jobs:
       - name: Build package
         run: uv build
 
+      - name: Validate distribution metadata
+        run: uvx twine check dist/*
+
+      - name: Smoke test wheel
+        run: uv run --isolated --no-project --with dist/*.whl httptap --version
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
