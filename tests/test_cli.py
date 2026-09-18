@@ -15,6 +15,7 @@ else:
 
 from httptap.cli import (
     EXIT_FATAL_ERROR,
+    EXIT_HTTP_FAILURE,
     EXIT_NETWORK_ERROR,
     EXIT_SLO_VIOLATION,
     EXIT_SUCCESS,
@@ -764,9 +765,10 @@ def test_no_auto_post_when_method_explicitly_specified(
 class _SLOAnalyzerStub:
     """Minimal analyzer that returns one step with caller-specified timing."""
 
-    def __init__(self, total_ms: float, *, error: str | None = None) -> None:
+    def __init__(self, total_ms: float, *, error: str | None = None, status: int = 200) -> None:
         self._total_ms = total_ms
         self._error = error
+        self._status = status
 
     def analyze_url(
         self,
@@ -786,7 +788,7 @@ class _SLOAnalyzerStub:
         )
         timing.calculate_derived()
         network = NetworkInfo(ip="203.0.113.1", ip_family="IPv4")
-        response = ResponseInfo(status=200, bytes=128)
+        response = ResponseInfo(status=self._status, bytes=128)
         return [
             StepMetrics(
                 url=url,
@@ -900,6 +902,58 @@ def test_main_slo_network_error_beats_slo_violation(
     exit_code = main()
 
     assert exit_code == EXIT_NETWORK_ERROR
+
+
+@pytest.mark.parametrize("flag", ["-f", "--fail"])
+@pytest.mark.parametrize("status", [400, 500])
+def test_main_fail_returns_http_failure_for_error_response(
+    monkeypatch: pytest.MonkeyPatch,
+    flag: str,
+    status: int,
+) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=100.0, status=status))
+    monkeypatch.setattr("sys.argv", ["httptap", flag, "https://example.test"])
+
+    assert main() == EXIT_HTTP_FAILURE
+
+
+def test_main_without_fail_keeps_success_for_error_response(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=100.0, status=500))
+    monkeypatch.setattr("sys.argv", ["httptap", "https://example.test"])
+
+    assert main() == EXIT_SUCCESS
+
+
+def test_main_fail_keeps_success_below_error_range(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=100.0, status=399))
+    monkeypatch.setattr("sys.argv", ["httptap", "--fail", "https://example.test"])
+
+    assert main() == EXIT_SUCCESS
+
+
+def test_main_fail_renders_metrics_before_http_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=100.0, status=500))
+    monkeypatch.setattr("sys.argv", ["httptap", "--metrics-only", "--fail", "https://example.test"])
+
+    assert main() == EXIT_HTTP_FAILURE
+    assert "status=500" in capsys.readouterr().out
+
+
+def test_main_fail_network_error_takes_precedence(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=100.0, error="connection refused", status=500))
+    monkeypatch.setattr("sys.argv", ["httptap", "--fail", "https://example.test"])
+
+    assert main() == EXIT_NETWORK_ERROR
+
+
+def test_main_fail_takes_precedence_over_slo(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=900.0, status=500))
+    monkeypatch.setattr("sys.argv", ["httptap", "--fail", "--slo", "total=500", "https://example.test"])
+
+    assert main() == EXIT_HTTP_FAILURE
 
 
 def test_main_slo_json_export_contains_slo_summary(
