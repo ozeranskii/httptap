@@ -65,6 +65,10 @@ class PerfCounterTimingCollector:
         """
         timing = TimingMetrics()
         timing.dns_ms = (self._dns_end - self._dns_start) * MS_IN_SECOND
-        timing.total_ms = (self._end_time - self._start_time) * MS_IN_SECOND
-        timing.ttfb_ms = (self._ttfb_time - self._start_time) * MS_IN_SECOND
+        if self._request_start:
+            timing.total_ms = timing.dns_ms + (self._end_time - self._request_start) * MS_IN_SECOND
+            timing.ttfb_ms = timing.dns_ms + (self._ttfb_time - self._request_start) * MS_IN_SECOND
+        else:
+            timing.total_ms = (self._end_time - self._start_time) * MS_IN_SECOND
+            timing.ttfb_ms = (self._ttfb_time - self._start_time) * MS_IN_SECOND
         return timing
