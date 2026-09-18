@@ -48,6 +48,22 @@ def test_exporter_writes_expected_payload(tmp_path: PathType) -> None:
     assert "Exported analysis" in output_text
 
 
+def test_exporter_writes_to_stdout_for_dash(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: PathType,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A dash writes JSON to stdout rather than creating a file."""
+    monkeypatch.chdir(tmp_path)
+    exporter = JSONExporter(Console(record=True))
+    step = build_step("https://example.test", 200, 120.5)
+
+    exporter.export([step], "https://example.test", "-")
+
+    assert json.loads(capsys.readouterr().out)["initial_url"] == "https://example.test"
+    assert not (tmp_path / "-").exists()
+
+
 def test_exporter_includes_request_metadata(tmp_path: PathType) -> None:
     """Test that request metadata is included in JSON export."""
     console = Console(record=True)

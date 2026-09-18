@@ -5,6 +5,7 @@ starting with JSON export capability.
 """
 
 import json
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, TypedDict
@@ -84,6 +85,9 @@ class JSONExporter(Exporter):
 
         """
         data = self._build_export_data(steps, initial_url, slo_result=slo_result)
+        if output_path == "-":
+            self._write_json_stdout(data)
+            return
         self._write_json_file(data, output_path)
         self._print_success(output_path)
 
@@ -161,6 +165,12 @@ class JSONExporter(Exporter):
 
         with output_file.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+
+    @staticmethod
+    def _write_json_stdout(data: ExportPayload) -> None:
+        """Write data as JSON to standard output."""
+        json.dump(data, sys.stdout, indent=2, ensure_ascii=False)
+        sys.stdout.write("\n")
 
     def _print_success(self, output_path: str) -> None:
         """Print success message.

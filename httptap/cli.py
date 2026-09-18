@@ -277,7 +277,7 @@ Exit codes:
     output_group.add_argument(
         "--json",
         metavar="PATH",
-        help="Export the collected metrics, network, and response details to PATH.",
+        help="Export the collected metrics, network, and response details to PATH. Use - for stdout.",
     )
     slo_keys_hint = ", ".join(sorted(SLO_KEYS))
     output_group.add_argument(
@@ -341,10 +341,10 @@ def _export_results(
     args: argparse.Namespace,
     *,
     slo_result: SLOResult | None = None,
-) -> None:
+) -> bool:
     """Export analysis results when --json is provided."""
     if not args.json:
-        return
+        return True
 
     try:
         renderer.export_json(steps, args.url, args.json, slo_result=slo_result)
@@ -352,6 +352,34 @@ def _export_results(
         console.print(
             f"[yellow]⚠ Warning:[/yellow] Failed to export JSON: {escape(str(export_error))}",
         )
+        return False
+    return True
+
+
+def _render_results(
+    renderer: OutputRenderer,
+    steps: list[StepMetrics],
+    args: argparse.Namespace,
+    *,
+    slo_result: SLOResult | None = None,
+) -> None:
+    """Render analysis output unless JSON is directed to stdout."""
+    if args.json != "-":
+        renderer.render_analysis(steps, args.url, slo_result=slo_result)
+
+
+def _complete_analysis(
+    renderer: OutputRenderer,
+    steps: list[StepMetrics],
+    args: argparse.Namespace,
+    *,
+    slo_result: SLOResult | None = None,
+) -> int:
+    """Render, export, and return the final exit code."""
+    _render_results(renderer, steps, args, slo_result=slo_result)
+    if not _export_results(renderer, steps, args, slo_result=slo_result):
+        return EXIT_FATAL_ERROR
+    return determine_exit_code(steps, slo_result=slo_result)
 
 
 def _evaluate_slo(
@@ -583,10 +611,7 @@ def main() -> int:
 
         steps = _execute_analysis(analyzer, args, method, content, headers_dict)
         slo_result = _evaluate_slo(steps, args.slo_thresholds)
-        renderer.render_analysis(steps, args.url, slo_result=slo_result)
-        _export_results(renderer, steps, args, slo_result=slo_result)
-
-        return determine_exit_code(steps, slo_result=slo_result)
+        return _complete_analysis(renderer, steps, args, slo_result=slo_result)
 
     except KeyboardInterrupt:
         console.print("\n[yellow]⚠ Interrupted by user[/yellow]")
