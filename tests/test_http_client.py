@@ -975,6 +975,76 @@ class TestMakeRequest:
                 force_new_connection=False,
             )
 
+    def test_make_request_preserves_certificate_on_verification_failure(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """Certificate diagnostics survive a failed verified HTTPS request."""
+        url = "https://expired.example.test"
+        dns_resolver = FakeDNSResolver()
+        ip, _family, _dns_ms = dns_resolver.resolve("expired.example.test", 443, 5.0)
+        httpx_mock.add_exception(
+            httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] certificate has expired"),
+            method="GET",
+            url=f"https://{ip}",
+        )
+        certificate_info = NetworkInfo(
+            tls_version="TLSv1.2",
+            cert_cn="expired.example.test",
+            cert_issuer="Example CA",
+            cert_days_left=-1,
+        )
+        inspect = mocker.patch("httptap.http_client.SocketTLSInspector.inspect", return_value=certificate_info)
+
+        with pytest.raises(httptap.http_client.HTTPClientError, match="CERTIFICATE_VERIFY_FAILED") as exc_info:
+            make_request(
+                url,
+                timeout=5.0,
+                dns_resolver=dns_resolver,
+                timing_collector=FakeTimingCollector(TimingMetrics()),
+                force_new_connection=False,
+            )
+
+        inspect.assert_called_once_with("expired.example.test", 443, 5.0, connect_host=ip)
+        assert exc_info.value.network_info is not None
+        assert exc_info.value.network_info.cert_cn == "expired.example.test"
+        assert exc_info.value.network_info.cert_days_left == -1
+
+    def test_make_request_does_not_probe_directly_when_proxy_is_configured(
+        self,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """Certificate diagnostics must not bypass a configured proxy."""
+
+        class FailingClient:
+            def __init__(self, *_args: object, **_kwargs: object) -> None:
+                self.headers: dict[str, str] = {}
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_args: object) -> None:
+                return None
+
+            def stream(self, *_args: object, **_kwargs: object) -> object:
+                msg = "[SSL: CERTIFICATE_VERIFY_FAILED] certificate has expired"
+                raise httpx.ConnectError(msg)
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=FailingClient)
+        inspect = mocker.patch("httptap.http_client.SocketTLSInspector.inspect")
+
+        with pytest.raises(httptap.http_client.HTTPClientError, match="CERTIFICATE_VERIFY_FAILED"):
+            make_request(
+                "https://expired.example.test",
+                timeout=5.0,
+                proxy="http://proxy.example.test:8080",
+                timing_collector=FakeTimingCollector(TimingMetrics()),
+                force_new_connection=False,
+            )
+
+        inspect.assert_not_called()
+
     def test_make_request_handles_tls_inspection_error(
         self,
         httpx_mock: pytest_httpx.HTTPXMock,

@@ -22,8 +22,10 @@ The server presented a certificate your trust store doesn't recognize.
 - **System trust store out of date** — update `ca-certificates` on Linux, or
   refresh `certifi` in your Python environment (`uv pip install --upgrade certifi`).
 
-The JSON export shows `network.tls_verified: false` and, when `--cacert` is
-used, `network.tls_custom_ca: true`.
+httptap retries only a diagnostic TLS handshake without verification and reports
+the presented certificate's CN, SANs, issuer, validity period, and expiry in the
+failed step. The request itself still fails verification. Direct diagnostic
+probes are skipped when a proxy is active so httptap does not bypass it.
 
 ### Certificate shows `cert_days_left: null` or negative
 

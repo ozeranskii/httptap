@@ -82,6 +82,8 @@ Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=
 - **Complete metrics** including network details
 - **Consistent structure** for easy extraction
 - **No colors or formatting** characters
+- **Escaped values** use percent-encoding when needed so every metric remains
+  a single `key=value` token.
 
 ### When to Use
 

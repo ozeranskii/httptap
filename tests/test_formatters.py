@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 
 import pytest
 
@@ -22,6 +23,7 @@ from httptap.formatters import (
 )
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
 from httptap.slo import SLOResult, SLOViolation
+from httptap.utils import UTC
 
 
 def build_step(status: int) -> StepMetrics:
@@ -219,6 +221,20 @@ class TestFormatNetworkInfo:
 
         assert info is not None
         assert "⚠ TLS verification disabled" in info
+
+    def test_format_network_info_shows_certificate_validity_for_error(self) -> None:
+        """Failed steps include diagnostic certificate details."""
+        network = NetworkInfo(
+            cert_cn="expired.example.test",
+            cert_sans=["expired.example.test", "www.expired.example.test"],
+            cert_not_before=datetime(2024, 1, 1, tzinfo=UTC),
+            cert_not_after=datetime(2025, 1, 1, tzinfo=UTC),
+        )
+        info = format_network_info(StepMetrics(network=network, error="certificate verify failed"))
+
+        assert info is not None
+        assert "SANs: expired.example.test, www.expired.example.test" in info
+        assert "Valid: 2024-01-01T00:00:00+00:00 to 2025-01-01T00:00:00+00:00" in info
 
     def test_format_network_info_orders_http_before_tls(self) -> None:
         """Ensure HTTP version is reported ahead of TLS details."""
