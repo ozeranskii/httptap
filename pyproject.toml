@@ -169,6 +169,7 @@ warn_unreachable = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = ["error"]
 addopts = [
     "--strict-markers",
     "--strict-config",
@@ -187,6 +188,7 @@ branch = true
 omit = ["tests/*"]
 
 [tool.coverage.report]
+fail_under = 100
 show_missing = true
 exclude_lines = [
     "pragma: no cover",
