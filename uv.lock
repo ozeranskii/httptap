@@ -836,7 +836,7 @@ requires-dist = [
     { name = "argcomplete", marker = "extra == 'completion'", specifier = ">=3.7.2" },
     { name = "dnspython", specifier = ">=2.8.0" },
     { name = "httpx", extras = ["http2", "socks"], specifier = ">=0.28.1" },
-    { name = "rich", specifier = ">=14.3.2" },
+    { name = "rich", specifier = ">=15.0.0" },
 ]
 provides-extras = ["completion"]
 
@@ -848,7 +848,7 @@ dev = [
     { name = "mypy", specifier = ">=2.3.1" },
     { name = "pre-commit", specifier = ">=4.6.2" },
     { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-codspeed", specifier = ">=4.3.0" },
+    { name = "pytest-codspeed", specifier = ">=5.0.3" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-httpx", specifier = ">=0.36.0" },
     { name = "pytest-mock", specifier = ">=3.15.1" },
@@ -870,7 +870,7 @@ test = [
     { name = "faker", specifier = ">=40.37.0" },
     { name = "hypothesis", specifier = ">=6.165.10" },
     { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-codspeed", specifier = ">=4.3.0" },
+    { name = "pytest-codspeed", specifier = ">=5.0.3" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-httpx", specifier = ">=0.36.0" },
     { name = "pytest-mock", specifier = ">=3.15.1" },

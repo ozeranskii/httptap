@@ -32,8 +32,6 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "08:00"
-    cooldown:
-      default-days: 7
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -69,15 +67,45 @@ updates:
         patterns:
           - "ruff"
           - "mypy"
+        update-types:
+          - "minor"
+          - "patch"
       test-dependencies:
         patterns:
           - "pytest*"
           - "faker"
+          - "hypothesis"
+        update-types:
+          - "minor"
+          - "patch"
+      docs:
+        patterns:
+          - "mkdocs*"
+          - "pymdown-extensions"
+        update-types:
+          - "minor"
+          - "patch"
       http-client:
         patterns:
           - "httpx*"
-    ignore:
-      # Ignore major version updates for stable dependencies
-      - dependency-name: "*"
         update-types:
-          - "version-update:semver-major"
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "pre-commit"
+    target-branch: "main"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    rebase-strategy: "auto"
