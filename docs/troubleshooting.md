@@ -159,9 +159,9 @@ Check three things:
 
 ### Can httptap emit Prometheus metrics?
 
-Not out of the box. Use `--metrics-only` and post-process with `awk`/`jq`, or
-parse the `--json` export. A dedicated exporter is on the roadmap — track
-[issue tracker](https://github.com/ozeranskii/httptap/issues) for updates.
+Yes. Use `--prometheus PATH` to write a node_exporter textfile collector file.
+See [Output Formats](usage/output-formats.md#prometheus-textfile-export) for
+metric names and labels.
 
 ## Python API
 
