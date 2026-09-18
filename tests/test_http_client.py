@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import importlib
 import ssl
 import sys
@@ -317,6 +318,28 @@ class TestConsumeResponseBody:
         total_bytes = _consume_response_body(response)
 
         assert total_bytes == len(body)
+
+    def test_consume_response_body_counts_encoded_bytes(self) -> None:
+        """Compressed responses report the bytes received on the wire."""
+        encoded_body = gzip.compress(b"x" * 100_000)
+        response = httpx.Response(
+            200,
+            headers={"content-encoding": "gzip"},
+            stream=httpx.ByteStream(encoded_body),
+        )
+
+        assert _consume_response_body(response) == len(encoded_body)
+
+    def test_consume_response_body_ignores_invalid_content_encoding(self) -> None:
+        """Invalid content encoding does not prevent collecting wire bytes."""
+        encoded_body = b"not a gzip stream"
+        response = httpx.Response(
+            200,
+            headers={"content-encoding": "gzip"},
+            stream=httpx.ByteStream(encoded_body),
+        )
+
+        assert _consume_response_body(response) == len(encoded_body)
 
 
 CERT_DICT: dict[str, Any] = {

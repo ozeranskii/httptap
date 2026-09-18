@@ -195,7 +195,7 @@ class ResponseInfo:
 
     Attributes:
         status: HTTP status code.
-        bytes: Response body size in bytes.
+        bytes: Response body size in bytes, before Content-Encoding decoding.
         content_type: Content-Type header value.
         server: Server header value.
         date: Date header parsed as datetime.
