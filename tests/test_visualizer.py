@@ -82,6 +82,25 @@ class TestWaterfallVisualizer:
         result = output.getvalue()
         assert "Request Timeline" in result
 
+    def test_render_fits_phase_lines_to_console_width(self) -> None:
+        output = StringIO()
+        console = Console(file=output, width=80, color_system=None)
+        visualizer = WaterfallVisualizer(console, max_bar_width=80)
+        timing = TimingMetrics(
+            dns_ms=10.0,
+            connect_ms=20.0,
+            tls_ms=30.0,
+            ttfb_ms=80.0,
+            total_ms=100.0,
+        )
+        timing.calculate_derived()
+
+        visualizer.render(StepMetrics(timing=timing))
+
+        phase_lines = [line for line in output.getvalue().splitlines() if " ms" in line]
+        assert phase_lines
+        assert all(len(line) <= console.width for line in phase_lines)
+
     def test_render_outputs_all_phases(self) -> None:
         """Test that render outputs all timing phases."""
         output = StringIO()
