@@ -324,11 +324,13 @@ class HTTPTapAnalyzer:
         except HTTPClientError as e:
             # Request failed, but we have partial data
             step.error = str(e)
+            step.error_kind = "network"
             step.note = f"Step {step_number}: Request failed"
 
         except Exception as exc:  # noqa: BLE001
             # Unexpected error
             step.error = str(exc)
+            step.error_kind = "internal"
             step.note = f"Step {step_number}: Unexpected error"
 
         return step
