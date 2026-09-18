@@ -27,11 +27,13 @@ from . import __version__
 from .analyzer import HTTPTapAnalyzer
 from .constants import (
     DEFAULT_TIMEOUT_SECONDS,
+    EXIT_CODE_HTTP_FAILURE,
     EXIT_CODE_OK,
     EXIT_CODE_SLO_VIOLATION,
     EXIT_CODE_SOFTWARE,
     EXIT_CODE_TEMPFAIL,
     EXIT_CODE_USAGE,
+    HTTP_FAILURE_MIN,
     UNIX_SIGNAL_EXIT_OFFSET,
     HTTPMethod,
 )
@@ -55,6 +57,7 @@ EXIT_USAGE_ERROR = EXIT_CODE_USAGE
 EXIT_NETWORK_ERROR = EXIT_CODE_TEMPFAIL
 EXIT_FATAL_ERROR = EXIT_CODE_SOFTWARE
 EXIT_SLO_VIOLATION = EXIT_CODE_SLO_VIOLATION
+EXIT_HTTP_FAILURE = EXIT_CODE_HTTP_FAILURE
 
 
 # Global console for error messages
@@ -161,6 +164,7 @@ Examples:
 Exit codes:
   {EXIT_SUCCESS:>3} (EX_OK)       : Success
   {EXIT_SLO_VIOLATION:>3}              : SLO threshold violation (request succeeded but too slow)
+  {EXIT_HTTP_FAILURE:>3}              : HTTP 4xx/5xx response with --fail
   {EXIT_USAGE_ERROR:>3} (EX_USAGE)    : Invalid arguments
   {EXIT_FATAL_ERROR:>3} (EX_SOFTWARE) : Internal error
   {EXIT_NETWORK_ERROR:>3} (EX_TEMPFAIL) : Network/TLS error (partial output available)
@@ -224,6 +228,13 @@ Exit codes:
         dest="no_http2",
         action="store_true",
         help="Disable HTTP/2 negotiation and force HTTP/1.1 connections.",
+    )
+    request_group.add_argument(
+        "-f",
+        "--fail",
+        dest="fail_on_http_error",
+        action="store_true",
+        help=f"Exit with code {EXIT_HTTP_FAILURE} for HTTP 4xx/5xx responses after printing results.",
     )
 
     # SSL/TLS options (mutually exclusive)
@@ -484,6 +495,7 @@ def determine_exit_code(
     steps: list[StepMetrics],
     *,
     slo_result: SLOResult | None = None,
+    fail_on_http_error: bool = False,
 ) -> int:
     """Determine appropriate exit code based on analysis results.
 
@@ -492,14 +504,17 @@ def determine_exit_code(
     1. No steps at all → ``EXIT_FATAL_ERROR``.
     2. Network / TLS error → ``EXIT_NETWORK_ERROR`` (or
        ``EXIT_FATAL_ERROR`` when there is also no partial data).
-    3. SLO violation on the final successful step →
+    3. HTTP 4xx/5xx response with ``--fail`` → ``EXIT_HTTP_FAILURE``.
+    4. SLO violation on the final successful step →
        ``EXIT_SLO_VIOLATION``.
-    4. Otherwise → ``EXIT_SUCCESS``.
+    5. Otherwise → ``EXIT_SUCCESS``.
 
     Args:
         steps: List of step metrics from analysis.
         slo_result: Optional SLO evaluation result for the final
             successful step.
+        fail_on_http_error: Whether HTTP 4xx/5xx responses should fail the
+            command after results have been rendered.
 
     Returns:
         Appropriate exit code.
@@ -514,6 +529,11 @@ def determine_exit_code(
         has_partial_data = any(step.network.ip or step.response.status for step in steps)
         return EXIT_NETWORK_ERROR if has_partial_data else EXIT_FATAL_ERROR
 
+    if fail_on_http_error and any(
+        step.response.status is not None and step.response.status >= HTTP_FAILURE_MIN for step in steps
+    ):
+        return EXIT_HTTP_FAILURE
+
     if slo_result is not None and not slo_result.passed:
         return EXIT_SLO_VIOLATION
 
@@ -525,7 +545,7 @@ def main() -> int:
 
     Returns:
         Exit code: ``0`` on success, ``4`` on SLO threshold violation,
-        ``64`` on invalid arguments, ``70`` on internal error, and
+        ``22`` on HTTP failure with ``--fail``, ``64`` on invalid arguments, ``70`` on internal error, and
         ``75`` on network or TLS failure.
 
     """
@@ -586,7 +606,11 @@ def main() -> int:
         renderer.render_analysis(steps, args.url, slo_result=slo_result)
         _export_results(renderer, steps, args, slo_result=slo_result)
 
-        return determine_exit_code(steps, slo_result=slo_result)
+        return determine_exit_code(
+            steps,
+            slo_result=slo_result,
+            fail_on_http_error=args.fail_on_http_error,
+        )
 
     except KeyboardInterrupt:
         console.print("\n[yellow]⚠ Interrupted by user[/yellow]")
