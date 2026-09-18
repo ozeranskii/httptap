@@ -6,11 +6,15 @@ information from SSL connections.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Protocol, overload, runtime_checkable
+
+from cryptography import x509
+from cryptography.x509.oid import NameOID
 
 from .utils import calculate_days_until, parse_certificate_date
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from datetime import datetime
 
     from .models import NetworkInfo
@@ -35,8 +39,20 @@ class SSLObjectLike(Protocol):
     def cipher(self) -> tuple[Any, ...] | None:
         """Return the active cipher suite description."""
 
-    def getpeercert(self) -> dict[str, Any] | None:
-        """Return the peer certificate as a parsed dictionary (or None)."""
+    @overload
+    def getpeercert(
+        self,
+        binary_form: Literal[False] = False,  # noqa: FBT002
+    ) -> Mapping[str, Any] | None: ...
+
+    @overload
+    def getpeercert(self, binary_form: Literal[True]) -> bytes | None: ...
+
+    @overload
+    def getpeercert(
+        self,
+        binary_form: bool,  # noqa: FBT001
+    ) -> Mapping[str, Any] | bytes | None: ...
 
 
 class TLSInspectionError(Exception):
@@ -165,6 +181,49 @@ class CertificateInfo:
             return None
         return calculate_days_until(self.not_after)
 
+    @classmethod
+    def from_der(cls, cert_der: bytes) -> CertificateInfo:
+        """Build certificate information from a DER-encoded certificate.
+
+        ``ssl.SSLSocket.getpeercert()`` returns an empty dictionary when
+        verification is disabled, but the binary form remains available.
+
+        Args:
+            cert_der: DER-encoded peer certificate.
+
+        Returns:
+            Parsed certificate information.
+
+        Raises:
+            ValueError: If ``cert_der`` is not a valid X.509 certificate.
+
+        """
+        certificate = x509.load_der_x509_certificate(cert_der)
+        cert_info = cls.__new__(cls)
+        cert_info.common_name = cls._x509_common_name(certificate.subject)
+        cert_info.subject_alt_names = cls._x509_subject_alt_names(certificate)
+        cert_info.issuer = cls._x509_common_name(certificate.issuer)
+        cert_info.not_before = certificate.not_valid_before_utc
+        cert_info.not_after = certificate.not_valid_after_utc
+        cert_info.days_until_expiry = calculate_days_until(cert_info.not_after)
+        cert_info.serial_number = format(certificate.serial_number, "X")
+        return cert_info
+
+    @staticmethod
+    def _x509_common_name(name: x509.Name) -> str | None:
+        """Extract a common name from an X.509 subject or issuer."""
+        attributes = name.get_attributes_for_oid(NameOID.COMMON_NAME)
+        return str(attributes[0].value) if attributes else None
+
+    @staticmethod
+    def _x509_subject_alt_names(certificate: x509.Certificate) -> list[str]:
+        """Extract DNS subject alternative names from an X.509 certificate."""
+        try:
+            extension = certificate.extensions.get_extension_for_class(x509.SubjectAlternativeName)
+        except x509.ExtensionNotFound:
+            return []
+        return list(extension.value.get_values_for_type(x509.DNSName))
+
 
 def apply_certificate_info(network_info: NetworkInfo, cert_info: CertificateInfo) -> None:
     """Copy parsed certificate fields onto a :class:`NetworkInfo`.
@@ -207,9 +266,11 @@ def extract_certificate_info(ssl_object: SSLObjectLike) -> CertificateInfo | Non
     """
     try:
         cert_dict = ssl_object.getpeercert()
-        if not cert_dict:
-            return None
-        return CertificateInfo(cert_dict)
+        if cert_dict:
+            return CertificateInfo(dict(cert_dict))
+
+        cert_der = ssl_object.getpeercert(binary_form=True)
+        return CertificateInfo.from_der(cert_der) if isinstance(cert_der, bytes) and cert_der else None
     except Exception as e:
         msg = f"Failed to extract certificate info: {e}"
         raise TLSInspectionError(msg) from e

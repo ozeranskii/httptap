@@ -58,6 +58,7 @@ dependencies = [
     "httpx[http2,socks]>=0.28.1",
     "rich>=14.3.2",
     "dnspython>=2.8.0",
+    "cryptography>=50.0.1",
 ]
 
 [project.optional-dependencies]
