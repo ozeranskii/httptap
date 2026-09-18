@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -13,9 +14,13 @@ from httptap.slo import (
     SLOSpecError,
     SLOViolation,
     evaluate_slo,
+    parse_slo_file,
     parse_slo_spec,
     select_step_for_evaluation,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _step(
@@ -115,6 +120,27 @@ class TestParseSLOSpec:
         second = parse_slo_spec("total=500")
         assert first == second
         assert first is not second
+
+
+class TestParseSLOFile:
+    """SLO files use the same threshold grammar as inline specifications."""
+
+    def test_newline_delimited_thresholds(self, tmp_path: Path) -> None:
+        slo_file = tmp_path / "slo.txt"
+        slo_file.write_text("total=500\n\nttfb=200\n", encoding="utf-8")
+
+        assert parse_slo_file(slo_file) == {"total": 500.0, "ttfb": 200.0}
+
+    def test_invalid_file_reports_path(self, tmp_path: Path) -> None:
+        slo_file = tmp_path / "slo.txt"
+        slo_file.write_text("total=fast", encoding="utf-8")
+
+        with pytest.raises(SLOSpecError, match=r"slo\.txt"):
+            parse_slo_file(slo_file)
+
+    def test_missing_file_is_rejected(self, tmp_path: Path) -> None:
+        with pytest.raises(SLOSpecError, match="Failed to read SLO file"):
+            parse_slo_file(tmp_path / "missing.txt")
 
 
 class TestEvaluateSLO:
