@@ -8,6 +8,7 @@ from rich.console import Console
 
 from httptap.exporter import JSONExporter
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
+from httptap.prometheus import PrometheusExporter
 from httptap.slo import SLOResult, SLOViolation
 
 PathType = pathlib.Path
@@ -191,3 +192,22 @@ def test_exporter_includes_slo_fail(tmp_path: PathType) -> None:
             "delta_ms": 400.0,
         }
     ]
+
+
+def test_prometheus_exporter_writes_phase_gauges(tmp_path: PathType) -> None:
+    """Prometheus output uses seconds and avoids a URL label."""
+    step = build_step("https://example.test/private?token=secret", 200, 120.5)
+    step.timing.dns_ms = 10.0
+    step.timing.connect_ms = 20.0
+    step.timing.ttfb_ms = 100.0
+    step.timing.calculate_derived()
+    output_path = tmp_path / "metrics" / "httptap.prom"
+
+    PrometheusExporter(Console(record=True)).export([step], str(output_path))
+
+    output = output_path.read_text(encoding="utf-8")
+    assert "# TYPE httptap_request_duration_seconds gauge" in output
+    assert "# TYPE httptap_response_status_code gauge" in output
+    assert 'httptap_request_duration_seconds{phase="dns",step="1"} 0.01' in output
+    assert 'httptap_response_status_code{step="1"} 200' in output
+    assert "https://example.test" not in output

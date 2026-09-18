@@ -12,6 +12,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
+from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -36,6 +37,8 @@ from .constants import (
     HTTPMethod,
 )
 from .models import StepMetrics
+from .otlp import OTLPDependencyError, OTLPExporter, OTLPExportError, ensure_otel_available
+from .prometheus import PrometheusExporter
 from .render import OutputRenderer
 from .slo import (
     SLO_KEYS,
@@ -279,6 +282,16 @@ Exit codes:
         metavar="PATH",
         help="Export the collected metrics, network, and response details to PATH.",
     )
+    output_group.add_argument(
+        "--prometheus",
+        metavar="PATH",
+        help="Export timing metrics in Prometheus textfile collector format to PATH.",
+    )
+    output_group.add_argument(
+        "--otlp",
+        metavar="ENDPOINT",
+        help="Export request traces to an OTLP/HTTP endpoint (requires httptap[otel]).",
+    )
     slo_keys_hint = ", ".join(sorted(SLO_KEYS))
     output_group.add_argument(
         "--slo",
@@ -342,16 +355,30 @@ def _export_results(
     *,
     slo_result: SLOResult | None = None,
 ) -> None:
-    """Export analysis results when --json is provided."""
-    if not args.json:
-        return
+    """Export analysis results for each requested output format."""
+    if args.json:
+        try:
+            renderer.export_json(steps, args.url, args.json, slo_result=slo_result)
+        except OSError as export_error:
+            console.print(
+                f"[yellow]⚠ Warning:[/yellow] Failed to export JSON: {escape(str(export_error))}",
+            )
 
-    try:
-        renderer.export_json(steps, args.url, args.json, slo_result=slo_result)
-    except OSError as export_error:
-        console.print(
-            f"[yellow]⚠ Warning:[/yellow] Failed to export JSON: {escape(str(export_error))}",
-        )
+    if getattr(args, "prometheus", None):
+        try:
+            PrometheusExporter(Console()).export(steps, args.prometheus)
+        except OSError as export_error:
+            console.print(
+                f"[yellow]⚠ Warning:[/yellow] Failed to export Prometheus metrics: {escape(str(export_error))}",
+            )
+
+    if getattr(args, "otlp", None):
+        try:
+            OTLPExporter().export(steps, args.otlp)
+        except OTLPExportError as export_error:
+            console.print(
+                f"[yellow]⚠ Warning:[/yellow] Failed to export OTLP traces: {escape(str(export_error))}",
+            )
 
 
 def _evaluate_slo(
@@ -386,7 +413,30 @@ def _evaluate_slo(
     return evaluate_slo(step, thresholds)
 
 
-def validate_arguments(args: argparse.Namespace) -> bool:
+def _validate_output_path(path: str | None, option: str) -> str | None:
+    """Normalize an optional export path or reject an empty value."""
+    if path is None:
+        return None
+    normalized_path = str(path).strip()
+    if not normalized_path:
+        msg = f"{option} path cannot be empty."
+        raise ValueError(msg)
+    return normalized_path
+
+
+def _validate_otlp_endpoint(endpoint: str | None) -> str | None:
+    """Normalize and validate an optional OTLP/HTTP endpoint."""
+    if endpoint is None:
+        return None
+    normalized_endpoint = str(endpoint).strip()
+    parsed = urlsplit(normalized_endpoint)
+    if not normalized_endpoint or parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        msg = "OTLP endpoint must be an absolute http:// or https:// URL."
+        raise ValueError(msg)
+    return normalized_endpoint
+
+
+def validate_arguments(args: argparse.Namespace) -> bool:  # noqa: PLR0911
     """Validate command-line arguments with Rich formatting.
 
     Args:
@@ -460,6 +510,22 @@ def validate_arguments(args: argparse.Namespace) -> bool:
             )
             return False
         args.ca_bundle = str(Path(ca_bundle_str).expanduser().absolute())
+
+    try:
+        args.prometheus = _validate_output_path(getattr(args, "prometheus", None), "Prometheus export")
+        args.otlp = _validate_otlp_endpoint(getattr(args, "otlp", None))
+        if args.otlp is not None:
+            ensure_otel_available()
+    except (OTLPDependencyError, ValueError) as exc:
+        console.print(
+            Panel(
+                f"[red]{escape(str(exc))}[/red]",
+                title="[bold red]❌ Export Error[/bold red]",
+                border_style="red",
+                padding=(1, 2),
+            )
+        )
+        return False
 
     if args.slo is None:
         args.slo_thresholds = {}
