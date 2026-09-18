@@ -562,7 +562,10 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             http2=http2,
             follow_redirects=False,
             verify=ssl_context,
-            proxy=proxy,
+            # Proxy resolution is handled above against the original hostname.
+            # Do not let httpx reapply environment proxy settings after DNS.
+            proxy=proxy if proxy is not None and effective_proxy_url is not None else effective_proxy_url,
+            trust_env=False,
             limits=limits,
         ) as client:
             client.headers["User-Agent"] = USER_AGENT
