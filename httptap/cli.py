@@ -501,9 +501,8 @@ def determine_exit_code(
 
     Precedence (highest-severity first):
 
-    1. No steps at all → ``EXIT_FATAL_ERROR``.
-    2. Network / TLS error → ``EXIT_NETWORK_ERROR`` (or
-       ``EXIT_FATAL_ERROR`` when there is also no partial data).
+    1. No steps or an internal error → ``EXIT_FATAL_ERROR``.
+    2. Network / TLS error → ``EXIT_NETWORK_ERROR``.
     3. HTTP 4xx/5xx response with ``--fail`` → ``EXIT_HTTP_FAILURE``.
     4. SLO violation on the final successful step →
        ``EXIT_SLO_VIOLATION``.
@@ -523,11 +522,11 @@ def determine_exit_code(
     if not steps:
         return EXIT_FATAL_ERROR
 
-    has_errors = any(step.has_error for step in steps)
-    if has_errors:
-        # Check if we have any partial data (network or response info)
-        has_partial_data = any(step.network.ip or step.response.status for step in steps)
-        return EXIT_NETWORK_ERROR if has_partial_data else EXIT_FATAL_ERROR
+    if any(step.error_kind == "internal" for step in steps):
+        return EXIT_FATAL_ERROR
+
+    if any(step.has_error for step in steps):
+        return EXIT_NETWORK_ERROR
 
     if fail_on_http_error and any(
         step.response.status is not None and step.response.status >= HTTP_FAILURE_MIN for step in steps
