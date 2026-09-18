@@ -36,6 +36,7 @@ from httptap.http_client import (
     _populate_tls_from_stream,
     _resolve_effective_proxy,
     make_request,
+    proxy_resolves_remotely,
 )
 from httptap.implementations.dns import SystemDNSResolver
 from httptap.models import NetworkInfo, TimingMetrics
@@ -1920,6 +1921,28 @@ class TestHostMatchesNoProxy:
     )
     def test_pattern_matching(self, host: str, no_proxy: str, *, expected: bool) -> None:
         assert _host_matches_no_proxy(host, no_proxy) is expected
+
+
+class TestProxyResolvesRemotely:
+    """proxy_resolves_remotely reports whether local DNS overrides can apply."""
+
+    @pytest.mark.parametrize(
+        ("proxy", "expected"),
+        [
+            ("http://proxy.test:8080", True),
+            ("socks5h://proxy.test:1080", True),
+            ("socks5://proxy.test:1080", False),
+            (None, False),
+        ],
+    )
+    def test_proxy_kinds(self, proxy: str | None, *, expected: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+        for name in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
+            monkeypatch.delenv(name, raising=False)
+
+        assert proxy_resolves_remotely(proxy, "https://example.test/") is expected
+
+    def test_url_without_hostname(self) -> None:
+        assert proxy_resolves_remotely("http://proxy.test:8080", "https:///path") is False
 
 
 class TestResolveEffectiveProxy:

@@ -399,6 +399,23 @@ def _resolve_effective_proxy(
     return None, None
 
 
+def proxy_resolves_remotely(proxy: ProxyTypes | None, url: str, *, noproxy: bool = False) -> bool:
+    """Return whether the proxy effective for ``url`` resolves the target hostname itself.
+
+    Local DNS overrides (address family, ``--resolve``) cannot apply in that case.
+    """
+    parsed_url = urlsplit(url)
+    if parsed_url.hostname is None:
+        return False
+    effective_proxy_url, _source = _resolve_effective_proxy(
+        proxy,
+        parsed_url.scheme,
+        parsed_url.hostname,
+        noproxy=noproxy,
+    )
+    return effective_proxy_url is not None and _needs_remote_dns(effective_proxy_url)
+
+
 def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     url: str,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
