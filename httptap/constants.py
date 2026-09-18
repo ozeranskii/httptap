@@ -53,11 +53,14 @@ EXIT_CODE_SOFTWARE = getattr(os, "EX_SOFTWARE", _EX_SOFTWARE_FALLBACK)
 # SLO threshold violation — chosen to match the de-facto convention
 # established by httpstat so the same CI gate works for both tools.
 EXIT_CODE_SLO_VIOLATION = 4
+# HTTP response failure — matches curl's ``--fail`` exit code.
+EXIT_CODE_HTTP_FAILURE = 22
 
 HTTP_SUCCESS_MIN = HTTPStatus.OK.value
 HTTP_SUCCESS_MAX = HTTPStatus.MULTIPLE_CHOICES.value - 1
 HTTP_REDIRECT_MIN = HTTPStatus.MULTIPLE_CHOICES.value
 HTTP_REDIRECT_MAX = HTTPStatus.BAD_REQUEST.value - 1
+HTTP_FAILURE_MIN = HTTPStatus.BAD_REQUEST.value
 POST_TO_GET_REDIRECT_STATUSES = frozenset({HTTPStatus.MOVED_PERMANENTLY.value, HTTPStatus.FOUND.value})
 
 # Request headers bound to the origin they were sent to; dropped on cross-origin redirects.
