@@ -165,6 +165,32 @@ class TestPerfCounterTimingCollector:
             # Total should be greater than DNS
             assert metrics.total_ms >= metrics.dns_ms
 
+    def test_request_setup_time_is_excluded_from_request_metrics(self) -> None:
+        """DNS remains included while setup before the request is excluded."""
+        with patch(
+            "httptap.implementations.timing.time.perf_counter",
+            side_effect=[
+                1.0,  # __init__
+                1.0,  # mark_dns_start
+                1.002,  # mark_dns_end
+                1.012,  # mark_request_start after 10ms client setup
+                1.015,  # mark_ttfb
+                1.017,  # mark_request_end
+            ],
+        ):
+            collector = PerfCounterTimingCollector()
+            collector.mark_dns_start()
+            collector.mark_dns_end()
+            collector.mark_request_start()
+            collector.mark_ttfb()
+            collector.mark_request_end()
+
+            metrics = collector.get_metrics()
+
+        assert abs(metrics.dns_ms - 2.0) < 0.001
+        assert abs(metrics.ttfb_ms - 5.0) < 0.001
+        assert abs(metrics.total_ms - 7.0) < 0.001
+
     def test_metrics_are_in_milliseconds(self) -> None:
         """Test that all timing values are in milliseconds."""
         with patch("httptap.implementations.timing.time.perf_counter", side_effect=[1.0, 1.0, 1.01]):

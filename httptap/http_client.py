@@ -545,8 +545,6 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 
             request_target = f"[{ip}]" if ip_family == "IPv6" else ip
 
-        timing_collector.mark_request_start()
-
         trace = TraceCollector()
 
         # Configure connection limits to force new connections if requested
@@ -575,6 +573,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             if parsed_url.query:
                 request_url += f"?{parsed_url.query}"
 
+            timing_collector.mark_request_start()
             with client.stream(
                 method.value, request_url, content=content, extensions={"trace": trace, "sni_hostname": host}
             ) as response:
