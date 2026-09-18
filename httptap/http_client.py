@@ -497,12 +497,17 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     try:
         parsed_url = urlparse(url)
         host = parsed_url.hostname
-        port = parsed_url.port or (HTTPS_DEFAULT_PORT if parsed_url.scheme == "https" else HTTP_DEFAULT_PORT)
         is_https = parsed_url.scheme == "https"
+        default_port = HTTPS_DEFAULT_PORT if is_https else HTTP_DEFAULT_PORT
+        port = parsed_url.port or default_port
 
         if not host:
             msg = "Invalid URL: missing hostname"
             raise HTTPClientError(msg)  # noqa: TRY301
+
+        host_header = f"[{host}]" if ":" in host else host
+        if parsed_url.port is not None and port != default_port:
+            host_header = f"{host_header}:{port}"
 
         # Determine effective proxy and DNS resolution strategy.
         #
@@ -569,7 +574,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             if headers:
                 client.headers.update(headers)
             # Ensure the Host header is set to the original domain name
-            client.headers["Host"] = host
+            client.headers["Host"] = host_header
 
             request_url = f"{parsed_url.scheme}://{request_target}:{port}{parsed_url.path}"
             if parsed_url.query:

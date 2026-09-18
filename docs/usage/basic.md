@@ -125,6 +125,34 @@ By default, HTTP/2 is enabled if the server supports it.
 
 *Curl-compatible alias:* `--http1.1`.
 
+#### `-4, --ipv4` and `-6, --ipv6`
+
+Restrict DNS resolution and the connection to IPv4 or IPv6. The options are mutually exclusive.
+
+```bash
+httptap -4 https://example.com
+httptap --ipv6 https://example.com
+```
+
+They cannot be used with HTTP, HTTPS, or SOCKS5H proxies, because those proxies
+resolve the target hostname themselves.
+
+#### `--resolve HOST:PORT:ADDR`
+
+Connect a hostname and port to a specific IPv4 or IPv6 address while retaining
+the original `Host` header and TLS SNI. This is useful when testing one backend
+before a DNS switch or bypassing a round-robin DNS record. The option can be
+repeated for different host and port pairs.
+
+```bash
+httptap --resolve api.example.com:443:203.0.113.10 https://api.example.com/health
+httptap --resolve api.example.com:443:[2001:db8::10] https://api.example.com/health
+```
+
+`--resolve` applies to direct connections and local-DNS SOCKS5 proxies. HTTP,
+HTTPS, and SOCKS5H proxies resolve the target remotely, so they do not use the
+local override.
+
 #### `-k, --insecure, --ignore-ssl`
 
 Disable TLS certificate verification. Useful for debugging self-signed hosts or expired certificates.

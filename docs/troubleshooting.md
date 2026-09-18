@@ -176,10 +176,9 @@ from httptap.constants import HTTPMethod
 
 ### My custom resolver isn't being called
 
-`HTTPTapAnalyzer` uses the injected resolver only for the diagnostic DNS lookup
-timing. Actual connection resolution is still performed by `httpx`/`httpcore`.
-To route the real connection through your resolver, implement a custom
-`RequestExecutor` as well.
+`HTTPTapAnalyzer` uses the injected resolver for direct connections and local-DNS
+SOCKS5 proxies. HTTP, HTTPS, and SOCKS5H proxies resolve the target remotely;
+use a custom `RequestExecutor` if you need to change that behavior.
 
 ---
 
