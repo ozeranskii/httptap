@@ -119,6 +119,9 @@ httptap --json output.json https://httpbin.io
 
 ```json
 {
+  "schema_version": 1,
+  "httptap_version": "0.6.3",
+  "timestamp": "2026-09-18T08:00:00Z",
   "initial_url": "https://httpbin.io",
   "total_steps": 1,
   "steps": [
@@ -185,6 +188,25 @@ httptap --json output.json https://httpbin.io
   }
 }
 ```
+
+### Field Reference
+
+The top-level metadata identifies the report format and when it was produced.
+Consumers should use `schema_version` to select compatible parsing logic.
+
+| Field             | Type    | Description                                                                      |
+| ----------------- | ------- | -------------------------------------------------------------------------------- |
+| `schema_version`  | integer | Version of the JSON report format. The current version is `1`.                   |
+| `httptap_version` | string  | Version of httptap that generated the report.                                    |
+| `timestamp`       | string  | Export creation time in RFC 3339 UTC format, for example `2026-09-18T08:00:00Z`. |
+| `initial_url`     | string  | URL passed to httptap before redirects.                                          |
+| `total_steps`     | integer | Number of entries in `steps`.                                                    |
+| `steps`           | array   | Per-request measurements, including each followed redirect.                      |
+| `summary`         | object  | Aggregate values for the export.                                                 |
+
+Timing values ending in `_ms` are milliseconds. Request and response body sizes
+are bytes. Certificate and response dates are ISO 8601/RFC 3339 timestamps when
+available. See the example above for the nested `steps` and `summary` structure.
 
 ### Features
 
