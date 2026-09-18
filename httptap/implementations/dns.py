@@ -7,6 +7,7 @@ import threading
 import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from ipaddress import IPv6Address, ip_address
 from typing import Any, cast
 
 from httptap.constants import MS_IN_SECOND
@@ -70,7 +71,11 @@ class SystemDNSResolver:
     used by the analyzer.
     """
 
-    __slots__ = ()
+    __slots__ = ("_family",)
+
+    def __init__(self, family: int = socket.AF_UNSPEC) -> None:
+        """Initialize a resolver restricted to an optional address family."""
+        self._family = family
 
     def resolve(self, host: str, port: int, timeout: float) -> tuple[str, str, float]:
         """Resolve host and return IP, family label, and elapsed milliseconds.
@@ -103,7 +108,7 @@ class SystemDNSResolver:
                     socket.getaddrinfo(
                         host,
                         port,
-                        family=socket.AF_UNSPEC,
+                        family=self._family,
                         type=socket.SOCK_STREAM,
                     ),
                 )
@@ -155,3 +160,29 @@ class SystemDNSResolver:
         if family == socket.AF_INET:
             return "IPv4"
         return f"AF_{family}"
+
+
+class OverrideDNSResolver:
+    """Resolve configured host and port pairs to fixed IP addresses."""
+
+    __slots__ = ("_fallback", "_overrides")
+
+    def __init__(
+        self,
+        overrides: dict[tuple[str, int], str],
+        *,
+        family: int = socket.AF_UNSPEC,
+    ) -> None:
+        """Initialize fixed overrides and a family-restricted fallback resolver."""
+        self._overrides = {(host.lower(), port): address for (host, port), address in overrides.items()}
+        self._fallback = SystemDNSResolver(family)
+
+    def resolve(self, host: str, port: int, timeout: float) -> tuple[str, str, float]:
+        """Resolve a configured address immediately or delegate to the system resolver."""
+        address = self._overrides.get((host.lower(), port))
+        if address is None:
+            return self._fallback.resolve(host, port, timeout)
+
+        parsed_address = ip_address(address)
+        family = "IPv6" if isinstance(parsed_address, IPv6Address) else "IPv4"
+        return str(parsed_address), family, 0.0
