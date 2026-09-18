@@ -77,7 +77,7 @@ class OutputRenderer:
         self.metrics_only = metrics_only
         self.console = console or Console()
         self.visualizer = visualizer or WaterfallVisualizer(self.console)
-        self.exporter = exporter or JSONExporter(self.console)
+        self.exporter = exporter or JSONExporter(Console(stderr=True))
 
     def render_analysis(
         self,
