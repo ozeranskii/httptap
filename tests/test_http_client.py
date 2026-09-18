@@ -633,6 +633,14 @@ class TestTraceCollector:
         assert tls_ms is not None
         assert tls_ms >= 0.0
 
+    def test_trace_collector_prefers_tunneled_tls_timing(self) -> None:
+        """The TLS handshake after CONNECT is the origin TLS measurement."""
+        trace = TraceCollector()
+        trace._events[trace.TLS_EVENT] = {"started": 1.0, "complete": 1.5}
+        trace._events[trace.PROXY_TLS_EVENT] = {"started": 2.0, "complete": 2.025}
+
+        assert trace.tls_ms == pytest.approx(25.0)
+
     def test_trace_collector_returns_none_for_missing_events(self) -> None:
         """Test that TraceCollector returns None for incomplete events."""
         trace = TraceCollector()
