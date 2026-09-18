@@ -62,6 +62,7 @@ def test_analyze_url_records_error() -> None:
 
     steps = analyzer.analyze_url("https://example.test")
     assert steps[0].has_error
+    assert steps[0].error_kind == "network"
     assert "no more results" in (steps[0].error or "")
 
 
@@ -195,6 +196,7 @@ def test_analyze_url_handles_unexpected_exception() -> None:
 
     assert len(steps) == 1
     assert steps[0].has_error
+    assert steps[0].error_kind == "internal"
     assert "Unexpected failure" in (steps[0].error or "")
     assert "Unexpected error" in (steps[0].note or "")
 
