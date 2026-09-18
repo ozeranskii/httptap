@@ -14,6 +14,7 @@ from httptap.tls_inspector import (
     TLSInspectionError,
     extract_certificate_info,
     extract_tls_info,
+    extract_unverified_certificate_info,
 )
 from httptap.utils import UTC
 
@@ -239,6 +240,25 @@ class TestExtractCertificateInfo:
 
         with pytest.raises(TLSInspectionError, match="Failed to extract certificate"):
             extract_certificate_info(mock_ssl_socket)
+
+    def test_extract_unverified_certificate_info_decodes_der(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The binary certificate is decoded when verification is disabled."""
+        mock_ssl_socket = MagicMock(spec=ssl.SSLSocket)
+        mock_ssl_socket.getpeercert.return_value = b"certificate-der"
+        certificate = {
+            "subject": ((("commonName", "expired.example.test"),),),
+            "notAfter": "Oct 22 12:00:00 2025 GMT",
+        }
+        monkeypatch.setattr(
+            "httptap.tls_inspector._decode_der_certificate",
+            lambda _certificate_der: certificate,
+        )
+
+        cert_info = extract_unverified_certificate_info(mock_ssl_socket)
+
+        mock_ssl_socket.getpeercert.assert_called_once_with(binary_form=True)
+        assert cert_info is not None
+        assert cert_info.common_name == "expired.example.test"
 
 
 class TestExtractTLSInfo:

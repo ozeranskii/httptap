@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from io import StringIO
 from typing import TYPE_CHECKING
 
@@ -182,6 +183,20 @@ class TestOutputRenderer:
         output = console.export_text()
         assert "ERROR" in output or "timeout" in output
 
+    def test_render_step_with_certificate_error_shows_network_details(self) -> None:
+        """Certificate metadata remains visible after an error panel."""
+        console = Console(record=True, width=120)
+        renderer = OutputRenderer(console=console)
+        step = build_step("https://expired.example.test", 0, 0.0, error="certificate verify failed")
+        step.network.cert_cn = "expired.example.test"
+        step.network.cert_days_left = -1
+
+        renderer.render_analysis([step], "https://expired.example.test")
+
+        output = console.export_text()
+        assert "Cert: expired.example.test" in output
+        assert "Expires: -1d" in output
+
     def test_export_json(self, mocker: MockerFixture, tmp_path: Path) -> None:
         """Test JSON export functionality."""
         console = Console()
@@ -224,6 +239,28 @@ class TestOutputRenderer:
         output = console.export_text()
         assert "ERROR" in output
         assert "DNS failed" in output
+
+    def test_render_metrics_only_includes_failed_certificate_details(self) -> None:
+        """Certificate diagnostics remain available in metrics-only output."""
+        console = Console(record=True, width=120)
+        renderer = OutputRenderer(metrics_only=True, console=console)
+        step = build_step("https://expired.example.test", 0, 0.0, error="certificate has expired")
+        step.network.cert_cn = "expired.example.test"
+        step.network.cert_sans = ["expired.example.test", "www.expired.example.test"]
+        step.network.cert_issuer = "Example CA"
+        step.network.cert_not_before = datetime(2025, 1, 1, tzinfo=UTC)
+        step.network.cert_not_after = datetime(2026, 1, 1, tzinfo=UTC)
+        step.network.cert_days_left = -1
+
+        renderer._render_metrics_only([step])
+
+        output = console.export_text()
+        assert "cert_cn=expired.example.test" in output
+        assert "cert_sans=expired.example.test,www.expired.example.test" in output
+        assert "cert_issuer=Example%20CA" in output
+        assert "cert_not_before=2025-01-01T00%3A00%3A00%2B00%3A00" in output
+        assert "cert_not_after=2026-01-01T00%3A00%3A00%2B00%3A00" in output
+        assert "cert_days_left=-1" in output
 
     def test_render_metrics_only_attaches_slo_to_final_success(
         self,
