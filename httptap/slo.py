@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+    from pathlib import Path
 
     from .models import StepMetrics
 
@@ -213,6 +214,37 @@ def parse_slo_spec(raw: str) -> dict[str, float]:
         thresholds[key] = value
 
     return thresholds
+
+
+def parse_slo_file(path: Path) -> dict[str, float]:
+    """Parse newline-delimited ``KEY=MS`` thresholds from a UTF-8 file.
+
+    Empty lines are ignored. Each non-empty line follows the same grammar as
+    :func:`parse_slo_spec`; comma-separated values are also accepted.
+
+    Args:
+        path: Path to the SLO threshold file.
+
+    Returns:
+        Mapping of lowercase SLO key to threshold in milliseconds.
+
+    Raises:
+        SLOSpecError: If the file cannot be read or contains an invalid SLO
+            specification.
+
+    """
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        msg = f"Failed to read SLO file '{path}': {exc}"
+        raise SLOSpecError(msg) from exc
+
+    specification = ",".join(line.strip() for line in raw.splitlines() if line.strip())
+    try:
+        return parse_slo_spec(specification)
+    except SLOSpecError as exc:
+        msg = f"Invalid SLO file '{path}': {exc}"
+        raise SLOSpecError(msg) from exc
 
 
 def evaluate_slo(

@@ -42,6 +42,7 @@ from .slo import (
     SLOResult,
     SLOSpecError,
     evaluate_slo,
+    parse_slo_file,
     parse_slo_spec,
     select_step_for_evaluation,
 )
@@ -290,6 +291,12 @@ Exit codes:
             f"but exits with code {EXIT_SLO_VIOLATION}. Valid keys: {slo_keys_hint}."
         ),
     )
+    output_group.add_argument(
+        "--slo-file",
+        metavar="PATH",
+        default=None,
+        help="Read newline-delimited KEY=MS SLO thresholds from PATH. Values from --slo take precedence.",
+    )
 
     return parser
 
@@ -386,6 +393,21 @@ def _evaluate_slo(
     return evaluate_slo(step, thresholds)
 
 
+def _parse_slo_thresholds(args: argparse.Namespace) -> dict[str, float]:
+    """Load file thresholds and apply inline ``--slo`` overrides."""
+    file_thresholds: dict[str, float] = {}
+    slo_file_arg = getattr(args, "slo_file", None)
+    if slo_file_arg is not None:
+        slo_file = str(slo_file_arg).strip()
+        if not slo_file:
+            msg = "SLO file path cannot be empty."
+            raise SLOSpecError(msg)
+        file_thresholds = parse_slo_file(Path(slo_file).expanduser())
+
+    cli_thresholds = parse_slo_spec(args.slo) if args.slo is not None else {}
+    return {**file_thresholds, **cli_thresholds}
+
+
 def validate_arguments(args: argparse.Namespace) -> bool:
     """Validate command-line arguments with Rich formatting.
 
@@ -461,21 +483,18 @@ def validate_arguments(args: argparse.Namespace) -> bool:
             return False
         args.ca_bundle = str(Path(ca_bundle_str).expanduser().absolute())
 
-    if args.slo is None:
-        args.slo_thresholds = {}
-    else:
-        try:
-            args.slo_thresholds = parse_slo_spec(args.slo)
-        except SLOSpecError as exc:
-            console.print(
-                Panel(
-                    f"[red]{escape(str(exc))}[/red]",
-                    title="[bold red]❌ SLO Error[/bold red]",
-                    border_style="red",
-                    padding=(1, 2),
-                )
+    try:
+        args.slo_thresholds = _parse_slo_thresholds(args)
+    except SLOSpecError as exc:
+        console.print(
+            Panel(
+                f"[red]{escape(str(exc))}[/red]",
+                title="[bold red]❌ SLO Error[/bold red]",
+                border_style="red",
+                padding=(1, 2),
             )
-            return False
+        )
+        return False
 
     return True
 

@@ -1,11 +1,11 @@
 ---
 title: SLO Threshold Checking
-description: Use --slo to gate requests on per-phase latency budgets in CI, cron, and uptime checks.
+description: Use --slo or --slo-file to gate requests on per-phase latency budgets in CI, cron, and uptime checks.
 ---
 
 # SLO Threshold Checking
 
-`httptap --slo` checks measured timings against per-phase latency
+`httptap --slo` and `--slo-file` check measured timings against per-phase latency
 budgets and exits with a non-zero code when any budget is exceeded.
 This turns a single request into a pass/fail probe suitable for CI
 gates, cron-based synthetic monitoring, uptime checks, and
@@ -33,6 +33,26 @@ Pass a comma-separated list of `KEY=MS` pairs to `--slo`:
 - `KEY` is one of the supported timing phases (case-insensitive).
 - `MS` is a positive finite number of milliseconds (integer or float).
 - Whitespace around keys and values is tolerated.
+
+### File-based thresholds
+
+Use `--slo-file PATH` to read UTF-8 thresholds from a file, with one `KEY=MS`
+entry per line. Empty lines are ignored. The same validation rules apply as for
+`--slo`.
+
+`slo.txt`:
+
+```text
+total=500
+ttfb=200
+```
+
+```shell
+httptap --slo-file slo.txt https://api.example.com/health
+```
+
+`--slo-file` and `--slo` can be combined. Inline values override values from
+the file for matching keys.
 
 ### Supported keys
 
