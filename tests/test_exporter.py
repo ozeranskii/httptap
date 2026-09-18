@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import pathlib
+from datetime import datetime, timedelta
 
 import pytest
 from rich.console import Console
 
+from httptap._pkgmeta import get_package_info
 from httptap.exporter import JSONExporter
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
 from httptap.slo import SLOResult, SLOViolation
@@ -39,6 +41,11 @@ def test_exporter_writes_expected_payload(tmp_path: PathType) -> None:
     exporter.export(steps, "https://example.test", str(output_path))
 
     data = json.loads(output_path.read_text())
+    assert data["schema_version"] == 1
+    assert data["httptap_version"] == get_package_info().version
+    assert data["timestamp"].endswith("Z")
+    timestamp = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
+    assert timestamp.utcoffset() == timedelta(0)
     assert data["initial_url"] == "https://example.test"
     assert data["total_steps"] == 2
     assert data["summary"]["total_time_ms"] == pytest.approx(200.5)
