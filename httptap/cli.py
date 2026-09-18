@@ -99,7 +99,23 @@ class RichHelpFormatter(
     argparse.ArgumentDefaultsHelpFormatter,
     argparse.RawDescriptionHelpFormatter,
 ):
-    """Combined formatter that shows defaults while keeping raw layout."""
+    """Show meaningful defaults while keeping raw layout."""
+
+    def _get_help_string(self, action: argparse.Action) -> str:
+        """Suppress unset and false defaults from the help text."""
+        if action.default is None or action.default is False:
+            return action.help or ""
+        return super()._get_help_string(action) or ""
+
+
+def _parse_http_method(value: str) -> HTTPMethod:
+    """Parse an HTTP method case-insensitively with an actionable error."""
+    try:
+        return HTTPMethod(value.upper())
+    except ValueError as exc:
+        methods = ", ".join(method.value for method in HTTPMethod)
+        msg = f"invalid HTTP method {value!r}; choose from {methods}"
+        raise argparse.ArgumentTypeError(msg) from exc
 
 
 def _parse_headers(values: Sequence[str] | None) -> dict[str, str]:
@@ -188,7 +204,7 @@ Exit codes:
         "--request",
         "--method",
         dest="method",
-        type=HTTPMethod,
+        type=_parse_http_method,
         default=None,
         choices=list(HTTPMethod),
         metavar="METHOD",
