@@ -258,6 +258,27 @@ The JSON file contains:
 - Complete redirect chain (when using `--follow`)
 - SLO evaluation (when `--slo` is supplied)
 
+#### `--prometheus PATH`
+
+Write per-phase timings in Prometheus textfile collector format. Durations are
+exported as `httptap_request_duration_seconds` gauges with `host`, `step` and
+`phase` labels, next to `httptap_request_success` and
+`httptap_last_run_timestamp_seconds`; paths and query strings are never labels.
+
+```bash
+httptap --prometheus /var/lib/node_exporter/httptap.prom https://httpbin.io/get
+```
+
+#### `--otlp ENDPOINT`
+
+Export one OpenTelemetry span per request and child spans for DNS, connection,
+TLS, server wait, and transfer phases. Install the optional dependency first:
+
+```bash
+pip install 'httptap[otel]'
+httptap --otlp http://localhost:4318/v1/traces https://httpbin.io/get
+```
+
 #### `--slo KEY=MS[,KEY=MS...]`, `--slo-file PATH`
 
 Check the final successful step against per-phase latency budgets. On
