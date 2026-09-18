@@ -118,6 +118,11 @@ class HTTPClientError(Exception):
 
     """
 
+    def __init__(self, message: str, *, network_info: NetworkInfo | None = None) -> None:
+        """Initialize an error with optional partial network metadata."""
+        super().__init__(message)
+        self.network_info = network_info
+
 
 _DEADLINE_EXCEEDED = "Request timeout: total deadline exceeded"
 
@@ -709,17 +714,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         # reach a different backend, so it must never run while a proxy is used.
         if is_https and network_info.tls_version is None and effective_proxy_url is None:
             try:
-                tls_info = tls_inspector.inspect(host, port, remaining_timeout(request_deadline))
-                # Merge TLS metadata (preserve IP/family already set from DNS).
-                network_info.tls_version = tls_info.tls_version
-                network_info.tls_cipher = tls_info.tls_cipher
-                network_info.cert_cn = tls_info.cert_cn
-                network_info.cert_days_left = tls_info.cert_days_left
-                network_info.cert_sans = tls_info.cert_sans
-                network_info.cert_issuer = tls_info.cert_issuer
-                network_info.cert_serial = tls_info.cert_serial
-                network_info.cert_not_before = tls_info.cert_not_before
-                network_info.cert_not_after = tls_info.cert_not_after
+                _merge_tls_info(network_info, tls_inspector.inspect(host, port, remaining_timeout(request_deadline)))
             except TLSInspectionError:
                 # TLS inspection is non-fatal, but it must not hide a spent budget.
                 remaining_timeout(request_deadline)
@@ -731,11 +726,58 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         raise HTTPClientError(msg) from exc
     except httpx.RequestError as exc:
         msg = f"Request failed: {exc}"
+        if (
+            is_https
+            and host is not None
+            and verify_ssl
+            and effective_proxy_url is None
+            and _is_certificate_verification_error(exc)
+        ):
+            # The diagnostic probe only uses what is left of the total budget;
+            # the verification failure stays the reported error either way.
+            probe_timeout = request_deadline - time.monotonic()
+            if probe_timeout > 0:
+                with suppress(TLSInspectionError):
+                    diagnostic_inspector = SocketTLSInspector(verify=False)
+                    _merge_tls_info(
+                        network_info,
+                        diagnostic_inspector.inspect(host, port, probe_timeout, connect_host=network_info.ip),
+                    )
+            raise HTTPClientError(msg, network_info=network_info) from exc
         raise HTTPClientError(msg) from exc
     except HTTPClientError:
         raise
 
     return timing, network_info, response_info
+
+
+def _merge_tls_info(network_info: NetworkInfo, tls_info: NetworkInfo) -> None:
+    """Merge TLS and certificate metadata without replacing DNS metadata."""
+    network_info.tls_version = tls_info.tls_version
+    network_info.tls_cipher = tls_info.tls_cipher
+    network_info.cert_cn = tls_info.cert_cn
+    network_info.cert_days_left = tls_info.cert_days_left
+    network_info.cert_sans = tls_info.cert_sans
+    network_info.cert_issuer = tls_info.cert_issuer
+    network_info.cert_serial = tls_info.cert_serial
+    network_info.cert_not_before = tls_info.cert_not_before
+    network_info.cert_not_after = tls_info.cert_not_after
+
+
+def _is_certificate_verification_error(exc: BaseException) -> bool:
+    """Return whether an HTTPX error was caused by certificate verification."""
+    pending = [exc]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, ssl.SSLCertVerificationError) or "CERTIFICATE_VERIFY_FAILED" in str(current).upper():
+            return True
+        pending.extend(error for error in (current.__cause__, current.__context__) if error is not None)
+        pending.extend(error for error in current.args if isinstance(error, BaseException))
+    return False
 
 
 def _populate_tls_from_stream(
