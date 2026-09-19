@@ -140,6 +140,51 @@ def test_make_request_uses_custom_headers(
     assert timing.is_estimated is True  # connect/TLS derived from heuristics
 
 
+def test_make_request_preserves_user_host_header(
+    httpx_mock: pytest_httpx.HTTPXMock,
+) -> None:
+    """A user-provided Host header is sent unchanged."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["Host"] == "vhost.test"
+        return httpx.Response(200, request=request)
+
+    httpx_mock.add_callback(handler, method="GET", url="http://203.0.113.10:8000/")
+
+    _timing, _network, response = make_request(
+        "http://127.0.0.1:8000/",
+        dns_resolver=FakeDNSResolver(),
+        tls_inspector=FakeTLSInspector(),
+        timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+        force_new_connection=False,
+        headers={"host": "vhost.test"},
+    )
+
+    assert response.status == 200
+
+
+def test_make_request_includes_non_default_port_in_host_header(
+    httpx_mock: pytest_httpx.HTTPXMock,
+) -> None:
+    """The default Host header includes a non-default IPv4 port."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["Host"] == "127.0.0.1:8000"
+        return httpx.Response(200, request=request)
+
+    httpx_mock.add_callback(handler, method="GET", url="http://203.0.113.10:8000/")
+
+    _timing, _network, response = make_request(
+        "http://127.0.0.1:8000/",
+        dns_resolver=FakeDNSResolver(),
+        tls_inspector=FakeTLSInspector(),
+        timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+        force_new_connection=False,
+    )
+
+    assert response.status == 200
+
+
 class TestBuildUserAgent:
     """Test suite for _build_user_agent function."""
 
@@ -833,7 +878,7 @@ class TestMakeRequest:
         mocker: pytest_mock.MockerFixture,
     ) -> None:
         """IPv6 targets are wrapped in brackets when dialing by IP."""
-        url = "https://ipv6.test/"
+        url = "https://[2001:db8::1]:8443/"
         captured: dict[str, object] = {}
 
         class IPv6Resolver:
@@ -897,13 +942,13 @@ class TestMakeRequest:
         )
 
         assert response.status == 200
-        assert captured["request_url"] == "https://[2001:db8::1]:443/"
+        assert captured["request_url"] == "https://[2001:db8::1]:8443/"
         extensions = captured["extensions"]
         headers = captured["headers"]
         assert isinstance(extensions, dict)
         assert isinstance(headers, dict)
-        assert extensions.get("sni_hostname") == "ipv6.test"
-        assert headers.get("Host") == "ipv6.test"
+        assert extensions.get("sni_hostname") == "2001:db8::1"
+        assert headers.get("Host") == "[2001:db8::1]:8443"
 
     def test_make_request_handles_missing_hostname(self) -> None:
         """Test error handling for URL without hostname."""
