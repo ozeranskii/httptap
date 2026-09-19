@@ -248,6 +248,56 @@ def test_make_request_includes_non_default_port_in_host_header(
     assert response.status == 200
 
 
+def test_make_request_preserves_path_params_and_url_userinfo(
+    httpx_mock: pytest_httpx.HTTPXMock,
+) -> None:
+    """URL userinfo becomes Basic auth without changing the request path."""
+    url = "http://user:pw@example.test/a;jsessionid=1?q=1"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.raw_path == b"/a;jsessionid=1?q=1"
+        assert request.headers["Authorization"] == "Basic dXNlcjpwdw=="
+        return httpx.Response(200, request=request)
+
+    dns_resolver = FakeDNSResolver()
+    ip, _family, _dns_ms = dns_resolver.resolve("example.test", 80, 5.0)
+    httpx_mock.add_callback(handler, method="GET", url=f"http://{ip}/a;jsessionid=1?q=1")
+
+    _timing, _network, response = make_request(
+        url,
+        dns_resolver=dns_resolver,
+        tls_inspector=FakeTLSInspector(),
+        timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+        force_new_connection=False,
+    )
+
+    assert response.status == 200
+
+
+def test_make_request_preserves_explicit_authorization_over_url_userinfo(
+    httpx_mock: pytest_httpx.HTTPXMock,
+) -> None:
+    """An explicit Authorization header overrides credentials from the URL."""
+    url = "http://user:pw@example.test/"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["Authorization"] == "Bearer custom-token"
+        return httpx.Response(200, request=request)
+
+    httpx_mock.add_callback(handler, method="GET", url="http://203.0.113.10/")
+
+    _timing, _network, response = make_request(
+        url,
+        dns_resolver=FakeDNSResolver(),
+        tls_inspector=FakeTLSInspector(),
+        timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+        force_new_connection=False,
+        headers={"authorization": "Bearer custom-token"},
+    )
+
+    assert response.status == 200
+
+
 class TestBuildUserAgent:
     """Test suite for _build_user_agent function."""
 
