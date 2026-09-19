@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import gzip
 import importlib
+import socket
 import ssl
 import sys
+import threading
+import time
+from contextlib import suppress
 from types import SimpleNamespace, TracebackType
 from typing import TYPE_CHECKING, Any
 
@@ -40,6 +44,7 @@ from httptap.http_client import (
 )
 from httptap.implementations.dns import SystemDNSResolver
 from httptap.models import NetworkInfo, TimingMetrics
+from httptap.tls_inspector import TLSInspectionError
 
 if TYPE_CHECKING:
     import pytest_httpx
@@ -298,6 +303,63 @@ def test_make_request_preserves_explicit_authorization_over_url_userinfo(
     assert response.status == 200
 
 
+def test_make_request_rejects_expired_deadline_before_dns() -> None:
+    """An expired chain deadline does not start another network operation."""
+    calls: list[tuple[str, int, float]] = []
+
+    class TrackingResolver:
+        def resolve(self, host: str, port: int, timeout: float) -> tuple[str, str, float]:
+            calls.append((host, port, timeout))
+            return "203.0.113.10", "IPv4", 1.0
+
+    with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
+        make_request(
+            "http://example.test",
+            deadline=0.0,
+            dns_resolver=TrackingResolver(),
+        )
+
+    assert calls == []
+
+
+def test_make_request_total_deadline_stops_slow_stream() -> None:
+    """The total deadline interrupts a body that keeps producing chunks."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    port = listener.getsockname()[1]
+
+    def serve() -> None:
+        try:
+            connection, _address = listener.accept()
+            with connection:
+                connection.recv(4096)
+                connection.sendall(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n1\r\na\r\n"
+                )
+                for _ in range(10):
+                    time.sleep(0.1)
+                    try:
+                        connection.sendall(b"1\r\nb\r\n")
+                    except OSError:
+                        break
+                with suppress(OSError):
+                    connection.sendall(b"0\r\n\r\n")
+        finally:
+            listener.close()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    started = time.monotonic()
+
+    with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
+        make_request(f"http://127.0.0.1:{port}/", timeout=0.4, http2=False)
+
+    assert time.monotonic() - started < 0.75
+    thread.join(timeout=2)
+    assert not thread.is_alive()
+
+
 class TestBuildUserAgent:
     """Test suite for _build_user_agent function."""
 
@@ -497,6 +559,17 @@ class TestConsumeResponseBody:
         )
 
         assert _consume_response_body(response) == len(encoded_body)
+
+    def test_consume_response_body_rejects_expired_deadline(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A body chunk received after the deadline fails the request."""
+        response = httpx.Response(200, stream=httpx.ByteStream(b"body"))
+        monkeypatch.setattr("httptap.http_client.time.monotonic", lambda: 2.0)
+
+        with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
+            _consume_response_body(response, deadline=1.0)
 
 
 CERT_DICT: dict[str, Any] = {
@@ -1227,6 +1300,32 @@ class TestMakeRequest:
                 timing_collector=FakeTimingCollector(TimingMetrics()),
             )
 
+    def test_make_request_rejects_deadline_expired_during_tls_probe(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A non-fatal TLS probe error cannot hide an expired deadline."""
+        clock = [0.0]
+
+        class ExpiringTLSInspector:
+            def inspect(self, _h: str, _p: int, _t: float) -> NetworkInfo:
+                clock[0] = 2.0
+                message = "TLS probe timed out"
+                raise TLSInspectionError(message)
+
+        monkeypatch.setattr("httptap.http_client.time.monotonic", lambda: clock[0])
+        httpx_mock.add_response(method="GET", url="https://203.0.113.10", status_code=200)
+
+        with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
+            make_request(
+                "https://example.test",
+                timeout=1.0,
+                dns_resolver=FakeDNSResolver(),
+                tls_inspector=ExpiringTLSInspector(),
+                timing_collector=FakeTimingCollector(TimingMetrics()),
+            )
+
     def test_make_request_stops_falling_back_when_deadline_is_spent(
         self,
         httpx_mock: pytest_httpx.HTTPXMock,
@@ -1238,12 +1337,12 @@ class TestMakeRequest:
             "resolve_all",
             return_value=([("::1", "IPv6"), ("127.0.0.1", "IPv4")], 1.0),
         )
-        # deadline = 0 + 5; the first attempt starts at 0, the second would start at 10.
-        readings = iter([0.0, 0.0])
-        mocker.patch("httptap.http_client.time.perf_counter", side_effect=lambda: next(readings, 10.0))
+        # deadline = 0 + 5; DNS and the first attempt run at 0, the second attempt would start at 10.
+        readings = iter([0.0, 0.0, 0.0, 0.0])
+        mocker.patch("httptap.http_client.time.monotonic", side_effect=lambda: next(readings, 10.0))
         httpx_mock.add_exception(httpx.ConnectTimeout("Connection timed out"), method="GET", url="http://[::1]/")
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="timeout exhausted"):
+        with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
             make_request(
                 "http://localhost/",
                 timeout=5.0,
@@ -1313,8 +1412,9 @@ class TestMakeRequest:
             "resolve_all",
             return_value=([("::1", "IPv6"), ("127.0.0.1", "IPv4")], 1.0),
         )
-        clock_values = iter([100.0, 100.0, 105.0])
-        mocker.patch("httptap.http_client.time.perf_counter", side_effect=lambda: next(clock_values, 105.0))
+        # deadline, pre-DNS check, DNS budget and the first attempt read 100; the second attempt reads 105.
+        clock_values = iter([100.0, 100.0, 100.0, 100.0, 105.0])
+        mocker.patch("httptap.http_client.time.monotonic", side_effect=lambda: next(clock_values, 105.0))
         connect_timeouts: list[float] = []
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -1344,7 +1444,6 @@ class TestMakeRequest:
         httpx_mock: pytest_httpx.HTTPXMock,
     ) -> None:
         """Test that TLS inspection errors don't fail the request."""
-        from httptap.implementations.tls import TLSInspectionError
 
         class FailingTLSInspector:
             def inspect(self, _h: str, _p: int, _t: float) -> NetworkInfo:
