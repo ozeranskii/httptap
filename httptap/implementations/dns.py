@@ -90,6 +90,12 @@ class SystemDNSResolver:
             DNSResolutionError: If resolution times out, the lookup fails, or no
                 usable address record is returned.
         """
+        addresses, elapsed_ms = self.resolve_all(host, port, timeout)
+        ip, ip_family = addresses[0]
+        return ip, ip_family, elapsed_ms
+
+    def resolve_all(self, host: str, port: int, timeout: float) -> tuple[list[tuple[str, str]], float]:
+        """Resolve host and return every usable address in resolver order."""
         start_time = time.perf_counter()
 
         addr_info: list[AddrInfo] | None = None
@@ -138,15 +144,17 @@ class SystemDNSResolver:
             message = f"No address records for {host}"
             raise DNSResolutionError(message)
 
-        record = records[0]
-        ip = str(record.sockaddr[0]) if record.sockaddr else None
-        if not ip:
+        addresses = [
+            (str(record.sockaddr[0]), self._family_to_label(record.family))
+            for record in records
+            if record.sockaddr and record.sockaddr[0]
+        ]
+        if not addresses:
             message = f"Failed to extract IP address for {host}"
             raise DNSResolutionError(message)
 
         elapsed_ms = (time.perf_counter() - start_time) * MS_IN_SECOND
-        ip_family = self._family_to_label(record.family)
-        return ip, ip_family, elapsed_ms
+        return addresses, elapsed_ms
 
     @staticmethod
     def _family_to_label(family: int) -> str:

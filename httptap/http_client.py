@@ -46,6 +46,7 @@ Examples:
 from __future__ import annotations
 
 import os
+import ssl
 import time
 from contextlib import suppress
 from typing import TYPE_CHECKING
@@ -235,6 +236,16 @@ class TraceCollector:
     def tls_ms(self) -> float | None:
         """Return measured TLS handshake duration in milliseconds."""
         return self._duration_ms(self.TLS_EVENT)
+
+
+def _has_tls_error(error: BaseException) -> bool:
+    """Return whether an HTTP client error was caused by TLS negotiation."""
+    cause: BaseException | None = error
+    while cause is not None:
+        if isinstance(cause, ssl.SSLError):
+            return True
+        cause = cause.__cause__
+    return False
 
 
 # Proxy schemes where DNS resolution happens on the proxy side.
@@ -493,6 +504,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     network_info.tls_verified = verify_ssl
     network_info.tls_custom_ca = bool(ca_bundle_path) if verify_ssl else False
     response_info = ResponseInfo()
+    request_deadline = time.perf_counter() + timeout
 
     try:
         parsed_url = urlparse(url)
@@ -530,20 +542,20 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             timing_collector.mark_dns_end()
             network_info.ip = None
             network_info.ip_family = None
-            request_target = host
+            addresses = [(host, "")]
         else:
             # Local DNS: resolve hostname before connecting
             timing_collector.mark_dns_start()
             try:
-                ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, timeout)
-                network_info.ip = ip
-                network_info.ip_family = ip_family
+                if isinstance(dns_resolver, SystemDNSResolver):
+                    addresses, _dns_ms = dns_resolver.resolve_all(host, port, timeout)
+                else:
+                    ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, timeout)
+                    addresses = [(ip, ip_family)]
             except DNSResolutionError as e:
                 raise HTTPClientError(str(e)) from e
             finally:
                 timing_collector.mark_dns_end()
-
-            request_target = f"[{ip}]" if ip_family == "IPv6" else ip
 
         timing_collector.mark_request_start()
 
@@ -571,21 +583,37 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             # Ensure the Host header is set to the original domain name
             client.headers["Host"] = host
 
-            request_url = f"{parsed_url.scheme}://{request_target}:{port}{parsed_url.path}"
-            if parsed_url.query:
-                request_url += f"?{parsed_url.query}"
-
-            with client.stream(
-                method.value, request_url, content=content, extensions={"trace": trace, "sni_hostname": host}
-            ) as response:
-                timing_collector.mark_ttfb()
-                _populate_response_metadata(response, response_info)
-                # Capture TLS metadata from the live connection *before* draining
-                # the body: once the response is consumed the SSL object is
-                # released and can no longer be inspected.
-                _populate_tls_from_stream(response, network_info)
-                network_info.http_version = network_info.http_version or _normalize_http_version(response.http_version)
-                response_info.bytes = _consume_response_body(response)
+            for index, (ip, ip_family) in enumerate(addresses):
+                remaining_timeout = request_deadline - time.perf_counter()
+                if remaining_timeout <= 0:
+                    msg = "Request timeout exhausted before connection could be established"
+                    raise httpx.ConnectTimeout(msg)  # noqa: TRY301
+                addresses_left = len(addresses) - index
+                client.timeout = httpx.Timeout(remaining_timeout, connect=remaining_timeout / addresses_left)
+                request_target = f"[{ip}]" if ip_family == "IPv6" else ip
+                request_url = f"{parsed_url.scheme}://{request_target}:{port}{parsed_url.path}"
+                if parsed_url.query:
+                    request_url += f"?{parsed_url.query}"
+                try:
+                    with client.stream(
+                        method.value, request_url, content=content, extensions={"trace": trace, "sni_hostname": host}
+                    ) as response:
+                        network_info.ip = None if skip_local_dns else ip
+                        network_info.ip_family = None if skip_local_dns else ip_family
+                        timing_collector.mark_ttfb()
+                        _populate_response_metadata(response, response_info)
+                        _populate_tls_from_stream(response, network_info)
+                        network_info.http_version = network_info.http_version or _normalize_http_version(
+                            response.http_version
+                        )
+                        response_info.bytes = _consume_response_body(response)
+                        break
+                except httpx.ConnectError as exc:
+                    if _has_tls_error(exc) or index == len(addresses) - 1:
+                        raise
+                except httpx.ConnectTimeout:
+                    if index == len(addresses) - 1:
+                        raise
 
         timing_collector.mark_request_end()
 
