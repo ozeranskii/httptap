@@ -69,6 +69,29 @@ class TestSocketTLSInspector:
         assert network_info.cert_issuer == "Example Root CA"
         assert network_info.cert_serial == "0ABCDEF0"
 
+    def test_inspect_uses_remaining_timeout_for_tls_handshake(
+        self,
+        mocker: MockerFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The TLS handshake shares the TCP connection timeout budget."""
+        inspector = SocketTLSInspector()
+        raw_sock = mocker.MagicMock(spec=socket.socket)
+        raw_sock.getpeername.return_value = ("93.184.216.34", 443)
+        raw_sock.family = socket.AF_INET
+        context = mocker.MagicMock()
+        context.wrap_socket.return_value.__enter__.return_value = mocker.MagicMock()
+
+        mocker.patch("socket.create_connection", return_value=raw_sock)
+        mocker.patch("httptap.implementations.tls.create_ssl_context", return_value=context)
+        mocker.patch("httptap.implementations.tls.extract_tls_info", return_value=("TLSv1.3", "cipher", None))
+        clock = iter((10.0, 11.5))
+        monkeypatch.setattr("httptap.implementations.tls.time.monotonic", lambda: next(clock))
+
+        inspector.inspect("example.com", 443, 5.0)
+
+        raw_sock.settimeout.assert_called_once_with(3.5)
+
     def test_inspect_ipv6_address(self, mocker: MockerFixture) -> None:
         """Test TLS inspection with IPv6 address."""
         inspector = SocketTLSInspector()

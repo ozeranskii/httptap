@@ -27,6 +27,7 @@ def test_http_client_executor_delegates_to_make_request(monkeypatch: pytest.Monk
     options = RequestOptions(
         url="https://example.test",
         timeout=2.5,
+        deadline=123.0,
         method=HTTPMethod.POST,
         content=b"data",
         http2=False,
@@ -46,6 +47,7 @@ def test_http_client_executor_delegates_to_make_request(monkeypatch: pytest.Monk
     assert outcome.response.status == 204
     assert captured["url"] == "https://example.test"
     assert captured["timeout"] == 2.5
+    assert captured["deadline"] == 123.0
     assert captured["method"] == "POST"
     assert captured["content"] == b"data"
     assert captured["http2"] is False
