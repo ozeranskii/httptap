@@ -14,16 +14,12 @@ WORKDIR /app
 # source-only changes.
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project \
-        --no-group docs --no-group lint --no-group test \
-        --no-group typing --no-group precommit
+    uv sync --frozen --no-dev --no-install-project
 
 COPY README.md LICENSE ./
 COPY httptap/ ./httptap/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable \
-        --no-group docs --no-group lint --no-group test \
-        --no-group typing --no-group precommit
+    uv sync --frozen --no-dev --no-editable
 
 
 FROM python:3.14-slim-trixie@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6 AS runtime

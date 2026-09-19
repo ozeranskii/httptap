@@ -1,6 +1,6 @@
 """Data models for HTTP request analysis.
 
-This module contains immutable data structures used throughout the httptap
+This module contains data structures used throughout the httptap
 application to store and transfer metrics, timing information, and request/
 response data.
 
@@ -14,8 +14,9 @@ Key Models:
     - ResponseInfo: HTTP status, headers, body size.
     - StepMetrics: Complete metrics for one request in a redirect chain.
 
-The models follow immutability principles where possible, with explicit
-mutation methods (like calculate_derived) clearly documented.
+The models are mutable dataclasses with slots, updated in place through
+explicit methods (such as ``calculate_derived``) or direct attribute
+assignment.
 
 Examples:
     Creating and using metrics:
