@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+import time
 from contextlib import closing
 
 from httptap.constants import TLS_PROBE_MAX_TIMEOUT_SECONDS
@@ -63,6 +64,7 @@ class SocketTLSInspector:
         network_info = NetworkInfo()
         network_info.tls_verified = self._verify
         probe_timeout = min(timeout, TLS_PROBE_MAX_TIMEOUT_SECONDS)
+        deadline = time.monotonic() + probe_timeout
 
         try:
             connection = socket.create_connection((host, port), timeout=probe_timeout)
@@ -73,6 +75,8 @@ class SocketTLSInspector:
                 # This is NOT a security issue because httptap is used for troubleshooting,
                 # not for transmitting sensitive data in production.
                 context = create_ssl_context(verify_ssl=self._verify, ca_bundle_path=self._ca_bundle_path)
+                remaining_timeout = max(deadline - time.monotonic(), 0.0)
+                raw_sock.settimeout(remaining_timeout)
                 with context.wrap_socket(raw_sock, server_hostname=host) as tls_sock:
                     tls_version, cipher_suite, cert_info = extract_tls_info(tls_sock)
                     network_info.tls_version = tls_version

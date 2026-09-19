@@ -510,6 +510,8 @@ def determine_exit_code(
 
     has_errors = any(step.has_error for step in steps)
     if has_errors:
+        if any((step.error or "").startswith(("Request timeout:", "DNS resolution timed out")) for step in steps):
+            return EXIT_NETWORK_ERROR
         # Check if we have any partial data (network or response info)
         has_partial_data = any(step.network.ip or step.response.status for step in steps)
         return EXIT_NETWORK_ERROR if has_partial_data else EXIT_FATAL_ERROR

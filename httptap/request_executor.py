@@ -34,6 +34,7 @@ class RequestOptions:
     Attributes:
         url: Target URL to request. Must be a valid HTTP/HTTPS URL.
         timeout: Request timeout in seconds.
+        deadline: Optional monotonic deadline shared by a request chain.
         method: HTTP method to use for the request.
         content: Optional request body as bytes.
         http2: Whether to enable HTTP/2 support.
@@ -70,6 +71,7 @@ class RequestOptions:
     headers: Mapping[str, str] | None = None
     proxy: ProxyTypes | None = None
     noproxy: bool = False
+    deadline: float | None = None
 
 
 @dataclass(slots=True)
@@ -145,6 +147,7 @@ class HTTPClientRequestExecutor:
         timing, network, response = make_request(
             options.url,
             options.timeout,
+            deadline=options.deadline,
             method=options.method,
             content=options.content,
             http2=options.http2,

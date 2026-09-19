@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import importlib
+import socket
 import ssl
 import sys
+import threading
+import time
+from contextlib import suppress
 from types import SimpleNamespace, TracebackType
 from typing import TYPE_CHECKING, Any
 
@@ -317,6 +321,74 @@ class TestConsumeResponseBody:
         total_bytes = _consume_response_body(response)
 
         assert total_bytes == len(body)
+
+    def test_consume_response_body_rejects_expired_deadline(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A body chunk received after the deadline fails the request."""
+        response = httpx.Response(200, content=b"body")
+        monkeypatch.setattr("httptap.http_client.time.monotonic", lambda: 2.0)
+
+        with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
+            _consume_response_body(response, deadline=1.0)
+
+
+def test_make_request_rejects_expired_deadline_before_dns() -> None:
+    """An expired chain deadline does not start another network operation."""
+    calls: list[tuple[str, int, float]] = []
+
+    class TrackingResolver:
+        def resolve(self, host: str, port: int, timeout: float) -> tuple[str, str, float]:
+            calls.append((host, port, timeout))
+            return "203.0.113.10", "IPv4", 1.0
+
+    with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
+        make_request(
+            "http://example.test",
+            deadline=0.0,
+            dns_resolver=TrackingResolver(),
+        )
+
+    assert calls == []
+
+
+def test_make_request_total_deadline_stops_slow_stream() -> None:
+    """The total deadline interrupts a body that keeps producing chunks."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    port = listener.getsockname()[1]
+
+    def serve() -> None:
+        try:
+            connection, _address = listener.accept()
+            with connection:
+                connection.recv(4096)
+                connection.sendall(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n1\r\na\r\n"
+                )
+                for _ in range(10):
+                    time.sleep(0.1)
+                    try:
+                        connection.sendall(b"1\r\nb\r\n")
+                    except OSError:
+                        break
+                with suppress(OSError):
+                    connection.sendall(b"0\r\n\r\n")
+        finally:
+            listener.close()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    started = time.monotonic()
+
+    with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
+        make_request(f"http://127.0.0.1:{port}/", timeout=0.4, http2=False)
+
+    assert time.monotonic() - started < 0.75
+    thread.join(timeout=2)
+    assert not thread.is_alive()
 
 
 CERT_DICT: dict[str, Any] = {
@@ -1007,6 +1079,35 @@ class TestMakeRequest:
         assert response.status == 200
         # TLS info should be missing
         assert network.tls_version is None
+
+    def test_make_request_rejects_deadline_expired_during_tls_probe(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A non-fatal TLS probe error cannot hide an expired deadline."""
+        from httptap.implementations.tls import TLSInspectionError
+
+        clock = [0.0]
+
+        class ExpiringTLSInspector:
+            def inspect(self, _h: str, _p: int, _t: float) -> NetworkInfo:
+                clock[0] = 2.0
+                message = "TLS probe timed out"
+                raise TLSInspectionError(message)
+
+        monkeypatch.setattr("httptap.http_client.time.monotonic", lambda: clock[0])
+        httpx_mock.add_response(method="GET", url="https://203.0.113.10", status_code=200)
+
+        with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
+            make_request(
+                "https://example.test",
+                timeout=1.0,
+                dns_resolver=FakeDNSResolver(),
+                tls_inspector=ExpiringTLSInspector(),
+                timing_collector=FakeTimingCollector(TimingMetrics()),
+                force_new_connection=False,
+            )
 
     def test_make_request_uses_default_implementations(
         self,
