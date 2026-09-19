@@ -55,6 +55,9 @@ EXIT_CODE_SOFTWARE = getattr(os, "EX_SOFTWARE", _EX_SOFTWARE_FALLBACK)
 EXIT_CODE_SLO_VIOLATION = 4
 # HTTP response failure — matches curl's ``--fail`` exit code.
 EXIT_CODE_HTTP_FAILURE = 22
+EXIT_CODE_TOO_MANY_REDIRECTS = 47
+
+REDIRECT_LIMIT_NOTE = "Maximum redirects followed"
 
 HTTP_SUCCESS_MIN = HTTPStatus.OK.value
 HTTP_SUCCESS_MAX = HTTPStatus.MULTIPLE_CHOICES.value - 1
