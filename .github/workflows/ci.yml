@@ -72,27 +72,79 @@ jobs:
       - name: Run mypy
         run: uv run --no-dev --group typing mypy httptap
 
+  # Docs-only changes skip the heavy jobs. The workflow itself must still run so
+  # the required "All Checks Passed" status is reported, and lint always runs
+  # because ruff also formats code blocks in Markdown.
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: filter
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          echo "$changed"
+          if echo "$changed" | grep -qvE '^(docs/|mkdocs\.yml$)|\.md$'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  test-matrix:
+    name: Test Matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+
+    steps:
+      - id: matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          versions=(3.10 3.11 3.12 3.13 3.14 3.14t 3.15 3.15t)
+          oses=(ubuntu-latest macos-latest windows-latest)
+          entries=()
+
+          for os in "${oses[@]}"; do
+            selected_versions=("${versions[@]}")
+            if [[ "$EVENT_NAME" == "pull_request" && "$os" != "ubuntu-latest" ]]; then
+              selected_versions=(3.10 3.15t)
+            fi
+            for version in "${selected_versions[@]}"; do
+              entries+=("{\"os\":\"$os\",\"python-version\":\"$version\"}")
+            done
+          done
+
+          printf 'matrix={"include":[%s]}\n' "$(IFS=,; echo "${entries[*]}")" >> "$GITHUB_OUTPUT"
+
   test:
     name: Test / Python ${{ matrix.python-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     environment: ci
+    needs: test-matrix
     strategy:
       fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-        python-version:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-          - "3.14t"
-          - "3.15"
-          - "3.15t"
+      matrix: ${{ fromJSON(needs.test-matrix.outputs.matrix) }}
 
     steps:
       - name: Checkout code
@@ -168,26 +220,26 @@ jobs:
 
   container-build:
     name: Container Build (${{ matrix.platform }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     needs:
       - lint
+      - changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
 
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - name: Set up QEMU
-        if: matrix.platform != 'linux/amd64'
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -215,6 +267,8 @@ jobs:
     name: Test / lowest direct dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
 
     steps:
       - name: Checkout code
@@ -237,6 +291,7 @@ jobs:
     name: All Checks Passed
     if: ${{ !cancelled() }}
     needs:
+      - changes
       - lint
       - type-check
       - test
@@ -255,17 +310,27 @@ jobs:
           echo "build: $BUILD_RESULT"
           echo "container-build: $CONTAINER_BUILD_RESULT"
 
-          if [[ "$LINT_RESULT" != "success" ]] || \
+          echo "code changed: $CODE_CHANGED"
+
+          # Jobs gated on code changes may be skipped for docs-only changes.
+          gated_ok() {
+            [[ "$1" == "success" ]] || [[ "$1" == "skipped" && "$CODE_CHANGED" == "false" ]]
+          }
+
+          if [[ "$CHANGES_RESULT" != "success" ]] || \
+             [[ "$LINT_RESULT" != "success" ]] || \
              [[ "$TYPE_CHECK_RESULT" != "success" ]] || \
-             [[ "$TEST_RESULT" != "success" ]] || \
-             [[ "$TEST_LOWEST_RESULT" != "success" ]] || \
-             [[ "$BUILD_RESULT" != "success" ]] || \
-             [[ "$CONTAINER_BUILD_RESULT" != "success" ]]; then
+             ! gated_ok "$TEST_RESULT" || \
+             ! gated_ok "$TEST_LOWEST_RESULT" || \
+             ! gated_ok "$BUILD_RESULT" || \
+             ! gated_ok "$CONTAINER_BUILD_RESULT"; then
             echo "One or more checks failed"
             exit 1
           fi
           echo "All checks passed successfully!"
         env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          CODE_CHANGED: ${{ needs.changes.outputs.code }}
           LINT_RESULT: ${{ needs.lint.result }}
           TYPE_CHECK_RESULT: ${{ needs.type-check.result }}
           TEST_RESULT: ${{ needs.test.result }}
