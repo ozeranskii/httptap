@@ -140,6 +140,56 @@ def test_make_request_uses_custom_headers(
     assert timing.is_estimated is True  # connect/TLS derived from heuristics
 
 
+def test_make_request_preserves_path_params_and_url_userinfo(
+    httpx_mock: pytest_httpx.HTTPXMock,
+) -> None:
+    """URL userinfo becomes Basic auth without changing the request path."""
+    url = "http://user:pw@example.test/a;jsessionid=1?q=1"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.raw_path == b"/a;jsessionid=1?q=1"
+        assert request.headers["Authorization"] == "Basic dXNlcjpwdw=="
+        return httpx.Response(200, request=request)
+
+    dns_resolver = FakeDNSResolver()
+    ip, _family, _dns_ms = dns_resolver.resolve("example.test", 80, 5.0)
+    httpx_mock.add_callback(handler, method="GET", url=f"http://{ip}/a;jsessionid=1?q=1")
+
+    _timing, _network, response = make_request(
+        url,
+        dns_resolver=dns_resolver,
+        tls_inspector=FakeTLSInspector(),
+        timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+        force_new_connection=False,
+    )
+
+    assert response.status == 200
+
+
+def test_make_request_preserves_explicit_authorization_over_url_userinfo(
+    httpx_mock: pytest_httpx.HTTPXMock,
+) -> None:
+    """An explicit Authorization header overrides credentials from the URL."""
+    url = "http://user:pw@example.test/"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["Authorization"] == "Bearer custom-token"
+        return httpx.Response(200, request=request)
+
+    httpx_mock.add_callback(handler, method="GET", url="http://203.0.113.10/")
+
+    _timing, _network, response = make_request(
+        url,
+        dns_resolver=FakeDNSResolver(),
+        tls_inspector=FakeTLSInspector(),
+        timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+        force_new_connection=False,
+        headers={"authorization": "Bearer custom-token"},
+    )
+
+    assert response.status == 200
+
+
 class TestBuildUserAgent:
     """Test suite for _build_user_agent function."""
 
@@ -751,7 +801,7 @@ class TestMakeRequest:
         mocker: pytest_mock.MockerFixture,
     ) -> None:
         """Dial IP but preserve original host for headers and SNI."""
-        url = "https://example.test/api?q=ok"
+        url = "https://user:pw@example.test/api;jsessionid=1?q=ok"
         captured: dict[str, object] = {}
 
         class DummyStream:
@@ -787,12 +837,14 @@ class TestMakeRequest:
                 request_url: str,
                 content: bytes | None = None,
                 *,
+                auth: tuple[str, str] | None = None,
                 extensions: dict[str, object] | None = None,
             ) -> DummyStream:
                 assert content is None
                 assert method == "GET"
                 assert extensions is not None
                 captured["request_url"] = request_url
+                captured["auth"] = auth
                 captured["extensions"] = dict(extensions)
                 captured["headers"] = dict(self.headers)
                 return DummyStream(request_url)
@@ -817,7 +869,8 @@ class TestMakeRequest:
         )
 
         assert response.status == 200
-        assert captured["request_url"] == "https://203.0.113.10:443/api?q=ok"
+        assert captured["request_url"] == "https://203.0.113.10:443/api;jsessionid=1?q=ok"
+        assert captured["auth"] == ("user", "pw")
         assert captured["extensions"] is not None
         assert captured["headers"] is not None
         extensions = captured["extensions"]
