@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from httptap.constants import MS_IN_SECOND
+from httptap.utils import format_address_family
 
 AddrInfo = tuple[Any, ...]
 
@@ -145,13 +146,5 @@ class SystemDNSResolver:
             raise DNSResolutionError(message)
 
         elapsed_ms = (time.perf_counter() - start_time) * MS_IN_SECOND
-        ip_family = self._family_to_label(record.family)
+        ip_family = format_address_family(record.family)
         return ip, ip_family, elapsed_ms
-
-    @staticmethod
-    def _family_to_label(family: int) -> str:
-        if family == socket.AF_INET6:
-            return "IPv6"
-        if family == socket.AF_INET:
-            return "IPv4"
-        return f"AF_{family}"

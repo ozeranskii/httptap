@@ -47,8 +47,10 @@ class RequestOptions:
             uses its default inspector.
         timing_collector: Timing collector instance used to measure request
             phases. If None, no phase timing is collected for this request.
-        force_new_connection: Whether to force a fresh connection instead of
-            reusing a pooled one, ensuring per-request timing is accurate.
+        force_new_connection: Deprecated and ignored. A new connection is
+            always used because each request gets a fresh client. Accepted only
+            for backward compatibility; passing a value emits a
+            ``DeprecationWarning``.
         headers: Optional mapping of request headers to send.
         proxy: Optional proxy URL (http/https/socks5/socks5h) applied to the
             request.
@@ -66,7 +68,7 @@ class RequestOptions:
     dns_resolver: DNSResolver | None = None
     tls_inspector: TLSInspector | None = None
     timing_collector: TimingCollector | None = None
-    force_new_connection: bool = True
+    force_new_connection: bool | None = None
     headers: Mapping[str, str] | None = None
     proxy: ProxyTypes | None = None
     noproxy: bool = False

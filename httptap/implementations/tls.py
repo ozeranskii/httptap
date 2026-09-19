@@ -7,17 +7,10 @@ from contextlib import closing
 
 from httptap.constants import TLS_PROBE_MAX_TIMEOUT_SECONDS
 from httptap.models import NetworkInfo
-from httptap.tls_inspector import apply_certificate_info, extract_tls_info
-from httptap.utils import create_ssl_context
+from httptap.tls_inspector import TLSInspectionError, apply_certificate_info, extract_tls_info
+from httptap.utils import create_ssl_context, format_address_family
 
-
-class TLSInspectionError(Exception):
-    """Raised when TLS inspection fails.
-
-    Signals that a dedicated TLS probe could not complete, for example because
-    the TCP connection failed or the TLS handshake could not be established.
-    Wraps the originating exception as its cause.
-    """
+__all__ = ["SocketTLSInspector", "TLSInspectionError"]
 
 
 class SocketTLSInspector:
@@ -100,14 +93,6 @@ class SocketTLSInspector:
                 ip = str(peer[0]) if isinstance(peer, tuple) else str(peer)
                 if ip:
                     network_info.ip = ip
-                    network_info.ip_family = self._family_to_label(raw_sock.family)
+                    network_info.ip_family = format_address_family(raw_sock.family)
         except OSError:  # pragma: no cover - best effort
             pass
-
-    @staticmethod
-    def _family_to_label(family: int) -> str:
-        if family == socket.AF_INET6:
-            return "IPv6"
-        if family == socket.AF_INET:
-            return "IPv4"
-        return f"AF_{family}"
