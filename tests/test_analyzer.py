@@ -123,6 +123,27 @@ def test_analyze_url_respects_max_redirects() -> None:
     # Should stop at max_redirects + 1 (initial request + max redirects)
     assert len(steps) == 6  # Initial + 5 redirects
     assert all(step.response.status == 301 for step in steps)
+    assert not steps[-1].has_error
+    assert steps[-1].note == "Maximum redirects followed (5)"
+    assert steps[-1].redirect_limit_reached
+
+
+def test_analyze_url_allows_final_response_at_redirect_limit() -> None:
+    """A non-redirect response after the allowed redirects succeeds."""
+    executor = StubExecutor(
+        [(301, f"https://example.test/{index}") for index in range(5)] + [(200, None)],
+    )
+    analyzer = HTTPTapAnalyzer(
+        follow_redirects=True,
+        max_redirects=5,
+        request_executor=executor,
+    )
+
+    steps = analyzer.analyze_url("https://example.test")
+
+    assert len(steps) == 6
+    assert steps[-1].response.status == 200
+    assert not steps[-1].has_error
 
 
 def test_analyze_url_passes_verify_flag_when_supported() -> None:
