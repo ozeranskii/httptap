@@ -11,6 +11,7 @@ import pytest
 
 from httptap.implementations import dns
 from httptap.implementations.dns import DNSResolutionError, SystemDNSResolver
+from httptap.utils import format_address_family
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -193,9 +194,8 @@ class TestSystemDNSResolver:
         ],
     )
     def test_family_to_label(self, family: int, expected: str) -> None:
-        """Test _family_to_label correctly identifies address families."""
-        resolver = SystemDNSResolver()
-        assert resolver._family_to_label(family) == expected
+        """Test format_address_family correctly identifies address families."""
+        assert format_address_family(family) == expected
 
     def test_resolve_measures_timing(self, mocker: MockerFixture) -> None:
         """Test that resolver measures elapsed time correctly."""

@@ -11,6 +11,7 @@ import pytest
 
 from httptap.implementations.tls import SocketTLSInspector, TLSInspectionError
 from httptap.models import NetworkInfo
+from httptap.utils import format_address_family
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -228,7 +229,7 @@ class TestSocketTLSInspector:
         assert network_info.ip_family is None
 
     def test_family_to_label_returns_fallback(self) -> None:
-        label = SocketTLSInspector._family_to_label(9999)
+        label = format_address_family(9999)
         assert label == "AF_9999"
 
     def test_inspect_respects_timeout_limit(self, mocker: MockerFixture) -> None:
@@ -321,9 +322,8 @@ class TestSocketTLSInspector:
         ],
     )
     def test_family_to_label(self, family: int, expected: str) -> None:
-        """Test _family_to_label correctly identifies address families."""
-        inspector = SocketTLSInspector()
-        assert inspector._family_to_label(family) == expected
+        """Test format_address_family correctly identifies address families."""
+        assert format_address_family(family) == expected
 
     def test_inspect_uses_server_hostname_for_sni(self, mocker: MockerFixture) -> None:
         """Test that inspector provides server_hostname for SNI."""
