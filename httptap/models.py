@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from .constants import HTTP_REDIRECT_MAX, HTTP_REDIRECT_MIN
+from .constants import HTTP_REDIRECT_MAX, HTTP_REDIRECT_MIN, REDIRECT_LIMIT_NOTE
 
 
 @dataclass(slots=True)
@@ -296,6 +296,11 @@ class StepMetrics:
 
         """
         return self.error is not None
+
+    @property
+    def redirect_limit_reached(self) -> bool:
+        """Check whether redirect following stopped at the configured limit."""
+        return (self.note or "").startswith(REDIRECT_LIMIT_NOTE)
 
     @property
     def is_redirect(self) -> bool:
