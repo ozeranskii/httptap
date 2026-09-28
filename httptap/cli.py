@@ -78,6 +78,14 @@ else:
         logger.debug("argcomplete is not installed, skipping autocomplete")
 
 
+def _configure_output_encoding() -> None:
+    """Replace characters unsupported by the active output encodings."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="replace")
+
+
 class RichArgumentParser(argparse.ArgumentParser):
     """ArgumentParser with Rich error formatting."""
 
@@ -529,6 +537,8 @@ def main() -> int:
         ``75`` on network or TLS failure.
 
     """
+    _configure_output_encoding()
+
     try:
         parser = create_parser()
         if argcomplete:  # pragma: no cover

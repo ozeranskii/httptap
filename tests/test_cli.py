@@ -4,6 +4,7 @@ import json
 import signal
 import sys
 from argparse import Namespace
+from io import BytesIO, TextIOWrapper
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pytest
@@ -19,6 +20,7 @@ from httptap.cli import (
     EXIT_SLO_VIOLATION,
     EXIT_SUCCESS,
     EXIT_USAGE_ERROR,
+    _configure_output_encoding,
     _export_results,
     _parse_headers,
     create_parser,
@@ -99,6 +101,20 @@ def test_curl_flag_aliases_are_supported() -> None:
     assert args.ignore_ssl is True
     assert args.proxy == "http://proxy.local:8080"
     assert args.no_http2 is True
+
+
+def test_configure_output_encoding_replaces_unencodable_characters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = TextIOWrapper(BytesIO(), encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", output)
+    monkeypatch.setattr(sys, "stderr", output)
+
+    _configure_output_encoding()
+    output.write("🔍")
+    output.flush()
+
+    assert output.buffer.getvalue() == b"?"
 
 
 class AnalyzerStub:
