@@ -210,7 +210,7 @@ def create_ssl_context(*, verify_ssl: bool, ca_bundle_path: str | None = None) -
         return context
 
     # For legacy mode create a mutable context allowing older protocols.
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE
@@ -221,7 +221,7 @@ def create_ssl_context(*, verify_ssl: bool, ca_bundle_path: str | None = None) -
 
     # Permit older protocol versions to assist with legacy endpoints
     if hasattr(context, "minimum_version") and hasattr(ssl, "TLSVersion"):
-        context.minimum_version = getattr(ssl.TLSVersion, "SSLv3", ssl.TLSVersion.MINIMUM_SUPPORTED)
+        context.minimum_version = ssl.TLSVersion.MINIMUM_SUPPORTED
     if hasattr(context, "maximum_version") and hasattr(ssl, "TLSVersion"):
         context.maximum_version = ssl.TLSVersion.MAXIMUM_SUPPORTED
 
