@@ -630,6 +630,26 @@ def test_determine_exit_code_empty_steps() -> None:
     assert determine_exit_code([]) == EXIT_FATAL_ERROR
 
 
+def test_determine_exit_code_error_without_partial_data_is_network_error() -> None:
+    step = StepMetrics(
+        url="https://invalid.test",
+        error="DNS resolution failed",
+        error_kind="network",
+    )
+
+    assert determine_exit_code([step]) == EXIT_NETWORK_ERROR
+
+
+def test_determine_exit_code_internal_error_is_fatal() -> None:
+    step = StepMetrics(
+        url="https://example.test",
+        error="Unexpected failure",
+        error_kind="internal",
+    )
+
+    assert determine_exit_code([step]) == EXIT_FATAL_ERROR
+
+
 def test_setup_signal_handlers_invokes_exit(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: list[str] = []
     handlers: dict[int, Callable[[int, object | None], None]] = {}

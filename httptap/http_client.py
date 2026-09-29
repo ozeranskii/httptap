@@ -624,9 +624,6 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         raise HTTPClientError(msg) from exc
     except HTTPClientError:
         raise
-    except Exception as exc:
-        msg = f"Unexpected error: {exc}"
-        raise HTTPClientError(msg) from exc
 
     return timing, network_info, response_info
 
