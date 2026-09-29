@@ -886,6 +886,72 @@ def test_main_slo_invalid_spec_returns_usage_error(
     assert "SLO Error" in stderr
 
 
+def test_main_slo_file_uses_thresholds(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    slo_file = tmp_path / "slo.txt"
+    slo_file.write_text("total=500\nttfb=200\n", encoding="utf-8")
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=900.0))
+    monkeypatch.setattr("sys.argv", ["httptap", "--slo-file", str(slo_file), "https://example.test"])
+
+    assert main() == EXIT_SLO_VIOLATION
+
+
+def test_main_slo_cli_values_override_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    slo_file = tmp_path / "slo.txt"
+    slo_file.write_text("total=500\nttfb=200\n", encoding="utf-8")
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=900.0))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["httptap", "--slo-file", str(slo_file), "--slo", "total=1000", "https://example.test"],
+    )
+
+    assert main() == EXIT_SUCCESS
+
+
+def test_main_slo_file_missing_returns_usage_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _install_slo_analyzer_stub(monkeypatch, _SLOAnalyzerStub(total_ms=100.0))
+    monkeypatch.setattr("sys.argv", ["httptap", "--slo-file", str(tmp_path / "missing.txt"), "https://example.test"])
+
+    assert main() == EXIT_USAGE_ERROR
+
+
+def test_main_slo_file_empty_path_returns_usage_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.argv", ["httptap", "--slo-file", "", "https://example.test"])
+
+    exit_code = main()
+    stderr = capsys.readouterr().err
+
+    assert exit_code == EXIT_USAGE_ERROR
+    assert "SLO file path cannot be empty." in stderr
+
+
+def test_main_slo_file_invalid_encoding_returns_usage_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    slo_file = tmp_path / "slo.txt"
+    slo_file.write_bytes(b"\xff")
+    monkeypatch.setattr("sys.argv", ["httptap", "--slo-file", str(slo_file), "https://example.test"])
+
+    exit_code = main()
+    stderr = capsys.readouterr().err
+
+    assert exit_code == EXIT_USAGE_ERROR
+    assert "Failed to read SLO file" in stderr
+
+
 def test_main_slo_network_error_beats_slo_violation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
