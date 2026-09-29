@@ -1160,7 +1160,7 @@ class TestMakeRequest:
         mocker: pytest_mock.MockerFixture,
     ) -> None:
         url = "https://proxy.test"
-        proxy_url = "socks5://gateway:1080"
+        proxy = httpx.Proxy("socks5://gateway:1080", headers={"X-Proxy-Test": "enabled"})
         created_clients: list[Any] = []
 
         class DummyClient:
@@ -1191,14 +1191,15 @@ class TestMakeRequest:
         make_request(
             url,
             timeout=5.0,
-            proxy=proxy_url,
+            proxy=proxy,
             dns_resolver=FakeDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
             force_new_connection=True,
         )
 
         assert created_clients
-        assert created_clients[0].kwargs["proxy"] == proxy_url
+        assert created_clients[0].kwargs["proxy"] is proxy
+        assert created_clients[0].kwargs["trust_env"] is False
 
     def test_make_request_redacts_proxy_credentials_in_network_info(
         self,
@@ -1333,6 +1334,7 @@ class TestMakeRequest:
         monkeypatch.setenv("HTTPS_PROXY", "http://env-proxy:3128")
 
         dns_calls: list[str] = []
+        created_clients: list[Any] = []
 
         class SpyDNSResolver:
             def resolve(self, host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
@@ -1342,8 +1344,10 @@ class TestMakeRequest:
         captured_urls: list[str] = []
 
         class DummyClient:
-            def __init__(self, *_: object, **__: object) -> None:
+            def __init__(self, *_: object, **kwargs: object) -> None:
+                self.kwargs = kwargs
                 self.headers: dict[str, str] = {}
+                created_clients.append(self)
 
             def __enter__(self) -> Self:
                 return self
@@ -1378,18 +1382,30 @@ class TestMakeRequest:
         assert len(captured_urls) == 1
         assert "example.com" in captured_urls[0]
         assert "203.0.113.99" not in captured_urls[0]
+        assert created_clients[0].kwargs["proxy"] == "http://env-proxy:3128"
+        assert created_clients[0].kwargs["trust_env"] is False
 
-    def test_make_request_no_proxy_env_preserves_local_dns(
+    @pytest.mark.parametrize(
+        ("noproxy", "no_proxy"),
+        [(False, "internal.corp,localhost"), (True, "")],
+        ids=["no-proxy-env", "explicit-noproxy"],
+    )
+    def test_make_request_disabled_proxy_preserves_local_dns(
         self,
         mocker: pytest_mock.MockerFixture,
         monkeypatch: pytest.MonkeyPatch,
+        *,
+        noproxy: bool,
+        no_proxy: str,
     ) -> None:
-        """NO_PROXY exclusion preserves local DNS even when HTTPS_PROXY is set."""
+        """NO_PROXY and --proxy "" bypass environment proxy settings."""
         url = "https://internal.corp/api"
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
-        monkeypatch.setenv("NO_PROXY", "internal.corp,localhost")
+        if no_proxy:
+            monkeypatch.setenv("NO_PROXY", no_proxy)
 
         dns_calls: list[str] = []
+        created_clients: list[Any] = []
 
         class SpyDNSResolver:
             def resolve(self, host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
@@ -1399,8 +1415,10 @@ class TestMakeRequest:
         captured_urls: list[str] = []
 
         class DummyClient:
-            def __init__(self, *_: object, **__: object) -> None:
+            def __init__(self, *_: object, **kwargs: object) -> None:
+                self.kwargs = kwargs
                 self.headers: dict[str, str] = {}
+                created_clients.append(self)
 
             def __enter__(self) -> Self:
                 return self
@@ -1426,6 +1444,7 @@ class TestMakeRequest:
             url,
             timeout=5.0,
             proxy=None,
+            noproxy=noproxy,
             dns_resolver=SpyDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
             force_new_connection=True,
@@ -1434,6 +1453,8 @@ class TestMakeRequest:
         assert len(dns_calls) == 1
         assert len(captured_urls) == 1
         assert "10.0.0.5" in captured_urls[0]
+        assert created_clients[0].kwargs["proxy"] is None
+        assert created_clients[0].kwargs["trust_env"] is False
 
     def test_make_request_handles_unexpected_exception(
         self,
