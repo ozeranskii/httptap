@@ -24,6 +24,8 @@ httptap [OPTIONS] URL
 
 Specify the HTTP method to use. Supported methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS.
 
+Method values are case-insensitive.
+
 *Curl-compatible aliases:* `-X`, `--request`.
 
 ```bash

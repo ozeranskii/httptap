@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import signal
 import sys
@@ -21,6 +22,7 @@ from httptap.cli import (
     EXIT_USAGE_ERROR,
     _export_results,
     _parse_headers,
+    _parse_http_method,
     create_parser,
     determine_exit_code,
     main,
@@ -99,6 +101,23 @@ def test_curl_flag_aliases_are_supported() -> None:
     assert args.ignore_ssl is True
     assert args.proxy == "http://proxy.local:8080"
     assert args.no_http2 is True
+
+
+def test_help_hides_none_and_false_defaults() -> None:
+    help_text = create_parser().format_help()
+
+    assert "(default: None)" not in help_text
+    assert "(default: False)" not in help_text
+    assert "(default: 20.0)" in help_text
+
+
+def test_request_method_is_case_insensitive() -> None:
+    assert _parse_http_method("post") is HTTPMethod.POST
+
+
+def test_request_method_error_lists_valid_methods() -> None:
+    with pytest.raises(argparse.ArgumentTypeError, match="GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"):
+        _parse_http_method("trace")
 
 
 class AnalyzerStub:
