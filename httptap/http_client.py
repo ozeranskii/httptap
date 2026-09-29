@@ -434,7 +434,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             connect/TLS timing by disabling connection pooling. Set to False
             for better performance when timing accuracy is not critical.
         headers: Optional HTTP headers applied to the request. User-supplied
-            values override the defaults (except the tool's User-Agent).
+            values override the defaults.
 
     Returns:
         Tuple of (timing_metrics, network_info, response_info):
@@ -568,8 +568,12 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             client.headers["User-Agent"] = USER_AGENT
             if headers:
                 client.headers.update(headers)
-            # Ensure the Host header is set to the original domain name
-            client.headers["Host"] = host
+            if not headers or not any(name.lower() == "host" for name in headers):
+                host_header = f"[{host}]" if ":" in host else host
+                default_port = HTTPS_DEFAULT_PORT if parsed_url.scheme == "https" else HTTP_DEFAULT_PORT
+                if port != default_port:
+                    host_header = f"{host_header}:{port}"
+                client.headers["Host"] = host_header
 
             request_url = f"{parsed_url.scheme}://{request_target}:{port}{parsed_url.path}"
             if parsed_url.query:
