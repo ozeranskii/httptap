@@ -256,10 +256,38 @@ def test_export_results_handles_oserror(
     steps = [_make_step()]
     args = Namespace(url="https://example.test", json="out.json")
 
-    _export_results(cast("OutputRenderer", renderer), steps, args)
+    assert _export_results(cast("OutputRenderer", renderer), steps, args) is False
 
     captured = capsys.readouterr()
     assert "Failed to export JSON" in captured.err
+
+
+def test_main_returns_error_when_json_export_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FailingRenderer(RendererStub):
+        def export_json(self, *_args: object, **_kwargs: object) -> None:
+            message = "disk full"
+            raise OSError(message)
+
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", lambda *_args, **_kwargs: AnalyzerStub())
+    monkeypatch.setattr("httptap.cli.OutputRenderer", lambda *_args, **_kwargs: FailingRenderer())
+    monkeypatch.setattr("sys.argv", ["httptap", "--json", "out.json", "https://example.test"])
+
+    assert main() == EXIT_FATAL_ERROR
+
+
+def test_main_json_dash_writes_only_json_to_stdout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", lambda *_args, **_kwargs: AnalyzerStub())
+    monkeypatch.setattr("sys.argv", ["httptap", "--metrics-only", "--json", "-", "https://example.test"])
+
+    assert main() == EXIT_SUCCESS
+
+    assert json.loads(capsys.readouterr().out)["initial_url"] == "https://example.test"
+    assert not (tmp_path / "-").exists()
 
 
 @pytest.mark.parametrize(
@@ -467,8 +495,8 @@ def test_cli_integration_full_run(
     assert exported["initial_url"] == "https://example.test"
     assert signal.SIGINT in registered_signals
     assert "Analyzing" in stdout
-    assert "Exported analysis" in stdout
-    assert not stderr
+    assert "Exported analysis" not in stdout
+    assert "Exported analysis" in stderr
 
 
 def test_cli_compact_ignored_when_metrics_only(
