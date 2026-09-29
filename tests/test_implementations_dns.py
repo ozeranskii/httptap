@@ -275,6 +275,23 @@ class TestSystemDNSResolver:
         assert ip_family == "IPv4"
         assert elapsed_ms >= 0.0
 
+    def test_resolve_all_returns_usable_addresses_in_order(self, mocker: MockerFixture) -> None:
+        """All usable addresses are returned in the system resolver order."""
+        resolver = SystemDNSResolver()
+        mocker.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("::1", 443, 0, 0)),
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 443)),
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ()),
+            ],
+        )
+
+        addresses, elapsed_ms = resolver.resolve_all("localhost", 443, 5.0)
+
+        assert addresses == [("::1", "IPv6"), ("127.0.0.1", "IPv4")]
+        assert elapsed_ms >= 0.0
+
     def test_resolve_ipv6_when_only_available(self, mocker: MockerFixture) -> None:
         """Test that IPv6 is returned when it's the only available address."""
         resolver = SystemDNSResolver()

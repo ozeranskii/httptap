@@ -36,6 +36,7 @@ from httptap.http_client import (
     _resolve_effective_proxy,
     make_request,
 )
+from httptap.implementations.dns import SystemDNSResolver
 from httptap.models import NetworkInfo, TimingMetrics
 
 if TYPE_CHECKING:
@@ -974,6 +975,122 @@ class TestMakeRequest:
                 timing_collector=FakeTimingCollector(TimingMetrics()),
                 force_new_connection=False,
             )
+
+    def test_make_request_falls_back_to_next_resolved_address(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """A connection failure on one address retries the next DNS result."""
+        mocker.patch.object(
+            SystemDNSResolver,
+            "resolve_all",
+            return_value=([("::1", "IPv6"), ("127.0.0.1", "IPv4")], 1.0),
+        )
+        httpx_mock.add_exception(httpx.ConnectError("Connection refused"), method="GET", url="http://[::1]/")
+        httpx_mock.add_response(method="GET", url="http://127.0.0.1/", status_code=200)
+
+        _timing, network, response = make_request(
+            "http://localhost/",
+            timeout=5.0,
+            dns_resolver=SystemDNSResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics()),
+            force_new_connection=False,
+        )
+
+        assert response.status == 200
+        assert network.ip == "127.0.0.1"
+        assert network.ip_family == "IPv4"
+
+    def test_make_request_falls_back_after_connect_timeout(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """A connection timeout on one address retries the next DNS result."""
+        mocker.patch.object(
+            SystemDNSResolver,
+            "resolve_all",
+            return_value=([("::1", "IPv6"), ("127.0.0.1", "IPv4")], 1.0),
+        )
+        httpx_mock.add_exception(httpx.ConnectTimeout("Connection timed out"), method="GET", url="http://[::1]/")
+        httpx_mock.add_response(method="GET", url="http://127.0.0.1/", status_code=200)
+
+        _timing, network, response = make_request(
+            "http://localhost/",
+            timeout=5.0,
+            dns_resolver=SystemDNSResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics()),
+            force_new_connection=False,
+        )
+
+        assert response.status == 200
+        assert network.ip == "127.0.0.1"
+        assert network.ip_family == "IPv4"
+
+    def test_make_request_does_not_fallback_after_tls_error(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """A TLS verification error must not be hidden by a second address."""
+        mocker.patch.object(
+            SystemDNSResolver,
+            "resolve_all",
+            return_value=([("2001:db8::1", "IPv6"), ("203.0.113.10", "IPv4")], 1.0),
+        )
+        tls_error = httpx.ConnectError("certificate verify failed")
+        tls_error.__cause__ = ssl.SSLCertVerificationError("certificate verify failed")
+        httpx_mock.add_exception(tls_error, method="GET", url="https://[2001:db8::1]/")
+
+        with pytest.raises(httptap.http_client.HTTPClientError, match="certificate verify failed"):
+            make_request(
+                "https://example.test/",
+                timeout=5.0,
+                dns_resolver=SystemDNSResolver(),
+                timing_collector=FakeTimingCollector(TimingMetrics()),
+                force_new_connection=False,
+            )
+
+        assert len(httpx_mock.get_requests()) == 1
+
+    def test_make_request_reserves_timeout_for_fallback(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """Each address receives a share of the remaining connect timeout."""
+        mocker.patch.object(
+            SystemDNSResolver,
+            "resolve_all",
+            return_value=([("::1", "IPv6"), ("127.0.0.1", "IPv4")], 1.0),
+        )
+        clock_values = iter([100.0, 100.0, 105.0])
+        mocker.patch("httptap.http_client.time.perf_counter", side_effect=lambda: next(clock_values, 105.0))
+        connect_timeouts: list[float] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            timeout = request.extensions["timeout"]
+            assert isinstance(timeout, dict)
+            connect_timeouts.append(timeout["connect"])
+            if len(connect_timeouts) == 1:
+                msg = "Connection timed out"
+                raise httpx.ConnectTimeout(msg)
+            return httpx.Response(200, request=request)
+
+        httpx_mock.add_callback(handler)
+        httpx_mock.add_callback(handler)
+
+        _timing, _network, response = make_request(
+            "http://localhost/",
+            timeout=10.0,
+            dns_resolver=SystemDNSResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics()),
+            force_new_connection=False,
+        )
+
+        assert response.status == 200
+        assert connect_timeouts == [5.0, 5.0]
 
     def test_make_request_handles_tls_inspection_error(
         self,
