@@ -7,11 +7,13 @@ Follows CLI best practices for error handling, exit codes, and user feedback.
 
 import argparse
 import logging
+import math
 import signal
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -415,7 +417,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
         )
         return False
 
-    if args.timeout <= 0:
+    if not math.isfinite(args.timeout) or args.timeout <= 0:
         error_text = Text()
         error_text.append("Invalid timeout: ", style="bold red")
         error_text.append(f"{args.timeout}", style="yellow")
@@ -444,22 +446,8 @@ def validate_arguments(args: argparse.Namespace) -> bool:
         )
         return False
 
-    if args.ca_bundle is not None:
-        ca_bundle_str = str(args.ca_bundle).strip()
-        if not ca_bundle_str:
-            console.print(
-                Panel(
-                    (
-                        "[red]CA bundle path cannot be empty. "
-                        "Provide a PEM file path when using --cacert/--ca-bundle.[/red]"
-                    ),
-                    title="[bold red]❌ Validation Error[/bold red]",
-                    border_style="red",
-                    padding=(1, 2),
-                )
-            )
-            return False
-        args.ca_bundle = str(Path(ca_bundle_str).expanduser().absolute())
+    if not _validate_connection_arguments(args):
+        return False
 
     if args.slo is None:
         args.slo_thresholds = {}
@@ -476,6 +464,55 @@ def validate_arguments(args: argparse.Namespace) -> bool:
                 )
             )
             return False
+
+    return True
+
+
+def _validate_connection_arguments(args: argparse.Namespace) -> bool:
+    """Validate TLS and proxy arguments and normalize the CA bundle path."""
+    if args.ca_bundle is not None:
+        ca_bundle_str = str(args.ca_bundle).strip()
+        if not ca_bundle_str:
+            console.print(
+                Panel(
+                    (
+                        "[red]CA bundle path cannot be empty. "
+                        "Provide a PEM file path when using --cacert/--ca-bundle.[/red]"
+                    ),
+                    title="[bold red]❌ Validation Error[/bold red]",
+                    border_style="red",
+                    padding=(1, 2),
+                )
+            )
+            return False
+        ca_bundle_path = Path(ca_bundle_str).expanduser().absolute()
+        if not ca_bundle_path.is_file():
+            console.print(
+                Panel(
+                    f"[red]CA bundle file does not exist: {escape(str(ca_bundle_path))}[/red]",
+                    title="[bold red]❌ Validation Error[/bold red]",
+                    border_style="red",
+                    padding=(1, 2),
+                )
+            )
+            return False
+        args.ca_bundle = str(ca_bundle_path)
+
+    if args.proxy not in (None, "") and urlparse(args.proxy).scheme.lower() not in {
+        "http",
+        "https",
+        "socks5",
+        "socks5h",
+    }:
+        console.print(
+            Panel(
+                "[red]Proxy URL must use http://, https://, socks5://, or socks5h://.[/red]",
+                title="[bold red]❌ Validation Error[/bold red]",
+                border_style="red",
+                padding=(1, 2),
+            )
+        )
+        return False
 
     return True
 
