@@ -239,6 +239,16 @@ Supported keys: `dns`, `connect`, `tls`, `ttfb`, `wait`, `xfer`,
 `total`. See the dedicated [SLO Threshold Checking](slo.md) page for
 the full specification, exit-code precedence, and CI/cron recipes.
 
+#### `-f`, `--fail`
+
+Exit with code `22` when any completed request returns HTTP `4xx` or `5xx`,
+while still rendering the full timing report and writing `--json` output.
+Network and TLS failures keep their existing higher-priority exit codes.
+
+```bash
+httptap --fail https://httpbin.io/status/500
+```
+
 #### `--version`
 
 Display the httptap version and exit.

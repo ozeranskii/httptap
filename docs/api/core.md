@@ -67,6 +67,7 @@ from httptap.constants import (
 
 ```python
 from httptap.constants import (
+    EXIT_CODE_HTTP_FAILURE,  # 22 - HTTP 4xx/5xx response with --fail
     EXIT_CODE_OK,  # 0  - Success (os.EX_OK)
     EXIT_CODE_USAGE,  # 64 - Invalid arguments (os.EX_USAGE)
     EXIT_CODE_SOFTWARE,  # 70 - Internal error (os.EX_SOFTWARE)
