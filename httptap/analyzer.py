@@ -6,6 +6,7 @@ collecting metrics, and managing the overall request flow.
 
 from __future__ import annotations
 
+import time
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlsplit
@@ -24,7 +25,7 @@ from .constants import (
     POST_TO_GET_REDIRECT_STATUSES,
     HTTPMethod,
 )
-from .http_client import HTTPClientError
+from .http_client import HTTPClientError, _remaining_timeout
 from .models import StepMetrics
 from .request_executor import HTTPClientRequestExecutor, RequestExecutor, RequestOptions, RequestOutcome
 from .utils import redact_url_credentials, sanitize_headers
@@ -211,12 +212,14 @@ class HTTPTapAnalyzer:
         steps: list[StepMetrics] = []
         current_url = url
         redirect_count = 0
+        deadline = time.monotonic() + self.timeout
 
         while redirect_count <= self.max_redirects:
             step_number = len(steps) + 1
             step = self._analyze_single_request(
                 current_url,
                 step_number,
+                deadline=deadline,
                 method=method,
                 content=content,
                 headers=headers,
@@ -257,11 +260,12 @@ class HTTPTapAnalyzer:
 
         return steps
 
-    def _analyze_single_request(
+    def _analyze_single_request(  # noqa: PLR0913
         self,
         url: str,
         step_number: int,
         *,
+        deadline: float,
         method: HTTPMethod = HTTPMethod.GET,
         content: bytes | None = None,
         headers: Mapping[str, str] | None = None,
@@ -271,6 +275,7 @@ class HTTPTapAnalyzer:
         Args:
             url: URL to request.
             step_number: Step number in redirect chain (1-indexed).
+            deadline: Monotonic deadline shared by the request chain.
             method: HTTP method to use.
             content: Optional request body as bytes.
             headers: Optional request headers for this step.
@@ -294,10 +299,12 @@ class HTTPTapAnalyzer:
         try:
             # Create timing collector instance if factory provided
             timing_collector = self._timing_collector() if self._timing_collector else None
+            remaining_timeout = _remaining_timeout(deadline)
 
             options = RequestOptions(
                 url=url,
-                timeout=self.timeout,
+                timeout=remaining_timeout,
+                deadline=deadline,
                 method=method,
                 content=content,
                 http2=self.http2,

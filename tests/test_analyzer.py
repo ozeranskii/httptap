@@ -125,6 +125,65 @@ def test_analyze_url_respects_max_redirects() -> None:
     assert all(step.response.status == 301 for step in steps)
 
 
+def test_analyze_url_shares_deadline_across_redirects(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every redirect hop receives the same chain deadline."""
+
+    class DeadlineRecordingExecutor:
+        def __init__(self) -> None:
+            self.deadlines: list[float | None] = []
+            self.timeouts: list[float] = []
+            self.responses = [(301, "https://example.test/final"), (200, None)]
+
+        def execute(self, options: RequestOptions) -> RequestOutcome:
+            self.deadlines.append(options.deadline)
+            self.timeouts.append(options.timeout)
+            clock[0] += 1.0
+            status, location = self.responses.pop(0)
+            return RequestOutcome(
+                timing=TimingMetrics(total_ms=10.0),
+                network=NetworkInfo(ip="203.0.113.5", ip_family="IPv4"),
+                response=ResponseInfo(status=status, location=location),
+            )
+
+    clock = [100.0]
+    executor = DeadlineRecordingExecutor()
+    monkeypatch.setattr("httptap.analyzer.time.monotonic", lambda: clock[0])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, timeout=2.0, request_executor=executor)
+
+    analyzer.analyze_url("https://example.test")
+
+    assert executor.deadlines == [102.0, 102.0]
+    assert executor.timeouts == [2.0, 1.0]
+
+
+def test_analyze_url_stops_when_redirect_deadline_expires(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An expired chain deadline prevents the next redirect request."""
+
+    class ExpiringExecutor:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def execute(self, _options: RequestOptions) -> RequestOutcome:
+            self.calls += 1
+            clock[0] = 103.0
+            return RequestOutcome(
+                timing=TimingMetrics(total_ms=10.0),
+                network=NetworkInfo(ip="203.0.113.5", ip_family="IPv4"),
+                response=ResponseInfo(status=301, location="https://example.test/final"),
+            )
+
+    clock = [100.0]
+    executor = ExpiringExecutor()
+    monkeypatch.setattr("httptap.analyzer.time.monotonic", lambda: clock[0])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, timeout=2.0, request_executor=executor)
+
+    steps = analyzer.analyze_url("https://example.test")
+
+    assert executor.calls == 1
+    assert len(steps) == 2
+    assert steps[-1].error == "Request timeout: total deadline exceeded"
+
+
 def test_analyze_url_passes_verify_flag_when_supported() -> None:
     class VerifyAwareExecutor:
         def __init__(self) -> None:

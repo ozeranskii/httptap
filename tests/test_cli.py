@@ -630,6 +630,18 @@ def test_determine_exit_code_empty_steps() -> None:
     assert determine_exit_code([]) == EXIT_FATAL_ERROR
 
 
+def test_determine_exit_code_timeout_without_partial_data() -> None:
+    step = StepMetrics(error="Request timeout: total deadline exceeded")
+
+    assert determine_exit_code([step]) == EXIT_NETWORK_ERROR
+
+
+def test_determine_exit_code_dns_timeout_without_partial_data() -> None:
+    step = StepMetrics(error="DNS resolution timed out for example.test after 2.00s")
+
+    assert determine_exit_code([step]) == EXIT_NETWORK_ERROR
+
+
 def test_setup_signal_handlers_invokes_exit(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: list[str] = []
     handlers: dict[int, Callable[[int, object | None], None]] = {}
