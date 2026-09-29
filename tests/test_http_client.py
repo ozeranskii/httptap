@@ -140,6 +140,71 @@ def test_make_request_uses_custom_headers(
     assert timing.is_estimated is True  # connect/TLS derived from heuristics
 
 
+def test_make_request_starts_timing_after_client_setup(  # noqa: C901
+    mocker: pytest_mock.MockerFixture,
+) -> None:
+    events: list[str] = []
+
+    class EventTimingCollector(FakeTimingCollector):
+        def __init__(self) -> None:
+            super().__init__(TimingMetrics(total_ms=1.0, ttfb_ms=1.0))
+
+        def mark_dns_start(self) -> None:
+            events.append("dns_start")
+
+        def mark_dns_end(self) -> None:
+            events.append("dns_end")
+
+        def mark_request_start(self) -> None:
+            events.append("request_start")
+
+        def mark_ttfb(self) -> None:
+            events.append("ttfb")
+
+        def mark_request_end(self) -> None:
+            events.append("request_end")
+
+    class ResponseStream:
+        def __enter__(self) -> httpx.Response:
+            return httpx.Response(200, request=httpx.Request("GET", "https://203.0.113.10:443/"))
+
+        def __exit__(self, *_exc: object) -> None:
+            return None
+
+    class DummyClient:
+        def __init__(self, **_kwargs: object) -> None:
+            events.append("client_init")
+            self.headers: dict[str, str] = {}
+
+        def __enter__(self) -> Self:
+            return self
+
+        def __exit__(self, *_exc: object) -> None:
+            return None
+
+        def stream(self, *_args: object, **_kwargs: object) -> ResponseStream:
+            events.append("stream")
+            return ResponseStream()
+
+    def fake_create_ssl_context(**_kwargs: object) -> object:
+        events.append("ssl_context")
+        return object()
+
+    mocker.patch("httptap.http_client.create_ssl_context", side_effect=fake_create_ssl_context)
+    mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+    make_request(
+        "https://example.test/",
+        dns_resolver=FakeDNSResolver(),
+        tls_inspector=FakeTLSInspector(),
+        timing_collector=EventTimingCollector(),
+    )
+
+    assert events.index("request_start") > events.index("ssl_context")
+    assert events.index("request_start") > events.index("client_init")
+    assert events.index("request_start") < events.index("stream")
+
+
 class TestBuildUserAgent:
     """Test suite for _build_user_agent function."""
 
