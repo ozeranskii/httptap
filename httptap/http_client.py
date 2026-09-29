@@ -49,7 +49,7 @@ import os
 import time
 from contextlib import suppress
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
@@ -495,7 +495,8 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     response_info = ResponseInfo()
 
     try:
-        parsed_url = urlparse(url)
+        parsed_url = urlsplit(url)
+        source_url = httpx.URL(url)
         host = parsed_url.hostname
         port = parsed_url.port or (HTTPS_DEFAULT_PORT if parsed_url.scheme == "https" else HTTP_DEFAULT_PORT)
         is_https = parsed_url.scheme == "https"
@@ -571,13 +572,28 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             # Ensure the Host header is set to the original domain name
             client.headers["Host"] = host
 
-            request_url = f"{parsed_url.scheme}://{request_target}:{port}{parsed_url.path}"
-            if parsed_url.query:
-                request_url += f"?{parsed_url.query}"
+            request_url = urlunsplit(
+                (parsed_url.scheme, f"{request_target}:{port}", parsed_url.path, parsed_url.query, "")
+            )
+            extensions = {"trace": trace, "sni_hostname": host}
+            has_authorization_header = headers is not None and any(name.lower() == "authorization" for name in headers)
+            if parsed_url.username is not None and not has_authorization_header:
+                request_stream = client.stream(
+                    method.value,
+                    request_url,
+                    content=content,
+                    auth=(source_url.username, source_url.password),
+                    extensions=extensions,
+                )
+            else:
+                request_stream = client.stream(
+                    method.value,
+                    request_url,
+                    content=content,
+                    extensions=extensions,
+                )
 
-            with client.stream(
-                method.value, request_url, content=content, extensions={"trace": trace, "sni_hostname": host}
-            ) as response:
+            with request_stream as response:
                 timing_collector.mark_ttfb()
                 _populate_response_metadata(response, response_info)
                 # Capture TLS metadata from the live connection *before* draining
