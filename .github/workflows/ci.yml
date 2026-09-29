@@ -4,9 +4,17 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - docs/**
+      - '**/*.md'
+      - mkdocs.yml
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - docs/**
+      - '**/*.md'
+      - mkdocs.yml
 
 permissions:
   contents: read
@@ -72,27 +80,42 @@ jobs:
       - name: Run mypy
         run: uv run --no-dev --group typing mypy httptap
 
+  test-matrix:
+    name: Test Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+
+    steps:
+      - id: matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          versions=(3.10 3.11 3.12 3.13 3.14 3.14t 3.15 3.15t)
+          oses=(ubuntu-latest macos-latest windows-latest)
+          entries=()
+
+          for os in "${oses[@]}"; do
+            selected_versions=("${versions[@]}")
+            if [[ "$EVENT_NAME" == "pull_request" && "$os" != "ubuntu-latest" ]]; then
+              selected_versions=(3.10 3.15t)
+            fi
+            for version in "${selected_versions[@]}"; do
+              entries+=("{\"os\":\"$os\",\"python-version\":\"$version\"}")
+            done
+          done
+
+          printf 'matrix={"include":[%s]}\n' "$(IFS=,; echo "${entries[*]}")" >> "$GITHUB_OUTPUT"
+
   test:
     name: Test / Python ${{ matrix.python-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     environment: ci
+    needs: test-matrix
     strategy:
       fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-        python-version:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-          - "3.14t"
-          - "3.15"
-          - "3.15t"
+      matrix: ${{ fromJSON(needs.test-matrix.outputs.matrix) }}
 
     steps:
       - name: Checkout code
@@ -162,26 +185,24 @@ jobs:
 
   container-build:
     name: Container Build (${{ matrix.platform }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     needs:
       - lint
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
 
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - name: Set up QEMU
-        if: matrix.platform != 'linux/amd64'
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
