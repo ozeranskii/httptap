@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import socket
+import ssl
 from contextlib import closing
 
 from httptap.constants import TLS_PROBE_MAX_TIMEOUT_SECONDS
 from httptap.models import NetworkInfo
-from httptap.tls_inspector import apply_certificate_info, extract_tls_info
+from httptap.tls_inspector import apply_certificate_info, extract_tls_info, extract_unverified_certificate_info
 from httptap.utils import create_ssl_context
 
 
@@ -30,21 +31,29 @@ class SocketTLSInspector:
     inspector used by the analyzer.
     """
 
-    __slots__ = ("_ca_bundle_path", "_verify")
+    __slots__ = ("_ca_bundle_path", "_legacy_tls", "_verify")
 
-    def __init__(self, *, verify: bool = True, ca_bundle_path: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        verify: bool = True,
+        ca_bundle_path: str | None = None,
+        legacy_tls: bool = True,
+    ) -> None:
         """Initialize inspector with optional verification toggle and custom CA bundle.
 
         Args:
             verify: Whether to verify TLS certificates.
             ca_bundle_path: Path to custom CA certificate bundle (PEM format).
                 Only used when verify is True. If None, uses system CA bundle.
+            legacy_tls: Whether an unverified probe may use legacy TLS settings.
 
         """
         self._verify = verify
         self._ca_bundle_path = ca_bundle_path
+        self._legacy_tls = legacy_tls
 
-    def inspect(self, host: str, port: int, timeout: float) -> NetworkInfo:
+    def inspect(self, host: str, port: int, timeout: float, *, connect_host: str | None = None) -> NetworkInfo:
         """Inspect TLS connection and extract metadata.
 
         Args:
@@ -52,6 +61,8 @@ class SocketTLSInspector:
             port: Port number (typically 443 for HTTPS).
             timeout: Connection timeout in seconds. The probe is additionally
                 capped by ``TLS_PROBE_MAX_TIMEOUT_SECONDS``.
+            connect_host: Address for the TCP connection. When provided, the
+                original ``host`` remains the SNI hostname.
 
         Returns:
             A NetworkInfo populated with the resolved IP, negotiated TLS
@@ -65,16 +76,20 @@ class SocketTLSInspector:
         probe_timeout = min(timeout, TLS_PROBE_MAX_TIMEOUT_SECONDS)
 
         try:
-            connection = socket.create_connection((host, port), timeout=probe_timeout)
+            connection = socket.create_connection((connect_host or host, port), timeout=probe_timeout)
             with closing(connection) as raw_sock:
                 self._populate_network_info(raw_sock, network_info)
 
-                # Diagnostic tool: intentionally allows TLSv1.0+ to inspect legacy servers.
-                # This is NOT a security issue because httptap is used for troubleshooting,
-                # not for transmitting sensitive data in production.
-                context = create_ssl_context(verify_ssl=self._verify, ca_bundle_path=self._ca_bundle_path)
+                if not self._verify and not self._legacy_tls:
+                    context = ssl.create_default_context()
+                    context.check_hostname = False
+                    context.verify_mode = ssl.CERT_NONE
+                else:
+                    context = create_ssl_context(verify_ssl=self._verify, ca_bundle_path=self._ca_bundle_path)
                 with context.wrap_socket(raw_sock, server_hostname=host) as tls_sock:
                     tls_version, cipher_suite, cert_info = extract_tls_info(tls_sock)
+                    if cert_info is None and not self._verify:
+                        cert_info = extract_unverified_certificate_info(tls_sock)
                     network_info.tls_version = tls_version
                     network_info.tls_cipher = cipher_suite
 

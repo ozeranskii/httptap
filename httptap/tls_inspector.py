@@ -6,6 +6,9 @@ information from SSL connections.
 
 from __future__ import annotations
 
+import ssl
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from .utils import calculate_days_until, parse_certificate_date
@@ -207,12 +210,64 @@ def extract_certificate_info(ssl_object: SSLObjectLike) -> CertificateInfo | Non
     """
     try:
         cert_dict = ssl_object.getpeercert()
-        if not cert_dict:
+        if not isinstance(cert_dict, dict) or not cert_dict:
             return None
         return CertificateInfo(cert_dict)
     except Exception as e:
         msg = f"Failed to extract certificate info: {e}"
         raise TLSInspectionError(msg) from e
+
+
+def extract_unverified_certificate_info(ssl_object: object) -> CertificateInfo | None:
+    """Extract certificate details from an unverified TLS connection.
+
+    ``ssl.SSLSocket.getpeercert()`` returns an empty mapping when verification
+    is disabled. The binary form remains available, so decode it with the
+    standard-library decoder for diagnostic use.
+
+    Args:
+        ssl_object: Connected SSL object with certificate verification disabled.
+
+    Returns:
+        Certificate details, or ``None`` when the peer did not present one.
+
+    Raises:
+        TLSInspectionError: If the certificate cannot be decoded.
+
+    """
+    try:
+        getpeercert = getattr(ssl_object, "getpeercert", None)
+        if not callable(getpeercert):
+            return None
+        certificate_der = getpeercert(binary_form=True)
+        if not isinstance(certificate_der, bytes) or not certificate_der:
+            return None
+        return CertificateInfo(_decode_der_certificate(certificate_der))
+    except Exception as e:
+        msg = f"Failed to extract unverified certificate info: {e}"
+        raise TLSInspectionError(msg) from e
+
+
+def _decode_der_certificate(certificate_der: bytes) -> dict[str, Any]:
+    """Decode a DER certificate with the standard-library SSL decoder."""
+    certificate_path: Path | None = None
+    try:
+        with NamedTemporaryFile(mode="w", encoding="ascii", suffix=".pem", delete=False) as certificate_file:
+            certificate_file.write(ssl.DER_cert_to_PEM_cert(certificate_der))
+            certificate_path = Path(certificate_file.name)
+        ssl_module = getattr(ssl, "_ssl", None)
+        decoder = getattr(ssl_module, "_test_decode_cert", None)
+        if not callable(decoder):
+            msg = "Certificate decoder is unavailable"
+            raise TLSInspectionError(msg)
+        certificate = decoder(str(certificate_path))
+        if not isinstance(certificate, dict):
+            msg = "Certificate decoder returned invalid data"
+            raise TLSInspectionError(msg)
+        return certificate
+    finally:
+        if certificate_path:
+            certificate_path.unlink()
 
 
 def extract_tls_info(

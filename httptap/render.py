@@ -5,6 +5,7 @@ to present analysis results to the user.
 """
 
 from collections.abc import Sequence
+from urllib.parse import quote
 
 from rich.console import Console
 from rich.markup import escape
@@ -149,6 +150,9 @@ class OutputRenderer:
         for step in steps:
             if step.has_error:
                 self.console.print(f"Step {step.step_number}: ERROR - {step.error}", markup=False, soft_wrap=True)
+                network_line = format_network_info(step)
+                if network_line:
+                    self.console.print(network_line)
             else:
                 self.console.print(format_compact_line(step), markup=False, soft_wrap=True)
 
@@ -216,6 +220,9 @@ class OutputRenderer:
         if step.has_error:
             error_panel = format_error(step)
             self.console.print(error_panel)
+            network_line = format_network_info(step)
+            if network_line:
+                self.console.print(network_line)
             return
 
         # Network info
@@ -252,7 +259,24 @@ class OutputRenderer:
 
         for step in steps:
             if step.has_error:
-                self.console.print(f"Step {step.step_number}: ERROR - {step.error}", markup=False, soft_wrap=True)
+                parts = [f"Step {step.step_number}: ERROR - {step.error}"]
+                for key, value in (
+                    ("cert_cn", step.network.cert_cn),
+                    ("cert_sans", ",".join(step.network.cert_sans)),
+                    ("cert_issuer", step.network.cert_issuer),
+                    (
+                        "cert_not_before",
+                        step.network.cert_not_before.isoformat() if step.network.cert_not_before else None,
+                    ),
+                    (
+                        "cert_not_after",
+                        step.network.cert_not_after.isoformat() if step.network.cert_not_after else None,
+                    ),
+                    ("cert_days_left", step.network.cert_days_left),
+                ):
+                    if value is not None and value != "":
+                        parts.append(f"{key}={quote(str(value), safe='.,-')}")
+                self.console.print(" ".join(parts), markup=False, soft_wrap=True)
                 continue
 
             step_slo = slo_result if step is slo_target else None

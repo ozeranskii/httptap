@@ -46,6 +46,7 @@ Examples:
 from __future__ import annotations
 
 import os
+import ssl
 import time
 from contextlib import suppress
 from typing import TYPE_CHECKING
@@ -115,6 +116,11 @@ class HTTPClientError(Exception):
         Request failed: DNS resolution failed: invalid.example
 
     """
+
+    def __init__(self, message: str, *, network_info: NetworkInfo | None = None) -> None:
+        """Initialize an error with optional partial network metadata."""
+        super().__init__(message)
+        self.network_info = network_info
 
 
 def _build_timing_metrics(
@@ -600,27 +606,29 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         # proxy is set. A direct socket probe would bypass the proxy and could
         # reach a different backend, so it must never run while a proxy is used.
         if is_https and network_info.tls_version is None and effective_proxy_url is None:
-            try:
-                tls_info = tls_inspector.inspect(host, port, timeout)
-                # Merge TLS metadata (preserve IP/family already set from DNS).
-                network_info.tls_version = tls_info.tls_version
-                network_info.tls_cipher = tls_info.tls_cipher
-                network_info.cert_cn = tls_info.cert_cn
-                network_info.cert_days_left = tls_info.cert_days_left
-                network_info.cert_sans = tls_info.cert_sans
-                network_info.cert_issuer = tls_info.cert_issuer
-                network_info.cert_serial = tls_info.cert_serial
-                network_info.cert_not_before = tls_info.cert_not_before
-                network_info.cert_not_after = tls_info.cert_not_after
-            except TLSInspectionError:
-                # TLS inspection is non-fatal, continue without it
-                pass
+            # TLS inspection is non-fatal, continue without it.
+            with suppress(TLSInspectionError):
+                _merge_tls_info(network_info, tls_inspector.inspect(host, port, timeout))
 
     except httpx.TimeoutException as exc:
         msg = f"Request timeout: {exc}"
         raise HTTPClientError(msg) from exc
     except httpx.RequestError as exc:
         msg = f"Request failed: {exc}"
+        if (
+            is_https
+            and host is not None
+            and verify_ssl
+            and effective_proxy_url is None
+            and _is_certificate_verification_error(exc)
+        ):
+            with suppress(TLSInspectionError):
+                diagnostic_inspector = SocketTLSInspector(verify=False, legacy_tls=False)
+                _merge_tls_info(
+                    network_info,
+                    diagnostic_inspector.inspect(host, port, timeout, connect_host=network_info.ip),
+                )
+            raise HTTPClientError(msg, network_info=network_info) from exc
         raise HTTPClientError(msg) from exc
     except HTTPClientError:
         raise
@@ -629,6 +637,35 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         raise HTTPClientError(msg) from exc
 
     return timing, network_info, response_info
+
+
+def _merge_tls_info(network_info: NetworkInfo, tls_info: NetworkInfo) -> None:
+    """Merge TLS and certificate metadata without replacing DNS metadata."""
+    network_info.tls_version = tls_info.tls_version
+    network_info.tls_cipher = tls_info.tls_cipher
+    network_info.cert_cn = tls_info.cert_cn
+    network_info.cert_days_left = tls_info.cert_days_left
+    network_info.cert_sans = tls_info.cert_sans
+    network_info.cert_issuer = tls_info.cert_issuer
+    network_info.cert_serial = tls_info.cert_serial
+    network_info.cert_not_before = tls_info.cert_not_before
+    network_info.cert_not_after = tls_info.cert_not_after
+
+
+def _is_certificate_verification_error(exc: BaseException) -> bool:
+    """Return whether an HTTPX error was caused by certificate verification."""
+    pending = [exc]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, ssl.SSLCertVerificationError) or "CERTIFICATE_VERIFY_FAILED" in str(current).upper():
+            return True
+        pending.extend(error for error in (current.__cause__, current.__context__) if error is not None)
+        pending.extend(error for error in current.args if isinstance(error, BaseException))
+    return False
 
 
 def _populate_tls_from_stream(

@@ -135,7 +135,25 @@ def format_network_info(step: StepMetrics) -> str | None:
     elif step.network.tls_custom_ca:
         parts.append("TLS CA: custom bundle")
 
+    parts.extend(_format_failed_certificate_details(step))
+
     return f"  [dim]{' | '.join(parts)}[/dim]" if parts else None
+
+
+def _format_failed_certificate_details(step: StepMetrics) -> list[str]:
+    """Format certificate fields available only for failed request diagnostics."""
+    if not step.has_error:
+        return []
+
+    parts = []
+    if step.network.cert_sans:
+        parts.append(f"SANs: {escape(', '.join(step.network.cert_sans))}")
+    validity = " to ".join(
+        value.isoformat() for value in (step.network.cert_not_before, step.network.cert_not_after) if value is not None
+    )
+    if validity:
+        parts.append(f"Valid: {escape(validity)}")
+    return parts
 
 
 def format_response_info(step: StepMetrics) -> str | None:

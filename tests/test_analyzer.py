@@ -199,6 +199,22 @@ def test_analyze_url_handles_unexpected_exception() -> None:
     assert "Unexpected error" in (steps[0].note or "")
 
 
+def test_analyze_url_preserves_network_info_from_failed_request() -> None:
+    """Network metadata from a transport failure remains visible on the step."""
+
+    class VerificationFailingExecutor:
+        def execute(self, _options: RequestOptions) -> RequestOutcome:
+            network = NetworkInfo(cert_cn="expired.example.test", cert_days_left=-1)
+            message = "certificate verify failed"
+            raise HTTPClientError(message, network_info=network)
+
+    steps = HTTPTapAnalyzer(request_executor=VerificationFailingExecutor()).analyze_url("https://expired.example.test")
+
+    assert steps[0].error == "certificate verify failed"
+    assert steps[0].network.cert_cn == "expired.example.test"
+    assert steps[0].network.cert_days_left == -1
+
+
 def test_analyze_url_with_post_method() -> None:
     """Test POST request with method parameter."""
     from httptap.constants import HTTPMethod

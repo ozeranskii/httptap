@@ -324,6 +324,8 @@ class HTTPTapAnalyzer:
         except HTTPClientError as e:
             # Request failed, but we have partial data
             step.error = str(e)
+            if e.network_info is not None:
+                step.network = e.network_info
             step.note = f"Step {step_number}: Request failed"
 
         except Exception as exc:  # noqa: BLE001
