@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import signal
+import socket
 import sys
 from argparse import Namespace
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -21,6 +22,7 @@ from httptap.cli import (
     EXIT_USAGE_ERROR,
     _export_results,
     _parse_headers,
+    _parse_resolve_entries,
     create_parser,
     determine_exit_code,
     main,
@@ -101,6 +103,110 @@ def test_curl_flag_aliases_are_supported() -> None:
     assert args.no_http2 is True
 
 
+def test_cli_parser_supports_address_options() -> None:
+    parser = create_parser()
+    args = parser.parse_args(["-4", "--resolve", "example.test:443:203.0.113.10", "https://example.test"])
+
+    assert args.address_family is not None
+    assert args.resolve == ["example.test:443:203.0.113.10"]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "example.test",
+        "example.test:not-a-port:203.0.113.10",
+        "example.test:0:203.0.113.10",
+        "example.test:443:not-an-address",
+        "example.test:443:[[203.0.113.10]]",
+        "example.test: 443:203.0.113.10",
+    ],
+)
+def test_parse_resolve_entries_rejects_invalid_values(value: str) -> None:
+    with pytest.raises(ValueError, match="Invalid --resolve"):
+        _parse_resolve_entries([value], None)
+
+
+def test_parse_resolve_entries_accepts_bracketed_ipv6() -> None:
+    entries = _parse_resolve_entries(["example.test:443:[2001:db8::10]"], None)
+
+    assert entries == {("example.test", 443): "2001:db8::10"}
+
+
+def test_parse_resolve_entries_rejects_conflicting_address_family() -> None:
+    parser = create_parser()
+    args = parser.parse_args(["-4", "https://example.test"])
+
+    with pytest.raises(ValueError, match="does not match"):
+        _parse_resolve_entries(["example.test:443:2001:db8::10"], args.address_family)
+
+
+def test_parser_rejects_ipv4_and_ipv6_together() -> None:
+    parser = create_parser()
+
+    with pytest.raises(SystemExit) as exc_info:
+        parser.parse_args(["-4", "-6", "https://example.test"])
+
+    assert exc_info.value.code == EXIT_USAGE_ERROR
+
+
+def test_validate_arguments_rejects_invalid_resolve(capsys: pytest.CaptureFixture[str]) -> None:
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        ca_bundle=None,
+        slo=None,
+        resolve=["example.test:443:not-an-address"],
+        address_family=None,
+    )
+
+    assert validate_arguments(args) is False
+    assert "Invalid --resolve address" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("proxy", ["http://proxy.test:8080", "socks5h://proxy.test:1080"])
+def test_validate_arguments_rejects_address_family_with_remote_dns_proxy(
+    proxy: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        ca_bundle=None,
+        slo=None,
+        resolve=[],
+        address_family=socket.AF_INET,
+        proxy=proxy,
+    )
+
+    assert validate_arguments(args) is False
+    assert "cannot be used with a proxy" in capsys.readouterr().err
+
+
+def test_validate_arguments_rejects_address_family_with_env_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("HTTPS_PROXY", "https://proxy.test:8443")
+    monkeypatch.setenv("NO_PROXY", "")
+    monkeypatch.setenv("no_proxy", "")
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        ca_bundle=None,
+        slo=None,
+        resolve=[],
+        address_family=socket.AF_INET,
+        proxy=None,
+    )
+
+    assert validate_arguments(args) is False
+    assert "cannot be used with a proxy" in capsys.readouterr().err
+
+
 class AnalyzerStub:
     def __init__(self) -> None:
         self.calls: list[Mapping[str, str] | None] = []
@@ -178,6 +284,34 @@ def test_main_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert analyzer.calls == [{"X": "1"}]
     assert renderer.rendered[0][1] == "https://example.test"
     assert captured_ctor["params"]["proxy"] == "socks5h://proxy.local:1080"
+
+
+def test_main_passes_configured_dns_resolver(monkeypatch: pytest.MonkeyPatch) -> None:
+    analyzer = AnalyzerStub()
+    captured_ctor: dict[str, Any] = {}
+    renderer = RendererStub()
+
+    def fake_analyzer(*_args: object, **kwargs: object) -> AnalyzerStub:
+        captured_ctor.update(kwargs)
+        return analyzer
+
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", fake_analyzer)
+    monkeypatch.setattr("httptap.cli.OutputRenderer", lambda *_args, **_kwargs: renderer)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "httptap",
+            "-6",
+            "--resolve",
+            "example.test:443:2001:db8::10",
+            "https://example.test",
+        ],
+    )
+
+    assert main() == EXIT_SUCCESS
+    resolver = captured_ctor["dns_resolver"]
+    assert resolver is not None
+    assert resolver.resolve("example.test", 443, 5.0)[:2] == ("2001:db8::10", "IPv6")
 
 
 def test_main_header_error(

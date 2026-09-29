@@ -96,7 +96,7 @@ def test_make_request_uses_custom_headers(
     faker: Faker,
     status_code: int,
 ) -> None:
-    url = "https://example.test/api"
+    url = "https://example.test:8443/api"
     body = b'{"ok": true}'
     token = f"Bearer {faker.hexify('^' * 16)}"
 
@@ -104,6 +104,7 @@ def test_make_request_uses_custom_headers(
         assert request.headers["Authorization"] == token
         assert request.headers["Accept"] == "application/json"
         assert request.headers["User-Agent"].startswith("httptap/")
+        assert request.headers["Host"] == "example.test:8443"
         return httpx.Response(
             status_code,
             headers={"content-type": "application/json"},
@@ -111,8 +112,8 @@ def test_make_request_uses_custom_headers(
         )
 
     dns_resolver = FakeDNSResolver()
-    ip, _family, _dns_ms = dns_resolver.resolve("example.test", 443, 5.0)
-    httpx_mock.add_callback(handler, method="GET", url=f"https://{ip}/api")
+    ip, _family, _dns_ms = dns_resolver.resolve("example.test", 8443, 5.0)
+    httpx_mock.add_callback(handler, method="GET", url=f"https://{ip}:8443/api")
 
     timing_input = TimingMetrics(
         dns_ms=4.2,

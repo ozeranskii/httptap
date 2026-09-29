@@ -6,12 +6,15 @@ Follows CLI best practices for error handling, exit codes, and user feedback.
 # PYTHON_ARGCOMPLETE_OK
 
 import argparse
+import ipaddress
 import logging
 import signal
+import socket
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
+from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -35,6 +38,8 @@ from .constants import (
     UNIX_SIGNAL_EXIT_OFFSET,
     HTTPMethod,
 )
+from .http_client import _needs_remote_dns, _resolve_effective_proxy
+from .implementations.dns import OverrideDNSResolver
 from .models import StepMetrics
 from .render import OutputRenderer
 from .slo import (
@@ -55,6 +60,7 @@ EXIT_USAGE_ERROR = EXIT_CODE_USAGE
 EXIT_NETWORK_ERROR = EXIT_CODE_TEMPFAIL
 EXIT_FATAL_ERROR = EXIT_CODE_SOFTWARE
 EXIT_SLO_VIOLATION = EXIT_CODE_SLO_VIOLATION
+MAX_PORT = 65535
 
 
 # Global console for error messages
@@ -225,6 +231,30 @@ Exit codes:
         action="store_true",
         help="Disable HTTP/2 negotiation and force HTTP/1.1 connections.",
     )
+    address_family_group = request_group.add_mutually_exclusive_group()
+    address_family_group.add_argument(
+        "-4",
+        "--ipv4",
+        dest="address_family",
+        action="store_const",
+        const=socket.AF_INET,
+        help="Resolve and connect using IPv4 addresses only.",
+    )
+    address_family_group.add_argument(
+        "-6",
+        "--ipv6",
+        dest="address_family",
+        action="store_const",
+        const=socket.AF_INET6,
+        help="Resolve and connect using IPv6 addresses only.",
+    )
+    request_group.add_argument(
+        "--resolve",
+        action="append",
+        default=[],
+        metavar="HOST:PORT:ADDR",
+        help="Connect HOST:PORT to ADDR while preserving the original Host header and TLS SNI.",
+    )
 
     # SSL/TLS options (mutually exclusive)
     ssl_group = request_group.add_mutually_exclusive_group()
@@ -386,7 +416,79 @@ def _evaluate_slo(
     return evaluate_slo(step, thresholds)
 
 
-def validate_arguments(args: argparse.Namespace) -> bool:
+def _parse_resolve_entries(
+    values: list[str],
+    address_family: int | None,
+) -> dict[tuple[str, int], str]:
+    """Parse curl-compatible ``--resolve HOST:PORT:ADDR`` values."""
+    entries: dict[tuple[str, int], str] = {}
+    for value in values:
+        host, separator, remainder = value.partition(":")
+        port_text, separator, address = remainder.partition(":")
+        if (
+            not separator
+            or not host
+            or not port_text
+            or not address
+            or any(part != part.strip() for part in (host, port_text, address))
+        ):
+            msg = f"Invalid --resolve value {value!r}; expected HOST:PORT:ADDR"
+            raise ValueError(msg)
+
+        if not port_text.isascii() or not port_text.isdecimal():
+            msg = f"Invalid --resolve port {port_text!r}; expected 1-65535"
+            raise ValueError(msg)
+        port = int(port_text)
+        if not 1 <= port <= MAX_PORT:
+            msg = f"Invalid --resolve port {port_text!r}; expected 1-65535"
+            raise ValueError(msg)
+
+        if address.startswith("[") and address.endswith("]"):
+            address = address[1:-1]
+        try:
+            parsed_address = ipaddress.ip_address(address)
+        except ValueError as exc:
+            msg = f"Invalid --resolve address {address!r}; expected an IPv4 or IPv6 address"
+            raise ValueError(msg) from exc
+
+        expected_family = socket.AF_INET6 if isinstance(parsed_address, ipaddress.IPv6Address) else socket.AF_INET
+        if address_family is not None and address_family != expected_family:
+            version = "IPv6" if address_family == socket.AF_INET6 else "IPv4"
+            msg = f"--resolve address {address!r} does not match --{version.lower()}"
+            raise ValueError(msg)
+
+        key = (host.lower(), port)
+        if key in entries:
+            msg = f"Duplicate --resolve entry for {host}:{port}"
+            raise ValueError(msg)
+        entries[key] = str(parsed_address)
+
+    return entries
+
+
+def _validate_address_family_proxy(args: argparse.Namespace) -> None:
+    """Reject address-family forcing when the proxy resolves the target remotely."""
+    if getattr(args, "address_family", None) is None:
+        return
+
+    parsed_url = urlsplit(args.url)
+    host = parsed_url.hostname
+    if host is None:  # URL validation runs before this helper.
+        return
+
+    proxy = getattr(args, "proxy", None)
+    effective_proxy, _source = _resolve_effective_proxy(
+        proxy,
+        parsed_url.scheme,
+        host,
+        noproxy=proxy == "",
+    )
+    if effective_proxy is not None and _needs_remote_dns(effective_proxy):
+        msg = "-4/--ipv4 and -6/--ipv6 cannot be used with a proxy that resolves hostnames remotely"
+        raise ValueError(msg)
+
+
+def validate_arguments(args: argparse.Namespace) -> bool:  # noqa: PLR0911
     """Validate command-line arguments with Rich formatting.
 
     Args:
@@ -439,6 +541,33 @@ def validate_arguments(args: argparse.Namespace) -> bool:
             Panel(
                 escape(str(exc)),
                 title="[bold red]❌ Header Error[/bold red]",
+                border_style="red",
+            )
+        )
+        return False
+
+    try:
+        args.resolve_entries = _parse_resolve_entries(
+            getattr(args, "resolve", []),
+            getattr(args, "address_family", None),
+        )
+    except ValueError as exc:
+        console.print(
+            Panel(
+                escape(str(exc)),
+                title="[bold red]âŒ Resolve Error[/bold red]",
+                border_style="red",
+            )
+        )
+        return False
+
+    try:
+        _validate_address_family_proxy(args)
+    except ValueError as exc:
+        console.print(
+            Panel(
+                escape(str(exc)),
+                title="[bold red]âŒ Validation Error[/bold red]",
                 border_style="red",
             )
         )
@@ -520,7 +649,7 @@ def determine_exit_code(
     return EXIT_SUCCESS
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901
     """Run the CLI with Rich UI enhancements.
 
     Returns:
@@ -566,6 +695,12 @@ def main() -> int:
             headers_dict.update(args.headers)
 
         noproxy = args.proxy == ""
+        dns_resolver = None
+        if args.address_family is not None or args.resolve_entries:
+            dns_resolver = OverrideDNSResolver(
+                args.resolve_entries,
+                family=args.address_family or socket.AF_UNSPEC,
+            )
         analyzer = HTTPTapAnalyzer(
             follow_redirects=args.follow,
             timeout=args.timeout,
@@ -574,6 +709,7 @@ def main() -> int:
             ca_bundle_path=args.ca_bundle,
             proxy=None if noproxy else args.proxy,
             noproxy=noproxy,
+            dns_resolver=dns_resolver,
         )
 
         renderer = OutputRenderer(

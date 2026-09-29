@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from httptap.implementations import dns
-from httptap.implementations.dns import DNSResolutionError, SystemDNSResolver
+from httptap.implementations.dns import DNSResolutionError, OverrideDNSResolver, SystemDNSResolver
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -61,6 +61,24 @@ class TestSystemDNSResolver:
         assert ip == "2606:2800:220:1:248:1893:25c8:1946"
         assert ip_family == "IPv6"
         assert elapsed_ms >= 0.0
+
+    def test_resolve_can_restrict_address_family(self, mocker: MockerFixture) -> None:
+        """The resolver passes the requested IP family to getaddrinfo."""
+        resolver = SystemDNSResolver(socket.AF_INET6)
+        mock_getaddrinfo = mocker.patch("socket.getaddrinfo")
+        mock_getaddrinfo.return_value = [
+            (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("2001:db8::1", 443, 0, 0)),
+        ]
+
+        ip, family, _elapsed_ms = resolver.resolve("example.test", 443, 5.0)
+
+        assert (ip, family) == ("2001:db8::1", "IPv6")
+        mock_getaddrinfo.assert_called_once_with(
+            "example.test",
+            443,
+            family=socket.AF_INET6,
+            type=socket.SOCK_STREAM,
+        )
 
     def test_resolve_timeout_raises_error(self, mocker: MockerFixture) -> None:
         """Test that DNS resolution timeout raises DNSResolutionError."""
@@ -356,3 +374,29 @@ class TestSystemDNSResolver:
 
         with pytest.raises(DNSResolutionError, match="DNS resolution failed"):
             resolver.resolve("unreachable.example.com", 443, 5.0)
+
+
+class TestOverrideDNSResolver:
+    def test_resolve_returns_configured_address_without_lookup(self, mocker: MockerFixture) -> None:
+        resolver = OverrideDNSResolver({("example.test", 443): "2001:db8::10"})
+        mock_getaddrinfo = mocker.patch("socket.getaddrinfo")
+
+        ip, family, elapsed_ms = resolver.resolve("EXAMPLE.TEST", 443, 5.0)
+
+        assert (ip, family, elapsed_ms) == ("2001:db8::10", "IPv6", 0.0)
+        mock_getaddrinfo.assert_not_called()
+
+    def test_resolve_falls_back_with_requested_address_family(self, mocker: MockerFixture) -> None:
+        resolver = OverrideDNSResolver({}, family=socket.AF_INET)
+        mock_getaddrinfo = mocker.patch("socket.getaddrinfo")
+        mock_getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("203.0.113.10", 443)),
+        ]
+
+        assert resolver.resolve("example.test", 443, 5.0)[0] == "203.0.113.10"
+        mock_getaddrinfo.assert_called_once_with(
+            "example.test",
+            443,
+            family=socket.AF_INET,
+            type=socket.SOCK_STREAM,
+        )
