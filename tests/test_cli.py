@@ -29,6 +29,7 @@ from httptap.cli import (
 )
 from httptap.constants import UNIX_SIGNAL_EXIT_OFFSET, HTTPMethod
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
+from httptap.otlp import OTLPDependencyError
 from httptap.slo import SLOResult, SLOViolation
 
 if TYPE_CHECKING:
@@ -262,6 +263,25 @@ def test_export_results_handles_oserror(
     assert "Failed to export JSON" in captured.err
 
 
+def test_export_results_warns_about_otlp_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """OTLP delivery failures do not hide the rendered request result."""
+    from httptap.otlp import OTLPExportError
+
+    def raise_export_error(*_args: object, **_kwargs: object) -> None:
+        message = "collector unavailable"
+        raise OTLPExportError(message)
+
+    monkeypatch.setattr("httptap.cli.OTLPExporter.export", raise_export_error)
+    args = Namespace(url="https://example.test", json=None, prometheus=None, otlp="http://collector.test/v1/traces")
+
+    _export_results(cast("OutputRenderer", RendererStub()), [_make_step()], args)
+
+    assert "Failed to export OTLP traces" in capsys.readouterr().err
+
+
 @pytest.mark.parametrize(
     "url",
     ["invalid", "ftp://example.com"],
@@ -382,6 +402,80 @@ def test_cli_parser_accepts_ca_bundle_alias() -> None:
     assert args.ca_bundle == "/path/to/ca.pem"
 
 
+def test_cli_parser_accepts_export_options() -> None:
+    """Prometheus and OTLP output options accept their destination values."""
+    parser = create_parser()
+    args = parser.parse_args(
+        [
+            "--prometheus",
+            "metrics.prom",
+            "--otlp",
+            "http://collector.test:4318/v1/traces",
+            "https://example.test",
+        ]
+    )
+
+    assert args.prometheus == "metrics.prom"
+    assert args.otlp == "http://collector.test:4318/v1/traces"
+
+
+def test_validate_arguments_rejects_invalid_otlp_endpoint(capsys: pytest.CaptureFixture[str]) -> None:
+    """OTLP requires an absolute HTTP endpoint before a request is made."""
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        ca_bundle=None,
+        slo=None,
+        prometheus=None,
+        otlp="collector.test:4318",
+    )
+
+    assert validate_arguments(args) is False
+    assert "OTLP endpoint must be" in capsys.readouterr().err
+
+
+def test_validate_arguments_rejects_empty_prometheus_path(capsys: pytest.CaptureFixture[str]) -> None:
+    """An empty Prometheus destination is a usage error."""
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        ca_bundle=None,
+        slo=None,
+        prometheus="",
+        otlp=None,
+    )
+
+    assert validate_arguments(args) is False
+    assert "Prometheus export path cannot be empty." in capsys.readouterr().err
+
+
+def test_validate_arguments_requires_otel_extra(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """OTLP does not start a request when its optional dependency is absent."""
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        ca_bundle=None,
+        slo=None,
+        prometheus=None,
+        otlp="http://collector.test:4318/v1/traces",
+    )
+
+    def raise_dependency_error() -> None:
+        message = "Install httptap[otel]."
+        raise OTLPDependencyError(message)
+
+    monkeypatch.setattr("httptap.cli.ensure_otel_available", raise_dependency_error)
+
+    assert validate_arguments(args) is False
+    assert "Install httptap[otel]." in capsys.readouterr().err
+
+
 class DummyProgress:
     def __init__(self, *args: object, **kwargs: object) -> None:
         self.args = args
@@ -437,6 +531,7 @@ def test_cli_integration_full_run(
         registered_signals[signum] = handler
 
     json_path = tmp_path / "reports" / "tap.json"
+    prometheus_path = tmp_path / "reports" / "tap.prom"
 
     def build_analyzer(*_args: object, **_kwargs: object) -> FakeAnalyzer:
         return FakeAnalyzer()
@@ -450,6 +545,8 @@ def test_cli_integration_full_run(
             "httptap",
             "--json",
             str(json_path),
+            "--prometheus",
+            str(prometheus_path),
             "-H",
             "X-Debug: 1",
             "https://example.test",
@@ -463,8 +560,10 @@ def test_cli_integration_full_run(
     assert exit_code == EXIT_SUCCESS
     assert analyzer_calls == [{"X-Debug": "1"}]
     assert json_path.exists()
+    assert prometheus_path.exists()
     exported = json.loads(json_path.read_text(encoding="utf-8"))
     assert exported["initial_url"] == "https://example.test"
+    assert "httptap_request_duration_seconds" in prometheus_path.read_text(encoding="utf-8")
     assert signal.SIGINT in registered_signals
     assert "Analyzing" in stdout
     assert "Exported analysis" in stdout

@@ -220,6 +220,33 @@ jq '.steps[0].network.cert_days_left' output.json
 jq 'select(.summary.errors > 0)' output.json
 ```
 
+## Prometheus Textfile Export
+
+Write a node_exporter textfile collector report with `--prometheus PATH`:
+
+```bash
+httptap --prometheus /var/lib/node_exporter/httptap.prom https://api.example.com/health
+```
+
+The file is written atomically. `httptap_request_duration_seconds` is a gauge
+labelled by `phase` (`dns`, `connect`, `tls`, `ttfb`, `wait`, `xfer`, `total`)
+and redirect-chain `step`. Durations use seconds. Response status and body size
+are also exported as gauges. URLs are not labels, preventing query strings and
+high-cardinality paths from reaching Prometheus.
+
+## OpenTelemetry Export
+
+`--otlp ENDPOINT` sends OTLP/HTTP traces. Install the optional extra first:
+
+```bash
+pip install 'httptap[otel]'
+httptap --otlp http://localhost:4318/v1/traces https://api.example.com/health
+```
+
+Each request step creates an `http.request` span. Its child spans represent
+DNS, connection, TLS, server wait, and transfer phases. The export omits the
+full request URL so query parameters are not sent to the collector.
+
 ## Redirect Chains
 
 When using `--follow`, all output formats include data for each step in the redirect chain.

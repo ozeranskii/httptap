@@ -64,6 +64,11 @@ dependencies = [
 completion = [
     "argcomplete>=3.7.2",
 ]
+otel = [
+    "opentelemetry-api>=1.30.0",
+    "opentelemetry-sdk>=1.30.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.30.0",
+]
 
 [project.scripts]
 httptap = "httptap.cli:main"
