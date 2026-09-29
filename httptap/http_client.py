@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import os
 import time
+import warnings
 from contextlib import suppress
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
@@ -390,7 +391,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     dns_resolver: DNSResolver | None = None,
     tls_inspector: TLSInspector | None = None,
     timing_collector: TimingCollector | None = None,
-    force_new_connection: bool = True,
+    force_new_connection: bool | None = None,
     headers: Mapping[str, str] | None = None,
 ) -> tuple[TimingMetrics, NetworkInfo, ResponseInfo]:
     """Make HTTP request and collect comprehensive metrics.
@@ -429,10 +430,10 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             Defaults to SocketTLSInspector.
         timing_collector: Custom timing collector implementation.
             Defaults to PerfCounterTimingCollector.
-        force_new_connection: Force httpx to create a new connection instead
-            of reusing pooled connections. When True (default), ensures accurate
-            connect/TLS timing by disabling connection pooling. Set to False
-            for better performance when timing accuracy is not critical.
+        force_new_connection: Deprecated and ignored. A fresh ``httpx.Client``
+            (and therefore a fresh connection) is created for every request, so
+            connection pooling is never used. Accepted only for backward
+            compatibility; passing a value emits a ``DeprecationWarning``.
         headers: Optional HTTP headers applied to the request. User-supplied
             values override the defaults (except the tool's User-Agent).
 
@@ -475,12 +476,20 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         to extract detailed certificate information (CN, expiry, etc). This probe
         happens after the main request completes and adds minimal overhead.
 
-        By default (force_new_connection=True), connection pooling is disabled
-        to ensure accurate connect/TLS timing from httpcore trace events.
-        Set force_new_connection=False for better performance when precise
-        timing is not critical.
+        By default a new connection is used for every request: httptap creates
+        a short-lived ``httpx.Client`` per call, so connection pooling never
+        applies and connect/TLS timing is always fresh.
 
     """
+    if force_new_connection is not None:
+        warnings.warn(
+            "force_new_connection is deprecated and has no effect; a new "
+            "httpx.Client is created for every request. It will be removed in "
+            "a future release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     # Use default implementations if not provided
     if dns_resolver is None:
         dns_resolver = SystemDNSResolver()
@@ -549,12 +558,6 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 
         trace = TraceCollector()
 
-        # Configure connection limits to force new connections if requested
-        limits = httpx.Limits(
-            max_connections=1,
-            max_keepalive_connections=0 if force_new_connection else 1,
-        )
-
         ssl_context = create_ssl_context(verify_ssl=verify_ssl, ca_bundle_path=ca_bundle_path)
 
         with httpx.Client(
@@ -563,7 +566,6 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             follow_redirects=False,
             verify=ssl_context,
             proxy=proxy,
-            limits=limits,
         ) as client:
             client.headers["User-Agent"] = USER_AGENT
             if headers:
