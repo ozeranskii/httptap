@@ -485,6 +485,7 @@ shell pipelines, CI jobs, and systemd services.
 |:-----:|-------------------------|------------------------------------------------------------|
 | `0`   | `EX_OK`                 | Success.                                                   |
 | `4`   | —                       | SLO threshold violation (request succeeded but too slow).  |
+| `47`  | —                       | Maximum redirects followed.                                |
 | `64`  | `EX_USAGE`              | Invalid command-line arguments.                            |
 | `70`  | `EX_SOFTWARE`           | Internal error (unexpected exception, bug).                |
 | `75`  | `EX_TEMPFAIL`           | Network / TLS error (partial output may still be rendered). |

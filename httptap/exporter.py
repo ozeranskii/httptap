@@ -138,7 +138,7 @@ class JSONExporter(Exporter):
             "final_status": (steps[-1].response.status if steps and not steps[-1].has_error else None),
             "final_url": steps[-1].url if steps else initial_url,
             "final_bytes": (steps[-1].response.bytes if steps and not steps[-1].has_error else 0),
-            "errors": sum(1 for s in steps if s.has_error),
+            "errors": sum(1 for s in steps if s.has_error or s.redirect_limit_reached),
         }
         if slo_result is not None:
             summary["slo"] = slo_result.to_dict()

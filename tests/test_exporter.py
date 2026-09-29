@@ -6,6 +6,7 @@ import pathlib
 import pytest
 from rich.console import Console
 
+from httptap.constants import REDIRECT_LIMIT_NOTE
 from httptap.exporter import JSONExporter
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
 from httptap.slo import SLOResult, SLOViolation
@@ -140,6 +141,25 @@ def test_exporter_omits_slo_when_not_provided(tmp_path: PathType) -> None:
 
     data = json.loads(output_path.read_text())
     assert "slo" not in data["summary"]
+
+
+def test_exporter_preserves_redirect_limit_response_data(tmp_path: PathType) -> None:
+    """Redirect-limit warnings count as errors without discarding response data."""
+    exporter = JSONExporter(Console(record=True))
+    step = build_step("https://example.test/redirect", 302, 100.0)
+    step.note = f"{REDIRECT_LIMIT_NOTE} (10)"
+    output_path = tmp_path / "redirect-limit.json"
+
+    exporter.export([step], "https://example.test", str(output_path))
+
+    data = json.loads(output_path.read_text())
+    assert data["summary"] == {
+        "total_time_ms": 100.0,
+        "final_status": 302,
+        "final_url": "https://example.test/redirect",
+        "final_bytes": 128,
+        "errors": 1,
+    }
 
 
 def test_exporter_includes_slo_pass(tmp_path: PathType) -> None:

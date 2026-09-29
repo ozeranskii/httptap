@@ -53,6 +53,9 @@ EXIT_CODE_SOFTWARE = getattr(os, "EX_SOFTWARE", _EX_SOFTWARE_FALLBACK)
 # SLO threshold violation — chosen to match the de-facto convention
 # established by httpstat so the same CI gate works for both tools.
 EXIT_CODE_SLO_VIOLATION = 4
+EXIT_CODE_TOO_MANY_REDIRECTS = 47
+
+REDIRECT_LIMIT_NOTE = "Maximum redirects followed"
 
 HTTP_SUCCESS_MIN = HTTPStatus.OK.value
 HTTP_SUCCESS_MAX = HTTPStatus.MULTIPLE_CHOICES.value - 1

@@ -18,16 +18,18 @@ from httptap.cli import (
     EXIT_NETWORK_ERROR,
     EXIT_SLO_VIOLATION,
     EXIT_SUCCESS,
+    EXIT_TOO_MANY_REDIRECTS,
     EXIT_USAGE_ERROR,
     _export_results,
     _parse_headers,
+    _warn_redirect_limit,
     create_parser,
     determine_exit_code,
     main,
     setup_signal_handlers,
     validate_arguments,
 )
-from httptap.constants import UNIX_SIGNAL_EXIT_OFFSET, HTTPMethod
+from httptap.constants import REDIRECT_LIMIT_NOTE, UNIX_SIGNAL_EXIT_OFFSET, HTTPMethod
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
 from httptap.slo import SLOResult, SLOViolation
 
@@ -628,6 +630,26 @@ def test_main_handles_data_read_errors(
 
 def test_determine_exit_code_empty_steps() -> None:
     assert determine_exit_code([]) == EXIT_FATAL_ERROR
+
+
+def test_determine_exit_code_redirect_limit_exceeded() -> None:
+    step = StepMetrics(
+        url="https://example.test/redirect",
+        response=ResponseInfo(status=302),
+        note=f"{REDIRECT_LIMIT_NOTE} (10)",
+    )
+
+    assert determine_exit_code([step]) == EXIT_TOO_MANY_REDIRECTS
+
+
+def test_warn_redirect_limit(capsys: pytest.CaptureFixture[str]) -> None:
+    step = StepMetrics(note=f"{REDIRECT_LIMIT_NOTE} (10)")
+
+    _warn_redirect_limit([step])
+
+    stderr = capsys.readouterr().err
+    assert "Warning:" in stderr
+    assert "Maximum redirects followed (10)" in stderr
 
 
 def test_setup_signal_handlers_invokes_exit(monkeypatch: pytest.MonkeyPatch) -> None:

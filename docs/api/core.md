@@ -68,6 +68,7 @@ from httptap.constants import (
 ```python
 from httptap.constants import (
     EXIT_CODE_OK,  # 0  - Success (os.EX_OK)
+    EXIT_CODE_TOO_MANY_REDIRECTS,  # 47 - Maximum redirects followed
     EXIT_CODE_USAGE,  # 64 - Invalid arguments (os.EX_USAGE)
     EXIT_CODE_SOFTWARE,  # 70 - Internal error (os.EX_SOFTWARE)
     EXIT_CODE_TEMPFAIL,  # 75 - Network/TLS error (os.EX_TEMPFAIL)
