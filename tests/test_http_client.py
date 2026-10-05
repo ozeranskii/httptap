@@ -43,7 +43,7 @@ from httptap.http_client import (
 )
 from httptap.implementations.dns import DNSResolutionError, OverrideDNSResolver, SystemDNSResolver
 from httptap.implementations.tls import SocketTLSInspector
-from httptap.models import NetworkInfo, TimingMetrics
+from httptap.models import NetworkInfo, ResponseInfo, TimingMetrics
 from httptap.tls_inspector import TLSInspectionError
 
 if TYPE_CHECKING:
@@ -429,6 +429,31 @@ def test_make_request_total_deadline_is_independent_of_read_timing(header_chunks
     thread.join(timeout=5)
     assert not thread.is_alive()
     assert threading.active_count() == threads_before - 1
+
+
+def test_deadline_mid_body_keeps_the_response_already_received() -> None:
+    """Headers and the first body byte arrived before the stall, so they are kept on the error."""
+    port, thread = _serve_stalling_response([b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nx"], 0.0)
+
+    with pytest.raises(HTTPClientError, match="total deadline exceeded") as exc_info:
+        make_request(f"http://127.0.0.1:{port}/", timeout=0.5, http2=False)
+    thread.join(timeout=5)
+
+    received = exc_info.value.response_info
+    assert received is not None
+    assert received.status == 200
+    assert received.headers["content-length"] == "100"
+    assert received.bytes == 1
+
+
+def test_failure_before_the_status_line_has_no_response() -> None:
+    port, thread = _serve_stalling_response([b"HTTP/1.1 2"], 0.0)
+
+    with pytest.raises(HTTPClientError, match="total deadline exceeded") as exc_info:
+        make_request(f"http://127.0.0.1:{port}/", timeout=0.5, http2=False)
+    thread.join(timeout=5)
+
+    assert exc_info.value.response_info is None
 
 
 def _stream_event(sock: object) -> dict[str, object]:
@@ -1309,10 +1334,11 @@ class TestConsumeResponseBody:
         """Test consuming response body and counting bytes."""
         body = b"Hello, World!" * 100
         response = httpx.Response(200, content=body)
+        response_info = ResponseInfo()
 
-        total_bytes = _consume_response_body(response)
+        _consume_response_body(response, response_info)
 
-        assert total_bytes == len(body)
+        assert response_info.bytes == len(body)
 
     def test_consume_response_body_counts_encoded_bytes(self) -> None:
         """Compressed responses report the bytes received on the wire."""
@@ -1322,8 +1348,11 @@ class TestConsumeResponseBody:
             headers={"content-encoding": "gzip"},
             stream=httpx.ByteStream(encoded_body),
         )
+        response_info = ResponseInfo()
 
-        assert _consume_response_body(response) == len(encoded_body)
+        _consume_response_body(response, response_info)
+
+        assert response_info.bytes == len(encoded_body)
 
     def test_consume_response_body_ignores_invalid_content_encoding(self) -> None:
         """Invalid content encoding does not prevent collecting wire bytes."""
@@ -1333,19 +1362,25 @@ class TestConsumeResponseBody:
             headers={"content-encoding": "gzip"},
             stream=httpx.ByteStream(encoded_body),
         )
+        response_info = ResponseInfo()
 
-        assert _consume_response_body(response) == len(encoded_body)
+        _consume_response_body(response, response_info)
+
+        assert response_info.bytes == len(encoded_body)
 
     def test_consume_response_body_rejects_expired_deadline(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """A body chunk received after the deadline fails the request."""
+        """A body chunk received after the deadline fails the request; the bytes that arrived stay counted."""
         response = httpx.Response(200, stream=httpx.ByteStream(b"body"))
+        response_info = ResponseInfo()
         monkeypatch.setattr("httptap.http_client.time.monotonic", lambda: 2.0)
 
         with pytest.raises(httpx.ReadTimeout, match="total deadline exceeded"):
-            _consume_response_body(response, deadline=1.0)
+            _consume_response_body(response, response_info, deadline=1.0)
+
+        assert response_info.bytes == len(b"body")
 
 
 CERT_DICT: dict[str, Any] = {

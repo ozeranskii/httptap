@@ -127,10 +127,22 @@ class HTTPClientError(Exception):
 
     """
 
-    def __init__(self, message: str, *, network_info: NetworkInfo | None = None) -> None:
-        """Initialize an error with optional partial network metadata."""
+    def __init__(
+        self,
+        message: str,
+        *,
+        network_info: NetworkInfo | None = None,
+        response_info: ResponseInfo | None = None,
+    ) -> None:
+        """Initialize an error with optional partial network and response metadata.
+
+        ``response_info`` is set when the response headers had already arrived,
+        e.g. when the body stalled past the deadline; ``bytes`` then counts the
+        body received before the failure.
+        """
         super().__init__(message)
         self.network_info = network_info
+        self.response_info = response_info
 
 
 _DEADLINE_EXCEEDED = "Request timeout: total deadline exceeded"
@@ -226,11 +238,22 @@ def _populate_response_metadata(
     response_info.headers = sanitize_headers(dict(response.headers))
 
 
-def _consume_response_body(response: httpx.Response, deadline: float | None = None) -> int:
-    """Read the encoded response body to completion and return its wire size.
+def _received_response(response_info: ResponseInfo) -> ResponseInfo | None:
+    """Return the response metadata if the status line had arrived before a failure."""
+    return response_info if response_info.status is not None else None
 
-    With ``deadline`` set, every received chunk is checked against it, so a
-    body that keeps trickling in cannot outlive the total request budget.
+
+def _consume_response_body(
+    response: httpx.Response,
+    response_info: ResponseInfo,
+    deadline: float | None = None,
+) -> None:
+    """Read the encoded response body to completion, counting its wire size in ``response_info.bytes``.
+
+    The count is updated per chunk, so a failure mid-body still reports how
+    much arrived. With ``deadline`` set, every received chunk is checked
+    against it, so a body that keeps trickling in cannot outlive the total
+    request budget.
 
     Raises:
         httpx.ReadTimeout: If a chunk arrives after ``deadline``.
@@ -239,14 +262,14 @@ def _consume_response_body(response: httpx.Response, deadline: float | None = No
     if response.is_stream_consumed:
         # In-memory responses (e.g. mock transports) arrive already read; the
         # raw stream is gone, so the decoded content is the only size left.
-        return len(response.content)
+        response_info.bytes = len(response.content)
+        return
 
-    total_bytes = 0
+    response_info.bytes = 0
     for chunk in response.iter_raw():
-        total_bytes += len(chunk)
+        response_info.bytes += len(chunk)
         if deadline is not None and time.monotonic() >= deadline:
             raise httpx.ReadTimeout(_DEADLINE_EXCEEDED)
-    return total_bytes
 
 
 class _DeadlineWatchdog:
@@ -1040,7 +1063,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                             network_info.http_version = network_info.http_version or _normalize_http_version(
                                 response.http_version
                             )
-                            response_info.bytes = _consume_response_body(response, request_deadline)
+                            _consume_response_body(response, response_info, request_deadline)
                             break
                     except Exception:
                         # httpcore's SOCKS pool does not close the proxy socket when
@@ -1091,15 +1114,17 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                     )
 
     except httpx.TimeoutException as exc:
+        received = _received_response(response_info)
         if time.monotonic() >= request_deadline:
-            raise HTTPClientError(_DEADLINE_EXCEEDED, network_info=network_info) from exc
+            raise HTTPClientError(_DEADLINE_EXCEEDED, network_info=network_info, response_info=received) from exc
         msg = f"Request timeout: {exc}"
-        raise HTTPClientError(msg, network_info=network_info) from exc
+        raise HTTPClientError(msg, network_info=network_info, response_info=received) from exc
     except httpx.RequestError as exc:
+        received = _received_response(response_info)
         if watchdog.expired:
             # The watchdog shut the connection down; the transport error it
             # caused is only a symptom of the deadline.
-            raise HTTPClientError(_DEADLINE_EXCEEDED, network_info=network_info) from exc
+            raise HTTPClientError(_DEADLINE_EXCEEDED, network_info=network_info, response_info=received) from exc
         msg = f"Request failed: {exc}"
         if (
             is_https
@@ -1118,7 +1143,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                         network_info,
                         diagnostic_inspector.inspect(wire_host, port, probe_timeout, connect_host=network_info.ip),
                     )
-        raise HTTPClientError(msg, network_info=network_info) from exc
+        raise HTTPClientError(msg, network_info=network_info, response_info=received) from exc
     except HTTPClientError:
         raise
 
