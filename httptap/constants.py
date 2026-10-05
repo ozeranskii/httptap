@@ -67,7 +67,7 @@ HTTP_FAILURE_MIN = HTTPStatus.BAD_REQUEST.value
 POST_TO_GET_REDIRECT_STATUSES = frozenset({HTTPStatus.MOVED_PERMANENTLY.value, HTTPStatus.FOUND.value})
 
 # Request headers bound to the origin they were sent to; dropped on cross-origin redirects.
-ORIGIN_BOUND_HEADERS = frozenset({"authorization", "cookie", "proxy-authorization"})
+ORIGIN_BOUND_HEADERS = frozenset({"authorization", "cookie", "host", "proxy-authorization"})
 # Request headers describing the body; dropped when a redirect discards the body.
 BODY_HEADERS = frozenset({"content-type", "content-length", "content-encoding", "transfer-encoding"})
 

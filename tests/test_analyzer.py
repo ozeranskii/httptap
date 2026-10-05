@@ -559,6 +559,7 @@ class RecordingExecutor:
 CREDENTIAL_HEADERS = {
     "Authorization": "Bearer secret",
     "Cookie": "session=1",
+    "Host": "vhost.test",
     "Proxy-Authorization": "Basic cHJveHk6cHc=",
     "X-Trace": "abc",
 }
