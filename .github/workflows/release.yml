@@ -108,6 +108,27 @@ jobs:
           DATE=$(date -u +%Y-%m-%d)
           yq -i ".version = \"${VERSION}\" | .\"date-released\" = \"${DATE}\"" CITATION.cff
 
+      - name: Add release to OpenVEX fixed statements
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Every fixed vulnerability stays fixed in the new release, so its
+          # purl joins the products of each "fixed" statement. The document
+          # version and timestamps only move when something actually changed,
+          # which keeps a re-run for the same version a no-op.
+          VEX=.vex/httptap.openvex.json
+          jq --arg purl "pkg:pypi/${PACKAGE_NAME}@${VERSION}" \
+             --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+            . as $orig
+            | .statements |= map(
+                if .status == "fixed" and (any(.products[]; .["@id"] == $purl) | not)
+                then .products += [{"@id": $purl}] | .timestamp = $now
+                else . end)
+            | if . == $orig then . else .version += 1 | .timestamp = $now end
+          ' "$VEX" > "${RUNNER_TEMP}/openvex.json"
+          mv "${RUNNER_TEMP}/openvex.json" "$VEX"
+          git diff --stat -- "$VEX"
+
       - name: Ensure changelog exists
         run: touch "${CHANGELOG_FILE}"
 
@@ -139,7 +160,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          git add pyproject.toml uv.lock CITATION.cff "${CHANGELOG_FILE}"
+          git add pyproject.toml uv.lock CITATION.cff .vex/httptap.openvex.json "${CHANGELOG_FILE}"
           git commit -S -m "chore: release v${VERSION}"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -257,7 +278,14 @@ jobs:
           # the current exploitability assessment. Rename-copy the file
           # with the release version embedded so the published artifact
           # is self-identifying.
-          cp .vex/httptap.openvex.json "sbom/${PACKAGE_NAME}-${VERSION}.openvex.json"
+          VEX=.vex/httptap.openvex.json
+          if ! jq -e --arg purl "pkg:pypi/${PACKAGE_NAME}@${VERSION}" \
+            '[.statements[] | select(.status == "fixed")] | all(any(.products[]; .["@id"] == $purl))' \
+            "$VEX" > /dev/null; then
+            echo "::error file=${VEX}::A fixed statement does not list pkg:pypi/${PACKAGE_NAME}@${VERSION}"
+            exit 1
+          fi
+          cp "$VEX" "sbom/${PACKAGE_NAME}-${VERSION}.openvex.json"
 
       - name: Generate man page
         env:
