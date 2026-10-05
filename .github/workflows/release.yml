@@ -74,6 +74,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version-file: uv.lock
           enable-cache: false
 
       - name: Update project version
@@ -132,23 +133,18 @@ jobs:
       - name: Ensure changelog exists
         run: touch "${CHANGELOG_FILE}"
 
-      - name: Install git-cliff
-        uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
-        with:
-          tool: git-cliff
-
       - name: Generate changelog entry
         id: notes
         env:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
           # Generate full changelog and prepend to CHANGELOG.md
-          git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --prepend "${CHANGELOG_FILE}"
+          uv run --locked --only-group release git-cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --prepend "${CHANGELOG_FILE}"
           # Extract release notes for the new version.
           # We cannot use --latest here because the tag does not exist in git
           # yet (it is created in a later step); --latest would fall back to
           # the previous release and embed stale notes in the GitHub release.
-          NOTES=$(git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --strip header)
+          NOTES=$(uv run --locked --only-group release git-cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --strip header)
           {
             echo "text<<EOF"
             echo "${NOTES}"
@@ -216,19 +212,20 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version-file: uv.lock
           enable-cache: false
 
       - name: Sync dependencies
         run: uv sync --locked --no-dev --group test
 
       - name: Run tests
-        run: uv run pytest
+        run: uv run --no-sync pytest
 
       - name: Build distribution
         run: uv build
 
       - name: Validate distribution metadata
-        run: uvx twine check dist/*
+        run: uv run --locked --only-group release twine check dist/*
 
       - name: Smoke test wheel
         run: uv run --isolated --no-project --with dist/*.whl httptap --version
@@ -292,7 +289,7 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           mkdir -p man
-          uv run --with 'argparse-manpage>=4.7' argparse-manpage \
+          uv run --locked --no-dev --group release argparse-manpage \
             --module httptap.cli \
             --function create_parser \
             --project-name httptap \

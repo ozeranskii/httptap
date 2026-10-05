@@ -172,5 +172,9 @@ repository:
     env-dependencies-policy:
       policy-url: https://github.com/ozeranskii/httptap/blob/main/CONTRIBUTING.md
       comment: |-
-        Runtime is Python >= 3.11 managed by uv; all build-time tools
-        are pinned in pyproject.toml under [dependency-groups].
+        Runtime is Python >= 3.11 managed by uv. Build, release and
+        audit tools (git-cliff, twine, argparse-manpage, pip-audit) are declared in
+        pyproject.toml under [dependency-groups] and installed from the
+        exact versions in uv.lock; CI installs the uv version locked in
+        uv.lock, and the container build pins its uv base image by
+        digest. GitHub Actions are pinned to commit SHAs.

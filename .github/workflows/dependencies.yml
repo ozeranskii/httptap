@@ -28,6 +28,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version-file: uv.lock
           enable-cache: true
 
       - name: Check if lockfile is up-to-date
@@ -51,6 +52,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version-file: uv.lock
           enable-cache: true
 
       - name: Export dependencies for audit
@@ -66,10 +68,8 @@ jobs:
           compression-level: 9
           if-no-files-found: warn
 
-      - name: Install and run pip-audit
-        run: |
-          uv tool install pip-audit
-          uv tool run pip-audit -r requirements.txt --desc
+      - name: Run pip-audit
+        run: uv run --locked --only-group audit pip-audit -r requirements.txt --desc
 
   test-dependency-updates:
     name: Test Dependency Updates
@@ -86,6 +86,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version-file: uv.lock
           enable-cache: true
 
       - name: Update lockfile with latest versions

@@ -130,6 +130,16 @@ docs = [
 ]
 release = [
     "argparse-manpage>=4.7",
+    "git-cliff>=2.14.2",
+    "twine>=7.0.0",
+]
+audit = [
+    "pip-audit>=2.10.1",
+]
+# Not installed anywhere: astral-sh/setup-uv reads the uv version to install
+# from uv.lock, so CI uses the locked uv and Dependabot bumps it.
+ci = [
+    "uv>=0.12.23",
 ]
 precommit = [
     "pre-commit>=4.6.2",
