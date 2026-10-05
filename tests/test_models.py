@@ -391,6 +391,21 @@ class TestStepMetrics:
         assert step.error == error_message
         assert step.note == note
 
+    def test_initialization_preserves_positional_arguments(self) -> None:
+        """Adding internal fields must not shift the public positional API."""
+        step = StepMetrics(
+            "https://example.test",
+            1,
+            TimingMetrics(),
+            NetworkInfo(),
+            ResponseInfo(),
+            "request failed",
+            "request note",
+        )
+
+        assert step.error == "request failed"
+        assert step.note == "request note"
+
     def test_to_dict_includes_all_fields(self, faker: Faker) -> None:
         """Test that to_dict() includes all step fields."""
         url = faker.url()

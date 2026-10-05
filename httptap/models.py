@@ -244,6 +244,7 @@ class StepMetrics:
         network: Network and security information.
         response: HTTP response information.
         error: Error message if request failed.
+        error_kind: Internal error classification, excluded from exports.
         note: Additional notes or context.
         proxied_via: Proxy URL used for this request, if any.
         request_method: HTTP method used (GET, POST, PUT, etc.).
@@ -258,6 +259,7 @@ class StepMetrics:
     network: NetworkInfo = field(default_factory=NetworkInfo)
     response: ResponseInfo = field(default_factory=ResponseInfo)
     error: str | None = None
+    error_kind: str | None = field(default=None, repr=False, kw_only=True)
     note: str | None = None
     proxied_via: str | None = None
     request_method: str | None = None

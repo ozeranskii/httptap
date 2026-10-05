@@ -1543,7 +1543,7 @@ class TestMakeRequest:
             url=f"https://{ip}",
         )
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="Unexpected error"):
+        with pytest.raises(RuntimeError, match="Unexpected internal error"):
             make_request(
                 "https://error.test",
                 timeout=5.0,
