@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import ssl
 from datetime import datetime, timedelta
 from typing import Any
@@ -98,19 +99,26 @@ class TestCertificateInfo:
         cert_info = CertificateInfo(cert_dict)
         assert cert_info.subject_alt_names == []
 
-    def test_extract_san_filters_non_dns(self) -> None:
-        """Test that non-DNS SAN entries are filtered out."""
+    def test_extract_san_keeps_dns_and_ip_entries(self) -> None:
+        """DNS names and IP addresses are kept in order; other SAN types are dropped."""
         cert_dict: dict[str, Any] = {
             "subjectAltName": (
                 ("DNS", "example.com"),
                 ("IP Address", "93.184.216.34"),
+                ("email", "admin@example.com"),
+                ("URI", "https://example.com/"),
+                ("IP Address", "2001:DB8:0:0:0:0:0:1\n"),
                 ("DNS", "www.example.com"),
             ),
         }
 
         cert_info = CertificateInfo(cert_dict)
-        # Should only include DNS entries
-        assert cert_info.subject_alt_names == ["example.com", "www.example.com"]
+        assert cert_info.subject_alt_names == [
+            "example.com",
+            "93.184.216.34",
+            "2001:DB8:0:0:0:0:0:1",
+            "www.example.com",
+        ]
 
     def test_extract_issuer_success(self) -> None:
         """Test extracting issuer Common Name."""
@@ -255,6 +263,36 @@ class TestExtractCertificateInfo:
 
         assert cert_info.common_name == "no-san.example"
         assert cert_info.subject_alt_names == []
+
+    def test_certificate_info_from_der_keeps_ip_subject_alt_names(self) -> None:
+        """IP SANs are reported alongside DNS names; other SAN types are dropped."""
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "ip.example")])
+        certificate = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(subject)
+            .public_key(private_key.public_key())
+            .serial_number(2)
+            .not_valid_before(datetime(2025, 1, 1, tzinfo=UTC))
+            .not_valid_after(datetime(2026, 1, 1, tzinfo=UTC))
+            .add_extension(
+                x509.SubjectAlternativeName(
+                    [
+                        x509.DNSName("ip.example"),
+                        x509.IPAddress(ipaddress.ip_address("127.0.0.1")),
+                        x509.RFC822Name("admin@ip.example"),
+                        x509.IPAddress(ipaddress.ip_address("::1")),
+                    ],
+                ),
+                critical=False,
+            )
+            .sign(private_key, hashes.SHA256())
+        )
+
+        cert_info = CertificateInfo.from_der(certificate.public_bytes(serialization.Encoding.DER))
+
+        assert cert_info.subject_alt_names == ["ip.example", "127.0.0.1", "::1"]
 
     def test_extract_certificate_info_reads_der_when_verification_is_disabled(self) -> None:
         """Test that binary certificates are parsed when the dict is empty."""

@@ -13,6 +13,7 @@ from httptap.utils import (
     mask_sensitive_value,
     parse_certificate_date,
     parse_http_date,
+    percent_encode_undecodable_bytes,
     read_request_data,
     redact_url_credentials,
     sanitize_headers,
@@ -676,3 +677,19 @@ class TestReadRequestData:
 )
 def test_validate_url_checks_port(url: str, *, expected: bool) -> None:
     assert validate_url(url) is expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        pytest.param(
+            "http://example.test/\udcff\udcfe?q=\udce9",
+            "http://example.test/%FF%FE?q=%E9",
+            marks=pytest.mark.skipif(sys.platform == "win32", reason="surrogateescape argv exists only on POSIX"),
+        ),
+        ("http://example.test/caf\xe9", "http://example.test/caf\xe9"),
+        ("http://example.test/plain", "http://example.test/plain"),
+    ],
+)
+def test_percent_encode_undecodable_bytes(text: str, expected: str) -> None:
+    assert percent_encode_undecodable_bytes(text) == expected

@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import time
+from contextlib import contextmanager
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from .utils import redact_url_credentials, url_hostname
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
     from .models import StepMetrics
 
@@ -71,7 +73,8 @@ class OTLPExporter:
 
         try:
             self._record_chain(otel.trace, provider.get_tracer("httptap"), steps)
-            result = exporter.export(finished_spans.get_finished_spans())
+            with _sdk_warnings_suppressed():
+                result = exporter.export(finished_spans.get_finished_spans())
         except Exception as exc:
             reason = str(exc).replace(endpoint, shown_endpoint)
             msg = f"Failed to export traces to OTLP endpoint '{shown_endpoint}': {reason}"
@@ -174,3 +177,15 @@ class OTLPExporter:
 def _ns(milliseconds: float) -> int:
     """Convert a non-negative duration in milliseconds to nanoseconds."""
     return max(0, int(milliseconds * 1_000_000))
+
+
+@contextmanager
+def _sdk_warnings_suppressed() -> Iterator[None]:
+    """Hold back the SDK's own retry warnings; a failed export is reported once by httptap."""
+    sdk_logger = logging.getLogger("opentelemetry")
+    previous_level = sdk_logger.level
+    sdk_logger.setLevel(logging.ERROR)
+    try:
+        yield
+    finally:
+        sdk_logger.setLevel(previous_level)

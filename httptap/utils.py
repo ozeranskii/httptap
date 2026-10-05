@@ -367,6 +367,29 @@ def read_request_data(data_arg: str | None) -> tuple[bytes | None, dict[str, str
 _WHITESPACE_RE = re.compile(r"\s")
 
 
+_ASCII_LIMIT = 0x80
+
+
+def percent_encode_undecodable_bytes(text: str) -> str:
+    r"""Percent-encode argument bytes that were not valid in the filesystem encoding.
+
+    On POSIX, Python decodes undecodable ``argv`` bytes to lone surrogates
+    (``surrogateescape``); httpx cannot encode those. The original bytes are
+    restored and every non-ASCII byte is percent-encoded, which is also what
+    httpx does for valid non-ASCII characters.
+
+    Examples:
+        >>> percent_encode_undecodable_bytes("http://h/\udcff\udcfe")
+        'http://h/%FF%FE'
+        >>> percent_encode_undecodable_bytes("http://h/caf\xe9")
+        'http://h/café'
+
+    """
+    if not any("\udc80" <= char <= "\udcff" for char in text):
+        return text
+    return "".join(chr(byte) if byte < _ASCII_LIMIT else f"%{byte:02X}" for byte in os.fsencode(text))
+
+
 def validate_url(url: str) -> bool:
     """Validate URL format.
 

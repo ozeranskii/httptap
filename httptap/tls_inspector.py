@@ -131,15 +131,14 @@ class CertificateInfo:
             cert_dict: Certificate dictionary.
 
         Returns:
-            List of SAN entries (DNS names).
+            DNS names and IP addresses, in certificate order.
 
         """
-        san_list = []
-        san = cert_dict.get("subjectAltName", ())
-        for san_type, san_value in san:
-            if san_type == "DNS":
-                san_list.append(str(san_value))
-        return san_list
+        return [
+            str(san_value).rstrip()
+            for san_type, san_value in cert_dict.get("subjectAltName", ())
+            if san_type in {"DNS", "IP Address"}
+        ]
 
     @staticmethod
     def _extract_issuer(cert_dict: dict[str, Any]) -> str | None:
@@ -221,12 +220,12 @@ class CertificateInfo:
 
     @staticmethod
     def _x509_subject_alt_names(certificate: x509.Certificate) -> list[str]:
-        """Extract DNS subject alternative names from an X.509 certificate."""
+        """Extract DNS and IP subject alternative names from an X.509 certificate."""
         try:
             extension = certificate.extensions.get_extension_for_class(x509.SubjectAlternativeName)
         except x509.ExtensionNotFound:
             return []
-        return list(extension.value.get_values_for_type(x509.DNSName))
+        return [str(name.value) for name in extension.value if isinstance(name, (x509.DNSName, x509.IPAddress))]
 
 
 def apply_certificate_info(network_info: NetworkInfo, cert_info: CertificateInfo) -> None:
