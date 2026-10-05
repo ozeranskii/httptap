@@ -98,6 +98,8 @@ def redact_url_credentials(url: str) -> str:
         'socks5h://****@gateway:1080'
         >>> redact_url_credentials("http://proxy:3128")
         'http://proxy:3128'
+        >>> redact_url_credentials("user:secret@proxy:3128")
+        'user:****@proxy:3128'
 
     """
     # Without a "//" prefix the leading segment is taken as the authority, so

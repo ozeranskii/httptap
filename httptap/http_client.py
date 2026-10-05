@@ -382,6 +382,35 @@ def _needs_remote_dns(proxy_url: str) -> bool:
     return scheme in _REMOTE_DNS_PROXY_SCHEMES
 
 
+_SUPPORTED_PROXY_SCHEMES: tuple[str, ...] = ("http", "https", "socks5", "socks5h")
+_MAX_PORT = 65535
+
+
+def _with_default_proxy_scheme(value: str) -> str:
+    """Treat a proxy given without a scheme as a plain HTTP proxy, as curl does."""
+    return value if "://" in value else f"http://{value}"
+
+
+def _proxy_url_problem(proxy_url: str) -> str | None:
+    """Return why ``proxy_url`` cannot be used as a proxy, or None if it can.
+
+    The reason never repeats the URL, so it is safe to show next to the
+    redacted URL.
+    """
+    try:
+        parsed = httpx.URL(proxy_url)
+        port = parsed.port
+    except httpx.InvalidURL:
+        return "malformed URL"
+    if parsed.scheme not in _SUPPORTED_PROXY_SCHEMES:
+        return f"unsupported scheme {parsed.scheme!r}; expected one of {', '.join(_SUPPORTED_PROXY_SCHEMES)}"
+    if not parsed.host:
+        return "missing host"
+    if port is not None and not 1 <= port <= _MAX_PORT:
+        return f"port {port} out of range 1-{_MAX_PORT}"
+    return None
+
+
 def _host_matches_no_proxy(host: str, no_proxy: str) -> bool:
     """Check if a hostname matches any entry in the NO_PROXY exclusion list.
 
@@ -486,7 +515,7 @@ def _resolve_effective_proxy(
     ):
         value = os.environ.get(var_name)
         if value:
-            return value, var_name
+            return _with_default_proxy_scheme(value), var_name
 
     if _any_proxy_env_set():
         return None, PROXY_SOURCE_NO_MATCH
@@ -679,6 +708,11 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         )
         network_info.proxy_url = redact_url_credentials(effective_proxy_url) if effective_proxy_url else None
         network_info.proxy_source = proxy_source
+        if effective_proxy_url is not None:
+            problem = _proxy_url_problem(effective_proxy_url)
+            if problem is not None:
+                msg = f"Invalid proxy URL in {proxy_source}: {network_info.proxy_url} ({problem})"
+                raise HTTPClientError(msg, network_info=network_info)  # noqa: TRY301
         skip_local_dns = effective_proxy_url is not None and _needs_remote_dns(effective_proxy_url)
 
         if skip_local_dns:
@@ -702,16 +736,24 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 
         ssl_context = create_ssl_context(verify_ssl=verify_ssl, ca_bundle_path=ca_bundle_path)
 
-        with httpx.Client(
-            timeout=timeout,
-            http2=http2,
-            follow_redirects=False,
-            verify=ssl_context,
-            # Proxy resolution is handled above against the original hostname.
-            # Do not let httpx reapply environment proxy settings after DNS.
-            proxy=proxy if proxy is not None and effective_proxy_url is not None else effective_proxy_url,
-            trust_env=False,
-        ) as client:
+        try:
+            client = httpx.Client(
+                timeout=timeout,
+                http2=http2,
+                follow_redirects=False,
+                verify=ssl_context,
+                # Proxy resolution is handled above against the original hostname.
+                # Do not let httpx reapply environment proxy settings after DNS.
+                proxy=proxy if proxy is not None and effective_proxy_url is not None else effective_proxy_url,
+                trust_env=False,
+            )
+        except (ValueError, ImportError, httpx.InvalidURL) as exc:
+            # httpx renders proxy URLs with the password masked, and optional
+            # transport dependencies (socksio, h2) fail with an ImportError.
+            msg = f"Cannot set up the HTTP client: {exc}"
+            raise HTTPClientError(msg, network_info=network_info) from exc
+
+        with client:
             client.headers["User-Agent"] = USER_AGENT
             if headers:
                 client.headers.update(headers)

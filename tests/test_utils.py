@@ -86,6 +86,11 @@ class TestRedactUrlCredentials:
             ("user:secret@proxy:3128", "user:****@proxy:3128"),
             ("token@proxy:3128/path", "****@proxy:3128/path"),
             ("proxy:3128", "proxy:3128"),
+            ("user:s3cret@127.0.0.1:3128", "user:****@127.0.0.1:3128"),
+            ("token@proxy:3128/", "****@proxy:3128/"),
+            ("http://user:s3cret@[::1", "http://user:****@[::1"),
+            ("http://user:s3cret@127.0.0.1:99999", "http://user:****@127.0.0.1:99999"),
+            ("proxy:3128/path?next=http://a@b", "proxy:3128/path?next=http://a@b"),
         ],
     )
     def test_redact_url_credentials(self, url: str, expected: str) -> None:

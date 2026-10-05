@@ -503,6 +503,92 @@ class TestErrorsCarryNetworkInfo:
         assert exc_info.value.network_info.proxy_source is not None
 
 
+class TestProxyURLValidation:
+    """Proxy URLs that cannot be used fail as network errors without leaking credentials."""
+
+    def test_scheme_less_env_proxy_is_used_as_http_proxy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        proxy_port = listener.getsockname()[1]
+        received: list[bytes] = []
+
+        def serve() -> None:
+            with listener:
+                connection, _address = listener.accept()
+                with connection:
+                    request = b""
+                    while b"\r\n\r\n" not in request:
+                        request += connection.recv(4096)
+                    received.append(request)
+                    connection.sendall(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+        monkeypatch.setenv("HTTP_PROXY", f"user:s3cret@127.0.0.1:{proxy_port}")
+
+        _timing, network, response = make_request("http://origin.test:8080/path", timeout=5.0, http2=False)
+        thread.join(timeout=2)
+
+        assert response.status == 204
+        assert network.proxy_url == f"http://user:****@127.0.0.1:{proxy_port}"
+        assert received[0].startswith(b"GET http://origin.test:8080/path HTTP/1.1\r\n")
+        assert b"Proxy-Authorization: Basic dXNlcjpzM2NyZXQ=" in received[0]
+
+    @pytest.mark.parametrize(
+        ("proxy_url", "reason"),
+        [
+            ("ftp://user:s3cret@127.0.0.1:3128", "unsupported scheme"),
+            ("socks4://user:s3cret@127.0.0.1:1080", "unsupported scheme"),
+            ("http://user:s3cret@[::1", "malformed"),
+            ("http://user:s3cret@127.0.0.1:abc", "malformed"),
+            ("http://user:s3cret@127.0.0.1:99999", "port"),
+            ("http://user:s3cret@127.0.0.1:0", "port"),
+            ("http://user:s3cret@", "missing host"),
+        ],
+    )
+    def test_invalid_env_proxy_is_a_redacted_client_error(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        proxy_url: str,
+        reason: str,
+    ) -> None:
+        monkeypatch.setenv("HTTP_PROXY", proxy_url)
+
+        with pytest.raises(HTTPClientError, match=reason) as exc_info:
+            make_request("http://example.test/", dns_resolver=FakeDNSResolver())
+
+        assert "s3cret" not in str(exc_info.value)
+        assert "HTTP_PROXY" in str(exc_info.value)
+        network = exc_info.value.network_info
+        assert network is not None
+        assert network.proxy_url is not None
+        assert "s3cret" not in network.proxy_url
+        assert network.proxy_source == "HTTP_PROXY"
+
+    def test_explicit_proxy_is_validated_too(self) -> None:
+        with pytest.raises(HTTPClientError, match="unsupported scheme") as exc_info:
+            make_request("http://example.test/", proxy="user:s3cret@gateway:3128", dns_resolver=FakeDNSResolver())
+
+        assert "s3cret" not in str(exc_info.value)
+
+    def test_client_construction_failure_is_a_client_error(self, mocker: pytest_mock.MockerFixture) -> None:
+        mocker.patch(
+            "httptap.http_client.httpx.Client",
+            side_effect=ImportError("Using SOCKS proxy, but the 'socksio' package is not installed."),
+        )
+
+        with pytest.raises(HTTPClientError, match="socksio") as exc_info:
+            make_request(
+                "http://example.test/",
+                proxy="socks5://user:s3cret@gateway:1080",
+                dns_resolver=FakeDNSResolver(),
+            )
+
+        assert exc_info.value.network_info is not None
+        assert exc_info.value.network_info.proxy_url == "socks5://user:****@gateway:1080"
+
+
 @pytest.mark.parametrize("url", ["http://example.test:99999/", "http://example.test:abc/"])
 def test_make_request_reports_invalid_url_as_client_error(url: str) -> None:
     """A malformed redirect target fails like any other request error, not as an internal error."""
@@ -2465,6 +2551,12 @@ class TestResolveEffectiveProxy:
         url, source = _resolve_effective_proxy(None, "https", "example.com")
         assert url is None
         assert source == PROXY_SOURCE_NO_MATCH
+
+    def test_scheme_less_env_value_defaults_to_http(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Like curl and ``-x``, a proxy without a scheme is a plain HTTP proxy."""
+        monkeypatch.setenv("HTTP_PROXY", "user:s3cret@127.0.0.1:3128")
+        url, _source = _resolve_effective_proxy(None, "http", "example.com")
+        assert url == "http://user:s3cret@127.0.0.1:3128"
 
     def test_noproxy_flag_ignores_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Return 'noproxy' when noproxy flag is set, even with proxy env vars."""
