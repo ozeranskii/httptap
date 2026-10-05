@@ -32,8 +32,10 @@ from .constants import (
     EXIT_CODE_SLO_VIOLATION,
     EXIT_CODE_SOFTWARE,
     EXIT_CODE_TEMPFAIL,
+    EXIT_CODE_TOO_MANY_REDIRECTS,
     EXIT_CODE_USAGE,
     HTTP_FAILURE_MIN,
+    REDIRECT_LIMIT_NOTE,
     UNIX_SIGNAL_EXIT_OFFSET,
     HTTPMethod,
 )
@@ -59,6 +61,7 @@ EXIT_NETWORK_ERROR = EXIT_CODE_TEMPFAIL
 EXIT_FATAL_ERROR = EXIT_CODE_SOFTWARE
 EXIT_SLO_VIOLATION = EXIT_CODE_SLO_VIOLATION
 EXIT_HTTP_FAILURE = EXIT_CODE_HTTP_FAILURE
+EXIT_TOO_MANY_REDIRECTS = EXIT_CODE_TOO_MANY_REDIRECTS
 
 
 # Global console for error messages
@@ -190,6 +193,7 @@ Exit codes:
   {EXIT_SUCCESS:>3} (EX_OK)       : Success
   {EXIT_SLO_VIOLATION:>3}              : SLO threshold violation (request succeeded but too slow)
   {EXIT_HTTP_FAILURE:>3}              : HTTP 4xx/5xx response with --fail
+  {EXIT_TOO_MANY_REDIRECTS:>3}              : Maximum redirects followed
   {EXIT_USAGE_ERROR:>3} (EX_USAGE)    : Invalid arguments
   {EXIT_FATAL_ERROR:>3} (EX_SOFTWARE) : Internal error
   {EXIT_NETWORK_ERROR:>3} (EX_TEMPFAIL) : Network/TLS error (partial output available)
@@ -534,7 +538,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
     return True
 
 
-def determine_exit_code(
+def determine_exit_code(  # noqa: PLR0911 - one return per precedence level
     steps: list[StepMetrics],
     *,
     slo_result: SLOResult | None = None,
@@ -545,11 +549,12 @@ def determine_exit_code(
     Precedence (highest-severity first):
 
     1. No steps or an internal error → ``EXIT_FATAL_ERROR``.
-    2. Network / TLS error → ``EXIT_NETWORK_ERROR``.
-    3. HTTP 4xx/5xx response with ``--fail`` → ``EXIT_HTTP_FAILURE``.
-    4. SLO violation on the final successful step →
+    2. Redirect limit exceeded → ``EXIT_TOO_MANY_REDIRECTS``.
+    3. Network / TLS error → ``EXIT_NETWORK_ERROR``.
+    4. HTTP 4xx/5xx response with ``--fail`` → ``EXIT_HTTP_FAILURE``.
+    5. SLO violation on the final successful step →
        ``EXIT_SLO_VIOLATION``.
-    5. Otherwise → ``EXIT_SUCCESS``.
+    6. Otherwise → ``EXIT_SUCCESS``.
 
     Args:
         steps: List of step metrics from analysis.
@@ -568,6 +573,9 @@ def determine_exit_code(
     if any(step.error_kind == "internal" for step in steps):
         return EXIT_FATAL_ERROR
 
+    if any(step.redirect_limit_reached for step in steps):
+        return EXIT_TOO_MANY_REDIRECTS
+
     if any(step.has_error for step in steps):
         return EXIT_NETWORK_ERROR
 
@@ -580,6 +588,14 @@ def determine_exit_code(
         return EXIT_SLO_VIOLATION
 
     return EXIT_SUCCESS
+
+
+def _warn_redirect_limit(steps: Sequence[StepMetrics]) -> None:
+    """Print a warning when redirect following stopped at its limit."""
+    for step in steps:
+        if step.redirect_limit_reached:
+            console.print(f"[yellow]Warning:[/yellow] {escape(step.note or REDIRECT_LIMIT_NOTE)}")
+            return
 
 
 def main() -> int:
@@ -648,6 +664,7 @@ def main() -> int:
         steps = _execute_analysis(analyzer, args, method, content, headers_dict)
         slo_result = _evaluate_slo(steps, args.slo_thresholds)
         renderer.render_analysis(steps, args.url, slo_result=slo_result)
+        _warn_redirect_limit(steps)
         _export_results(renderer, steps, args, slo_result=slo_result)
 
         return determine_exit_code(

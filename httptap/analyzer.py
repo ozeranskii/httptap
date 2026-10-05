@@ -22,6 +22,7 @@ from .constants import (
     HTTPS_DEFAULT_PORT,
     ORIGIN_BOUND_HEADERS,
     POST_TO_GET_REDIRECT_STATUSES,
+    REDIRECT_LIMIT_NOTE,
     HTTPMethod,
 )
 from .http_client import HTTPClientError
@@ -212,7 +213,7 @@ class HTTPTapAnalyzer:
         current_url = url
         redirect_count = 0
 
-        while redirect_count <= self.max_redirects:
+        while True:
             step_number = len(steps) + 1
             step = self._analyze_single_request(
                 current_url,
@@ -235,6 +236,10 @@ class HTTPTapAnalyzer:
                 # Follow redirect
                 next_url = step.response.location
                 if next_url:
+                    if redirect_count == self.max_redirects:
+                        step.note = f"{REDIRECT_LIMIT_NOTE} ({self.max_redirects})"
+                        step.redirect_limit_reached = True
+                        break
                     # Handle relative URLs
                     next_url = urljoin(current_url, next_url)
                     next_method = _redirect_method(step.response.status or 0, method)
