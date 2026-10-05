@@ -323,7 +323,7 @@ class RendererStub:
         *,
         slo_result: object | None = None,
     ) -> None:
-        del slo_result
+        """Accept the export without writing a file."""
 
 
 def test_main_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1244,10 +1244,6 @@ def test_auto_post_when_data_provided_without_explicit_method(
     assert len(captured_method) == 1
     assert captured_method[0] == HTTPMethod.POST
 
-    # Verify INFO log about auto-switch
-    captured_output = capsys.readouterr()
-    # Note: logger.info goes to stderr, not stdout
-
 
 def test_no_auto_post_when_method_explicitly_specified(
     monkeypatch: pytest.MonkeyPatch,
@@ -1297,10 +1293,6 @@ def test_no_auto_post_when_method_explicitly_specified(
     assert exit_code == EXIT_SUCCESS
     assert len(captured_method) == 1
     assert captured_method[0] == HTTPMethod.GET  # Should respect explicit GET
-
-    # Verify WARNING log about uncommon usage
-    captured_output = capsys.readouterr()
-    # Note: logger.warning goes to stderr, not stdout
 
 
 class _SLOAnalyzerStub:
