@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import socket
 import ssl
 import sys
@@ -252,3 +253,153 @@ def test_socks_handshake_counts_as_connect_time(self_signed_server: int, socks5_
     assert timing.connect_ms >= _TUNNEL_DELAY_SECONDS * 1000
     assert timing.tls_ms > 0
     assert timing.wait_ms < _TUNNEL_DELAY_SECONDS * 1000
+
+
+def _ipv6_loopback_available() -> bool:
+    if not socket.has_ipv6:
+        return False
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as probe:
+            probe.bind(("::1", 0))
+    except OSError:
+        return False
+    return True
+
+
+requires_ipv6 = pytest.mark.skipif(not _ipv6_loopback_available(), reason="IPv6 loopback is not available")
+
+
+class _IPv6TLSServer(_TLSServer):
+    address_family = socket.AF_INET6
+
+    def __init__(self, context: ssl.SSLContext) -> None:
+        ThreadingHTTPServer.__init__(self, ("::1", 0), _OkHandler)
+        self.context = context
+
+
+def _ca_and_ipv6_leaf(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """Write a CA certificate and a leaf for the IP address ::1 signed by it."""
+    now = datetime.now(UTC)
+    ca_key = ec.generate_private_key(ec.SECP256R1())
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "httptap test CA")])
+    ca = (
+        x509.CertificateBuilder()
+        .subject_name(ca_name)
+        .issuer_name(ca_name)
+        .public_key(ca_key.public_key())
+        .serial_number(1)
+        .not_valid_before(now - timedelta(days=1))
+        .not_valid_after(now + timedelta(days=30))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=False,
+                content_commitment=False,
+                key_encipherment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=True,
+                crl_sign=True,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(ca_key.public_key()), critical=False)
+        .sign(ca_key, hashes.SHA256())
+    )
+    leaf_key = ec.generate_private_key(ec.SECP256R1())
+    leaf = (
+        x509.CertificateBuilder()
+        .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "::1")]))
+        .issuer_name(ca_name)
+        .public_key(leaf_key.public_key())
+        .serial_number(2)
+        .not_valid_before(now - timedelta(days=1))
+        .not_valid_after(now + timedelta(days=30))
+        .add_extension(x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address("::1"))]), critical=False)
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()),
+            critical=False,
+        )
+        .add_extension(x509.ExtendedKeyUsage([x509.ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+        .sign(ca_key, hashes.SHA256())
+    )
+    ca_path, cert_path, key_path = tmp_path / "ca.pem", tmp_path / "leaf.pem", tmp_path / "leaf-key.pem"
+    ca_path.write_bytes(ca.public_bytes(serialization.Encoding.PEM))
+    cert_path.write_bytes(leaf.public_bytes(serialization.Encoding.PEM))
+    key_path.write_bytes(
+        leaf_key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        )
+    )
+    return ca_path, cert_path, key_path
+
+
+@pytest.fixture
+def ipv6_tls_server(tmp_path: Path) -> Iterator[tuple[int, Path]]:
+    ca_path, cert_path, key_path = _ca_and_ipv6_leaf(tmp_path)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.load_cert_chain(cert_path, key_path)
+    server = _IPv6TLSServer(context)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield server.server_address[1], ca_path
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+def _serve_strict_connect(listener: socket.socket, request_lines: list[str]) -> None:
+    """Tunnel like Squid: an IPv6 authority must be bracketed, otherwise 400."""
+    client, _address = listener.accept()
+    with client:
+        request = b""
+        while b"\r\n\r\n" not in request:
+            request += client.recv(4096)
+        request_line = request.split(b"\r\n", 1)[0].decode()
+        request_lines.append(request_line)
+        authority = request_line.split(" ")[1]
+        if not authority.startswith("["):
+            client.sendall(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n")
+            return
+        host, _, port = authority[1:].partition("]:")
+        with socket.create_connection((host, int(port))) as upstream:
+            client.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
+            to_upstream = threading.Thread(target=_relay, args=(client, upstream), daemon=True)
+            to_upstream.start()
+            _relay(upstream, client)
+            to_upstream.join(timeout=2)
+
+
+@requires_ipv6
+def test_https_ipv6_literal_through_connect_proxy_is_verified(ipv6_tls_server: tuple[int, Path]) -> None:
+    """CONNECT carries a bracketed authority and the certificate is checked against the IP SAN."""
+    port, ca_path = ipv6_tls_server
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    request_lines: list[str] = []
+    thread = threading.Thread(target=_serve_strict_connect, args=(listener, request_lines), daemon=True)
+    thread.start()
+    try:
+        _timing, network, response = make_request(
+            f"https://[::1]:{port}/",
+            timeout=5.0,
+            http2=False,
+            ca_bundle_path=str(ca_path),
+            proxy=f"http://127.0.0.1:{listener.getsockname()[1]}",
+        )
+    finally:
+        listener.close()
+        thread.join(timeout=2)
+
+    assert request_lines == [f"CONNECT [::1]:{port} HTTP/1.1"]
+    assert response.status == 200
+    assert network.tls_verified is True
+    assert [ipaddress.ip_address(san) for san in network.cert_sans] == [ipaddress.ip_address("::1")]

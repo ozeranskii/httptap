@@ -1,3 +1,4 @@
+import socket
 import ssl
 import sys
 from datetime import datetime
@@ -701,3 +702,47 @@ def test_percent_encode_undecodable_bytes_yields_an_ascii_url() -> None:
 
     assert encoded.isascii()
     assert encoded.startswith("http://example.test/%")
+
+
+class TestBracketedServerNames:
+    """IPv6 literals bracketed for an HTTP proxy are unbracketed again for TLS."""
+
+    def test_default_context_matches_the_stdlib_default(self) -> None:
+        context = create_ssl_context(verify_ssl=True, accept_bracketed_server_names=True)
+        default = ssl.create_default_context()
+
+        assert type(context) is not ssl.SSLContext
+        assert context.options == default.options
+        assert context.verify_flags == default.verify_flags
+        assert context.verify_mode == default.verify_mode
+        assert context.check_hostname is True
+        assert context.cert_store_stats() == default.cert_store_stats()
+
+    def test_insecure_context_also_accepts_bracketed_names(self) -> None:
+        context = create_ssl_context(verify_ssl=False, accept_bracketed_server_names=True)
+
+        assert type(context) is not ssl.SSLContext
+        assert context.verify_mode == ssl.CERT_NONE
+
+    def test_contexts_are_plain_by_default(self) -> None:
+        assert type(create_ssl_context(verify_ssl=True)) is ssl.SSLContext
+        assert type(create_ssl_context(verify_ssl=False)) is ssl.SSLContext
+
+    def test_server_names_are_unbracketed(self) -> None:
+        context = create_ssl_context(verify_ssl=False, accept_bracketed_server_names=True)
+
+        tls_object = context.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(), server_hostname="[::1]")
+        with socket.socket() as raw, context.wrap_socket(raw, server_hostname="[2001:db8::1]") as tls_socket:
+            assert tls_socket.server_hostname == "2001:db8::1"
+        assert tls_object.server_hostname == "::1"
+        assert context.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(), server_hostname="example.test").server_hostname == (
+            "example.test"
+        )
+
+    def test_keylog_file_is_honoured(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        keylog = tmp_path / "keys.log"
+        monkeypatch.setenv("SSLKEYLOGFILE", str(keylog))
+
+        context = create_ssl_context(verify_ssl=True, accept_bracketed_server_names=True)
+
+        assert context.keylog_filename == str(keylog)

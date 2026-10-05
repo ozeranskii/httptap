@@ -90,6 +90,7 @@ from .utils import create_ssl_context, parse_http_date, redact_url_credentials, 
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from types import TracebackType
 
     from httpx._types import ProxyTypes
 
@@ -323,6 +324,47 @@ class _DeadlineWatchdog:
                 # socket.socket.shutdown also for TLS sockets: SSLSocket.shutdown
                 # drops the SSL object under the thread blocked reading from it.
                 socket.socket.shutdown(self._socket, socket.SHUT_RDWR)
+
+
+class _BracketedProxyTargets:
+    """Send IPv6 literal targets to an HTTP proxy in their bracketed URI form.
+
+    httpcore builds the proxy request line (``GET http://host:port/`` and
+    ``CONNECT host:port``) from the bare host, so ``::1`` goes out as
+    ``CONNECT ::1:443``: proxies reject it, or read ``::1:8081`` as an IPv6
+    address and connect somewhere else. Bracketing the host on the request
+    fixes both forms; the TLS server name is unbracketed again by the client
+    SSL context (``create_ssl_context(accept_bracketed_server_names=True)``).
+    """
+
+    def __init__(self, pool: httpcore.HTTPProxy) -> None:
+        self._pool = pool
+
+    def handle_request(self, request: httpcore.Request) -> httpcore.Response:
+        host = request.url.host
+        if b":" in host and not host.startswith(b"["):
+            request.url = httpcore.URL(
+                scheme=request.url.scheme,
+                host=b"[" + host + b"]",
+                port=request.url.port,
+                target=request.url.target,
+            )
+        return self._pool.handle_request(request)
+
+    def close(self) -> None:
+        self._pool.close()
+
+    def __enter__(self) -> Self:
+        self._pool.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self._pool.__exit__(exc_type, exc_value, traceback)
 
 
 class TraceCollector:
@@ -879,7 +921,16 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 
         trace = TraceCollector()
 
-        ssl_context = create_ssl_context(verify_ssl=verify_ssl, ca_bundle_path=ca_bundle_path)
+        bracket_proxy_target = (
+            ":" in wire_host
+            and effective_proxy_url is not None
+            and urlsplit(effective_proxy_url).scheme.lower() in {"http", "https"}
+        )
+        ssl_context = create_ssl_context(
+            verify_ssl=verify_ssl,
+            ca_bundle_path=ca_bundle_path,
+            accept_bracketed_server_names=bracket_proxy_target,
+        )
 
         try:
             transport = httpx.HTTPTransport(
@@ -895,6 +946,11 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             # transport dependencies (socksio, h2) fail with an ImportError.
             msg = f"Cannot set up the HTTP client: {exc}"
             raise HTTPClientError(msg, network_info=network_info) from exc
+        # httpx keeps its httpcore pool on ``_pool``; there is no public hook
+        # between the request conversion and the proxy pool.
+        pool = getattr(transport, "_pool", None)
+        if bracket_proxy_target and isinstance(pool, httpcore.HTTPProxy):
+            transport._pool = _BracketedProxyTargets(pool)  # type: ignore[assignment]  # noqa: SLF001
         # The client only builds requests (default headers, timeouts); they are
         # sent on the transport directly. Client.send prepares the next redirect
         # request even with follow_redirects=False and fails on a Location that
