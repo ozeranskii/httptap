@@ -481,7 +481,13 @@ def test_export_results_warns_about_otlp_failure(
         raise OTLPExportError(message)
 
     monkeypatch.setattr("httptap.cli.OTLPExporter.export", raise_export_error)
-    args = Namespace(url="https://example.test", json=None, prometheus=None, otlp="http://collector.test/v1/traces")
+    args = Namespace(
+        url="https://example.test",
+        json=None,
+        prometheus=None,
+        otlp="http://collector.test/v1/traces",
+        timeout=5.0,
+    )
 
     _export_results(cast("OutputRenderer", RendererStub()), [_make_step()], args)
 

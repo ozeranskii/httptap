@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from importlib import import_module
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
@@ -23,30 +23,6 @@ class OTLPExportError(RuntimeError):
     """Raised when an OTLP collector rejects or cannot receive spans."""
 
 
-class _SpanCollector:
-    """Collect completed spans for one synchronous CLI export."""
-
-    def __init__(self) -> None:
-        """Initialize an empty span collection."""
-        self.spans: list[Any] = []
-
-    def on_start(self, _span: Any, parent_context: Any | None = None) -> None:  # noqa: ANN401
-        """Accept span start notifications required by ``TracerProvider``."""
-        del parent_context
-
-    def on_end(self, span: Any) -> None:  # noqa: ANN401
-        """Collect a completed readable span."""
-        self.spans.append(span)
-
-    def shutdown(self) -> None:
-        """Release no resources."""
-
-    def force_flush(self, timeout_millis: int | None = None) -> bool:
-        """Report that there is no asynchronous work to flush."""
-        del timeout_millis
-        return True
-
-
 def ensure_otel_available() -> None:
     """Raise a clear error unless the optional OpenTelemetry packages exist."""
     try:
@@ -57,31 +33,43 @@ def ensure_otel_available() -> None:
         raise OTLPDependencyError(msg) from exc
 
 
-class OTLPExporter:
-    """Export one OpenTelemetry span per request and child spans per phase."""
+class _OTel(NamedTuple):
+    """OpenTelemetry entry points, imported only when OTLP export is requested."""
 
-    def export(self, steps: Sequence[StepMetrics], endpoint: str) -> None:
+    trace: Any
+    tracer_provider: Any
+    span_exporter: Any
+    span_export_result: Any
+    simple_span_processor: Any
+    in_memory_span_exporter: Any
+
+
+class OTLPExporter:
+    """Export a redirect chain as one trace: a root span, one span per request and child spans per phase."""
+
+    def export(self, steps: Sequence[StepMetrics], endpoint: str, *, timeout: float) -> None:
         """Send request traces to an OTLP/HTTP endpoint.
 
         Args:
             steps: Request steps to export.
             endpoint: OTLP/HTTP traces endpoint.
+            timeout: Upper bound in seconds for delivering the spans, including
+                the exporter's own retries.
 
         Raises:
             OTLPDependencyError: If the ``otel`` extra is not installed.
+            OTLPExportError: If the collector rejects or cannot receive the spans.
 
         """
-        trace, tracer_provider, span_exporter, span_export_result = self._load_dependencies()
-        provider = tracer_provider()
-        collector = _SpanCollector()
-        provider.add_span_processor(collector)
-        tracer = provider.get_tracer("httptap")
-        exporter = span_exporter(endpoint=endpoint)
+        otel = self._load_dependencies()
+        finished_spans = otel.in_memory_span_exporter()
+        provider = otel.tracer_provider()
+        provider.add_span_processor(otel.simple_span_processor(finished_spans))
+        exporter = otel.span_exporter(endpoint=endpoint, timeout=timeout)
 
         try:
-            for step in steps:
-                self._record_step(trace, tracer, step)
-            result = exporter.export(collector.spans)
+            self._record_chain(otel.trace, provider.get_tracer("httptap"), steps)
+            result = exporter.export(finished_spans.get_finished_spans())
         except Exception as exc:
             msg = f"Failed to export traces to OTLP endpoint '{endpoint}': {exc}"
             raise OTLPExportError(msg) from exc
@@ -89,57 +77,77 @@ class OTLPExporter:
             provider.shutdown()
             exporter.shutdown()
 
-        if result != span_export_result.SUCCESS:
+        if result != otel.span_export_result.SUCCESS:
             msg = f"Failed to export traces to OTLP endpoint '{endpoint}'."
             raise OTLPExportError(msg)
 
     @staticmethod
-    def _load_dependencies() -> tuple[Any, Any, Any, Any]:
+    def _load_dependencies() -> _OTel:
         """Load optional OpenTelemetry modules only when OTLP is requested."""
         try:
             trace = import_module("opentelemetry.trace")
-            tracer_provider = import_module("opentelemetry.sdk.trace").TracerProvider
-            span_export_result = import_module("opentelemetry.sdk.trace.export").SpanExportResult
-            span_exporter = import_module("opentelemetry.exporter.otlp.proto.http.trace_exporter").OTLPSpanExporter
+            sdk_trace = import_module("opentelemetry.sdk.trace")
+            sdk_export = import_module("opentelemetry.sdk.trace.export")
+            in_memory = import_module("opentelemetry.sdk.trace.export.in_memory_span_exporter")
+            otlp_http = import_module("opentelemetry.exporter.otlp.proto.http.trace_exporter")
         except ImportError as exc:
             msg = "OTLP export requires the optional dependency. Install it with 'pip install httptap[otel]'."
             raise OTLPDependencyError(msg) from exc
-        return trace, tracer_provider, span_exporter, span_export_result
+        return _OTel(
+            trace=trace,
+            tracer_provider=sdk_trace.TracerProvider,
+            span_exporter=otlp_http.OTLPSpanExporter,
+            span_export_result=sdk_export.SpanExportResult,
+            simple_span_processor=sdk_export.SimpleSpanProcessor,
+            in_memory_span_exporter=in_memory.InMemorySpanExporter,
+        )
 
     @staticmethod
-    def _record_step(trace: Any, tracer: Any, step: StepMetrics) -> None:  # noqa: ANN401
-        """Record one request span and timing-phase child spans.
+    def _record_chain(trace: Any, tracer: Any, steps: Sequence[StepMetrics]) -> None:  # noqa: ANN401
+        """Lay the steps out back to back under one root span ending at export time.
 
-        Span timestamps are reconstructed from the measured durations and
-        anchored at export time, which follows the request immediately in the
-        CLI flow.
+        httptap measures durations, not wall-clock start times, so the chain is
+        reconstructed backwards from the moment of export, which follows the
+        requests immediately in the CLI flow.
         """
-        end_time = time.time_ns()
-        total_ns = max(0, int(step.timing.total_ms * 1_000_000))
-        start_time = end_time - total_ns
-        span = tracer.start_span("http.request", start_time=start_time)
+        chain_end = time.time_ns()
+        chain_start = chain_end - sum(_ns(step.timing.total_ms) for step in steps)
+        root = tracer.start_span("httptap.analysis", start_time=chain_start)
+        try:
+            root.set_attribute("httptap.steps", len(steps))
+            if steps and any(step.error for step in steps):
+                root.set_status(trace.Status(trace.StatusCode.ERROR, steps[-1].error or "request failed"))
+            context = trace.set_span_in_context(root)
+            step_start = chain_start
+            for step in steps:
+                step_start = OTLPExporter._record_step(trace, tracer, step, step_start, context)
+        finally:
+            root.end(end_time=chain_end)
+
+    @staticmethod
+    def _record_step(trace: Any, tracer: Any, step: StepMetrics, start_time: int, context: Any) -> int:  # noqa: ANN401
+        """Record one request span with timing-phase children; return its end time."""
+        end_time = start_time + _ns(step.timing.total_ms)
+        span = tracer.start_span("http.request", context=context, start_time=start_time)
         try:
             span.set_attribute("httptap.step_number", step.step_number)
             OTLPExporter._set_attributes(span, step)
             if step.error:
                 span.set_status(trace.Status(trace.StatusCode.ERROR, step.error))
 
-            parent_context = trace.set_span_in_context(span)
+            phase_context = trace.set_span_in_context(span)
             phase_start = start_time
             for phase in _PHASES:
                 duration_ms = getattr(step.timing, f"{phase}_ms")
-                phase_end = min(phase_start + max(0, int(duration_ms * 1_000_000)), end_time)
-                phase_span = tracer.start_span(
-                    f"http.{phase}",
-                    context=parent_context,
-                    start_time=phase_start,
-                )
+                phase_end = min(phase_start + _ns(duration_ms), end_time)
+                phase_span = tracer.start_span(f"http.{phase}", context=phase_context, start_time=phase_start)
                 phase_span.set_attribute("httptap.phase", phase)
                 phase_span.set_attribute("httptap.duration_ms", duration_ms)
                 phase_span.end(end_time=phase_end)
                 phase_start = phase_end
         finally:
             span.end(end_time=end_time)
+        return end_time
 
     @staticmethod
     def _set_attributes(span: Any, step: StepMetrics) -> None:  # noqa: ANN401
@@ -158,3 +166,8 @@ class OTLPExporter:
             span.set_attribute("network.protocol.version", step.network.http_version)
         if step.network.tls_version:
             span.set_attribute("tls.protocol.version", step.network.tls_version)
+
+
+def _ns(milliseconds: float) -> int:
+    """Convert a non-negative duration in milliseconds to nanoseconds."""
+    return max(0, int(milliseconds * 1_000_000))

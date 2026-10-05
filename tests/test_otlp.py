@@ -1,17 +1,20 @@
-"""Tests for optional OTLP trace construction."""
+"""Tests for OTLP trace construction with stand-ins for the OpenTelemetry SDK."""
 
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import ClassVar
 
 import pytest
 
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
-from httptap.otlp import OTLPDependencyError, OTLPExporter, OTLPExportError, _SpanCollector, ensure_otel_available
+from httptap.otlp import OTLPDependencyError, OTLPExporter, OTLPExportError, _OTel, ensure_otel_available
 
 
 class _Span:
-    def __init__(self) -> None:
+    def __init__(self, name: str, kwargs: dict[str, object]) -> None:
+        self.name = name
+        self.kwargs = kwargs
         self.attributes: dict[str, object] = {}
         self.end_time: int | None = None
         self.status: object | None = None
@@ -28,11 +31,11 @@ class _Span:
 
 class _Tracer:
     def __init__(self) -> None:
-        self.spans: list[tuple[str, _Span, dict[str, object]]] = []
+        self.spans: list[_Span] = []
 
     def start_span(self, name: str, **kwargs: object) -> _Span:
-        span = _Span()
-        self.spans.append((name, span, kwargs))
+        span = _Span(name, kwargs)
+        self.spans.append(span)
         return span
 
 
@@ -51,13 +54,13 @@ class _Trace:
 
 
 class _Provider:
-    def __init__(self, tracer: _Tracer) -> None:
-        self.tracer = tracer
-        self.processor: object | None = None
+    def __init__(self) -> None:
+        self.tracer = _Tracer()
+        self.processors: list[object] = []
         self.shutdown_called = False
 
     def add_span_processor(self, processor: object) -> None:
-        self.processor = processor
+        self.processors.append(processor)
 
     def get_tracer(self, _name: str) -> _Tracer:
         return self.tracer
@@ -66,60 +69,157 @@ class _Provider:
         self.shutdown_called = True
 
 
-class _FailedExporter:
-    def __init__(self, *, endpoint: str) -> None:
-        self.endpoint = endpoint
-        self.shutdown_called = False
+class _InMemory:
+    def get_finished_spans(self) -> list[str]:
+        return ["span"]
 
-    def export(self, _spans: list[object]) -> str:
-        return "failure"
+
+class _Exporter:
+    result = "success"
+    instances: ClassVar[list[_Exporter]] = []
+
+    def __init__(self, *, endpoint: str, timeout: float) -> None:
+        self.endpoint = endpoint
+        self.timeout = timeout
+        self.exported: list[object] = []
+        self.shutdown_called = False
+        type(self).instances.append(self)
+
+    def export(self, spans: list[object]) -> str:
+        self.exported.extend(spans)
+        return self.result
 
     def shutdown(self) -> None:
         self.shutdown_called = True
 
 
-class _SpanExportResult:
-    SUCCESS = "success"
+class _RejectingExporter(_Exporter):
+    result = "failure"
 
 
-def _step() -> StepMetrics:
-    timing = TimingMetrics(dns_ms=10.0, connect_ms=20.0, tls_ms=30.0, ttfb_ms=80.0, total_ms=100.0)
+class _RaisingExporter(_Exporter):
+    def export(self, spans: list[object]) -> str:
+        del spans
+        message = "connection refused"
+        raise OSError(message)
+
+
+def _install(monkeypatch: pytest.MonkeyPatch, exporter_cls: type[_Exporter]) -> _Provider:
+    provider = _Provider()
+    exporter_cls.instances = []
+    otel = _OTel(
+        trace=_Trace,
+        tracer_provider=lambda: provider,
+        span_exporter=exporter_cls,
+        span_export_result=SimpleNamespace(SUCCESS="success"),
+        simple_span_processor=lambda exporter: ("processor", exporter),
+        in_memory_span_exporter=_InMemory,
+    )
+    monkeypatch.setattr(OTLPExporter, "_load_dependencies", staticmethod(lambda: otel))
+    return provider
+
+
+def _step(number: int = 1, *, total_ms: float = 100.0, error: str | None = None) -> StepMetrics:
+    timing = TimingMetrics(dns_ms=10.0, connect_ms=20.0, tls_ms=30.0, ttfb_ms=80.0, total_ms=total_ms)
     timing.calculate_derived()
     return StepMetrics(
         url="https://example.test/private?token=secret",
-        step_number=2,
+        step_number=number,
         request_method="GET",
         timing=timing,
         network=NetworkInfo(ip="192.0.2.1", http_version="HTTP/2", tls_version="TLSv1.3"),
         response=ResponseInfo(status=200, bytes=42),
+        error=error,
     )
 
 
-def test_otlp_exporter_creates_request_and_phase_spans() -> None:
-    """Every request has child spans for its measured timing phases."""
+def test_chain_is_one_trace_with_sequential_steps() -> None:
+    """Steps are laid out back to back under a single root span."""
     tracer = _Tracer()
 
-    OTLPExporter._record_step(_Trace, tracer, _step())
+    OTLPExporter._record_chain(_Trace, tracer, [_step(1, total_ms=100.0), _step(2, total_ms=50.0)])
 
-    assert [name for name, _, _ in tracer.spans] == [
-        "http.request",
-        "http.dns",
-        "http.connect",
-        "http.tls",
-        "http.wait",
-        "http.xfer",
-    ]
-    request_span = tracer.spans[0][1]
-    assert request_span.attributes["httptap.step_number"] == 2
-    assert request_span.attributes["http.request.method"] == "GET"
-    assert request_span.attributes["server.address"] == "example.test"
-    assert "url.full" not in request_span.attributes
-    assert tracer.spans[1][1].attributes == {"httptap.phase": "dns", "httptap.duration_ms": 10.0}
+    names = [span.name for span in tracer.spans]
+    assert names[0] == "httptap.analysis"
+    assert names.count("http.request") == 2
+    root = tracer.spans[0]
+    first, second = (span for span in tracer.spans if span.name == "http.request")
+    assert first.kwargs["context"] is root
+    assert second.kwargs["context"] is root
+    assert first.end_time == second.kwargs["start_time"]
+    assert root.kwargs["start_time"] == first.kwargs["start_time"]
+    assert root.end_time == second.end_time
+    assert second.end_time - first.kwargs["start_time"] == 150_000_000
+    assert root.attributes == {"httptap.steps": 2}
+
+
+def test_request_span_has_phase_children_and_safe_attributes() -> None:
+    tracer = _Tracer()
+
+    OTLPExporter._record_chain(_Trace, tracer, [_step(2)])
+
+    request = next(span for span in tracer.spans if span.name == "http.request")
+    phases = [span for span in tracer.spans if span.name.startswith("http.") and span is not request]
+    assert [span.name for span in phases] == ["http.dns", "http.connect", "http.tls", "http.wait", "http.xfer"]
+    assert all(span.kwargs["context"] is request for span in phases)
+    assert phases[0].attributes == {"httptap.phase": "dns", "httptap.duration_ms": 10.0}
+    assert request.attributes["httptap.step_number"] == 2
+    assert request.attributes["http.request.method"] == "GET"
+    assert request.attributes["server.address"] == "example.test"
+    assert "url.full" not in request.attributes
+
+
+def test_failed_step_marks_request_and_root_as_errors() -> None:
+    tracer = _Tracer()
+
+    OTLPExporter._record_chain(_Trace, tracer, [_step(error="Request failed: connection refused")])
+
+    root, request = tracer.spans[0], tracer.spans[1]
+    assert isinstance(root.status, _Trace.Status)
+    assert isinstance(request.status, _Trace.Status)
+    assert request.status.description == "Request failed: connection refused"
+
+
+def test_step_without_optional_fields_sets_only_known_attributes() -> None:
+    tracer = _Tracer()
+
+    OTLPExporter._record_chain(_Trace, tracer, [StepMetrics(url="not a url")])
+
+    request = tracer.spans[1]
+    assert set(request.attributes) == {"httptap.step_number", "http.response.body.size"}
+
+
+def test_export_sends_finished_spans_with_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    provider = _install(monkeypatch, _Exporter)
+
+    OTLPExporter().export([_step()], "http://collector.test:4318/v1/traces", timeout=3.0)
+
+    exporter = _Exporter.instances[0]
+    assert exporter.endpoint == "http://collector.test:4318/v1/traces"
+    assert exporter.timeout == 3.0
+    assert exporter.exported == ["span"]
+    assert provider.processors[0][0] == "processor"
+    assert provider.shutdown_called is True
+    assert exporter.shutdown_called is True
+
+
+def test_export_reports_rejected_spans(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install(monkeypatch, _RejectingExporter)
+
+    with pytest.raises(OTLPExportError, match="Failed to export traces"):
+        OTLPExporter().export([_step()], "http://collector.test:4318/v1/traces", timeout=3.0)
+
+
+def test_export_wraps_delivery_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    provider = _install(monkeypatch, _RaisingExporter)
+
+    with pytest.raises(OTLPExportError, match="connection refused"):
+        OTLPExporter().export([_step()], "http://collector.test:4318/v1/traces", timeout=3.0)
+
+    assert provider.shutdown_called is True
 
 
 def test_ensure_otel_available_explains_missing_extra(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Missing optional dependencies produce an actionable error."""
-
     def raise_import_error(_name: str) -> None:
         raise ImportError
 
@@ -127,84 +227,6 @@ def test_ensure_otel_available_explains_missing_extra(monkeypatch: pytest.Monkey
 
     with pytest.raises(OTLPDependencyError, match=r"httptap\[otel\]"):
         ensure_otel_available()
-
-
-def test_otlp_exporter_reports_collector_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A failed collector response is propagated to the CLI layer."""
-    tracer = _Tracer()
-    provider = _Provider(tracer)
-    exporter_instances: list[_FailedExporter] = []
-
-    def make_provider() -> _Provider:
-        return provider
-
-    def make_exporter(*, endpoint: str) -> _FailedExporter:
-        exporter = _FailedExporter(endpoint=endpoint)
-        exporter_instances.append(exporter)
-        return exporter
-
-    monkeypatch.setattr(
-        OTLPExporter,
-        "_load_dependencies",
-        staticmethod(lambda: (_Trace, make_provider, make_exporter, _SpanExportResult)),
-    )
-
-    with pytest.raises(OTLPExportError, match="Failed to export traces"):
-        OTLPExporter().export([_step()], "http://collector.test:4318/v1/traces")
-
-    assert provider.shutdown_called is True
-    assert exporter_instances[0].shutdown_called is True
-
-
-class _SuccessExporter(_FailedExporter):
-    def export(self, _spans: list[object]) -> str:
-        return "success"
-
-
-class _RaisingExporter(_FailedExporter):
-    def export(self, _spans: list[object]) -> str:
-        message = "connection refused"
-        raise OSError(message)
-
-
-def _install_fakes(monkeypatch: pytest.MonkeyPatch, exporter_cls: type[_FailedExporter]) -> _Provider:
-    provider = _Provider(_Tracer())
-    monkeypatch.setattr(
-        OTLPExporter,
-        "_load_dependencies",
-        staticmethod(lambda: (_Trace, lambda: provider, exporter_cls, _SpanExportResult)),
-    )
-    return provider
-
-
-def test_otlp_exporter_succeeds_when_collector_accepts(monkeypatch: pytest.MonkeyPatch) -> None:
-    provider = _install_fakes(monkeypatch, _SuccessExporter)
-
-    OTLPExporter().export([_step()], "http://collector.test:4318/v1/traces")
-
-    assert provider.shutdown_called is True
-    assert provider.tracer.spans[0][0] == "http.request"
-
-
-def test_otlp_exporter_wraps_delivery_errors(monkeypatch: pytest.MonkeyPatch) -> None:
-    provider = _install_fakes(monkeypatch, _RaisingExporter)
-
-    with pytest.raises(OTLPExportError, match="connection refused"):
-        OTLPExporter().export([_step()], "http://collector.test:4318/v1/traces")
-
-    assert provider.shutdown_called is True
-
-
-def test_span_collector_collects_finished_spans() -> None:
-    collector = _SpanCollector()
-    span = object()
-
-    collector.on_start(span, parent_context=None)
-    collector.on_end(span)
-    collector.shutdown()
-
-    assert collector.spans == [span]
-    assert collector.force_flush(timeout_millis=100) is True
 
 
 def test_ensure_otel_available_passes_when_installed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -216,11 +238,24 @@ def test_ensure_otel_available_passes_when_installed(monkeypatch: pytest.MonkeyP
     assert imported == ["opentelemetry.exporter.otlp.proto.http.trace_exporter", "opentelemetry.sdk.trace"]
 
 
-def test_load_dependencies_returns_otel_entry_points(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = SimpleNamespace(TracerProvider="provider", SpanExportResult="result", OTLPSpanExporter="exporter")
+def test_load_dependencies_returns_sdk_entry_points(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = SimpleNamespace(
+        TracerProvider="provider",
+        SpanExportResult="result",
+        SimpleSpanProcessor="processor",
+        InMemorySpanExporter="memory",
+        OTLPSpanExporter="exporter",
+    )
     monkeypatch.setattr("httptap.otlp.import_module", lambda _name: module)
 
-    assert OTLPExporter._load_dependencies() == (module, "provider", "exporter", "result")
+    assert OTLPExporter._load_dependencies() == _OTel(
+        trace=module,
+        tracer_provider="provider",
+        span_exporter="exporter",
+        span_export_result="result",
+        simple_span_processor="processor",
+        in_memory_span_exporter="memory",
+    )
 
 
 def test_load_dependencies_explains_missing_extra(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -231,15 +266,3 @@ def test_load_dependencies_explains_missing_extra(monkeypatch: pytest.MonkeyPatc
 
     with pytest.raises(OTLPDependencyError, match=r"httptap\[otel\]"):
         OTLPExporter._load_dependencies()
-
-
-def test_otlp_failed_step_sets_error_status_and_skips_unknown_attributes() -> None:
-    tracer = _Tracer()
-    step = StepMetrics(url="not a url", error="Request failed: connection refused")
-
-    OTLPExporter._record_step(_Trace, tracer, step)
-
-    request_span = tracer.spans[0][1]
-    assert isinstance(request_span.status, _Trace.Status)
-    assert request_span.status.description == "Request failed: connection refused"
-    assert set(request_span.attributes) == {"httptap.step_number", "http.response.body.size"}
