@@ -59,7 +59,7 @@ from .slo import (
     parse_slo_spec,
     select_step_for_evaluation,
 )
-from .utils import create_ssl_context, read_request_data, validate_url
+from .utils import create_ssl_context, read_request_data, redact_url_credentials, validate_url
 
 # Exit codes (aligned with sysexits.h conventions where possible)
 # Fall back to canonical numeric equivalents when running on platforms
@@ -422,7 +422,7 @@ def _execute_analysis(
         console=Console(),
         transient=True,
     ) as progress:
-        task = progress.add_task("analyze", url=escape(args.url), total=None)
+        task = progress.add_task("analyze", url=escape(redact_url_credentials(args.url)), total=None)
         steps = analyzer.analyze_url(args.url, method=method, content=content, headers=headers)
         progress.update(task, completed=True)
         return steps
@@ -443,7 +443,7 @@ def _export_results(
     exported = True
     if args.json:
         try:
-            renderer.export_json(steps, args.url, args.json, slo_result=slo_result)
+            renderer.export_json(steps, redact_url_credentials(args.url), args.json, slo_result=slo_result)
         except OSError as export_error:
             console.print(
                 f"[yellow]⚠ Warning:[/yellow] Failed to export JSON: {escape(str(export_error))}",
@@ -478,7 +478,7 @@ def _render_results(
 ) -> None:
     """Render analysis output unless JSON is directed to stdout."""
     if args.json != "-":
-        renderer.render_analysis(steps, args.url, slo_result=slo_result)
+        renderer.render_analysis(steps, redact_url_credentials(args.url), slo_result=slo_result)
 
 
 def _complete_analysis(
@@ -643,7 +643,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:  # noqa: PLR0911
     if not validate_url(args.url):
         error_text = Text()
         error_text.append("Invalid URL: ", style="bold red")
-        error_text.append(f"'{args.url}'", style="yellow")
+        error_text.append(f"'{redact_url_credentials(args.url)}'", style="yellow")
         error_text.append("\n\nURLs must start with ", style="red")
         error_text.append("http://", style="cyan")
         error_text.append(" or ", style="red")

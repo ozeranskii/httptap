@@ -743,3 +743,20 @@ def test_analyze_url_redirect_without_headers() -> None:
     analyzer.analyze_url("https://example.test/")
 
     assert executor.calls[1].headers is None
+
+
+def test_analyze_url_redacts_userinfo_in_steps_but_requests_with_it() -> None:
+    """URL credentials authenticate the request but never reach the step data."""
+    executor = RecordingExecutor([(302, "/next"), (200, None)])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+
+    steps = analyzer.analyze_url("https://user:s3cret@example.test/start")
+
+    assert [call.url for call in executor.calls] == [
+        "https://user:s3cret@example.test/start",
+        "https://user:s3cret@example.test/next",
+    ]
+    assert [step.url for step in steps] == [
+        "https://user:****@example.test/start",
+        "https://user:****@example.test/next",
+    ]
