@@ -152,30 +152,43 @@ class SystemDNSResolver:
             details = f"Unexpected error during DNS resolution for {host}: {worker_error}"
             raise DNSResolutionError(details) from worker_error
 
-        if addr_info is None:
-            message = f"No address records for {host}"
-            raise DNSResolutionError(message)
-
-        if not addr_info:
-            message = f"No address records for {host}"
-            raise DNSResolutionError(message)
-
-        records = _normalize_addrinfo(addr_info)
+        records = _normalize_addrinfo(addr_info or [])
         if not records:
             message = f"No address records for {host}"
             raise DNSResolutionError(message)
 
-        addresses = [
-            (str(record.sockaddr[0]), format_address_family(record.family))
-            for record in records
-            if record.sockaddr and record.sockaddr[0]
-        ]
-        if not addresses:
-            message = f"Failed to extract IP address for {host}"
-            raise DNSResolutionError(message)
-
+        addresses = self._addresses(host, records)
         elapsed_ms = (time.perf_counter() - start_time) * MS_IN_SECOND
         return addresses, elapsed_ms
+
+    def _addresses(self, host: str, records: Sequence[AddressRecord]) -> list[tuple[str, str]]:
+        """Return the usable ``(ip, family)`` pairs of ``records``, in order."""
+        addresses = [
+            address
+            for record in records
+            if record.sockaddr and record.sockaddr[0] and (address := self._address(record)) is not None
+        ]
+        if not addresses:
+            if self._family == socket.AF_INET6:
+                message = f"No IPv6 address for {host}"
+                raise DNSResolutionError(message)
+            message = f"Failed to extract IP address for {host}"
+            raise DNSResolutionError(message)
+        return addresses
+
+    def _address(self, record: AddressRecord) -> tuple[str, str] | None:
+        """Return ``(ip, family)`` for a record, treating IPv4-mapped IPv6 as the IPv4 it is.
+
+        Without global IPv6, ``getaddrinfo(..., AF_INET6)`` can return
+        ``::ffff:a.b.c.d``: connecting to it uses IPv4. Such a record is
+        dropped when IPv6 was required and reported as IPv4 otherwise.
+        """
+        ip = str(record.sockaddr[0])
+        if record.family == socket.AF_INET6:
+            mapped = IPv6Address(ip.partition("%")[0]).ipv4_mapped
+            if mapped is not None:
+                return None if self._family == socket.AF_INET6 else (str(mapped), "IPv4")
+        return ip, format_address_family(record.family)
 
 
 class OverrideDNSResolver:
