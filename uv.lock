@@ -810,6 +810,7 @@ dev = [
     { name = "faker" },
     { name = "hypothesis" },
     { name = "mypy" },
+    { name = "packaging" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-codspeed" },
@@ -839,6 +840,7 @@ release = [
 test = [
     { name = "faker" },
     { name = "hypothesis" },
+    { name = "packaging" },
     { name = "pytest" },
     { name = "pytest-codspeed" },
     { name = "pytest-cov" },
@@ -868,6 +870,7 @@ dev = [
     { name = "faker", specifier = ">=40.37.0" },
     { name = "hypothesis", specifier = ">=6.165.10" },
     { name = "mypy", specifier = ">=2.3.1" },
+    { name = "packaging", specifier = ">=24.0" },
     { name = "pre-commit", specifier = ">=4.6.2" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-codspeed", specifier = ">=5.0.3" },
@@ -891,6 +894,7 @@ release = [{ name = "argparse-manpage", specifier = ">=4.7" }]
 test = [
     { name = "faker", specifier = ">=40.37.0" },
     { name = "hypothesis", specifier = ">=6.165.10" },
+    { name = "packaging", specifier = ">=24.0" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-codspeed", specifier = ">=5.0.3" },
     { name = "pytest-cov", specifier = ">=7.0.0" },

@@ -111,6 +111,7 @@ test = [
     "faker>=40.37.0",
     "pytest-codspeed>=5.0.3",
     "hypothesis>=6.165.10",
+    "packaging>=24.0",
 ]
 
 lint = [
