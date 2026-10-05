@@ -460,7 +460,7 @@ def _export_results(
 
     if getattr(args, "otlp", None):
         try:
-            OTLPExporter().export(steps, args.otlp)
+            OTLPExporter().export(steps, args.otlp, timeout=args.timeout)
         except OTLPExportError as export_error:
             console.print(
                 f"[yellow]⚠ Warning:[/yellow] Failed to export OTLP traces: {escape(str(export_error))}",

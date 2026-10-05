@@ -292,6 +292,32 @@ jobs:
       - name: Run tests
         run: uv run --no-sync pytest
 
+  # The OTLP exporter needs the real OpenTelemetry SDK; the main matrix only
+  # covers it through stand-ins.
+  test-otel:
+    name: Test / otel extra
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
+
+      - name: Install dependencies with the otel extra
+        run: uv sync --locked --no-dev --group test --extra otel
+
+      - name: Run OTLP tests against the real SDK
+        run: uv run --no-sync pytest tests/test_otlp_sdk.py --no-cov
+
   all-checks-pass:
     name: All Checks Passed
     if: ${{ !cancelled() }}
@@ -301,6 +327,7 @@ jobs:
       - type-check
       - test
       - test-lowest
+      - test-otel
       - build
       - container-build
     runs-on: ubuntu-latest
@@ -312,6 +339,7 @@ jobs:
           echo "type-check: $TYPE_CHECK_RESULT"
           echo "test: $TEST_RESULT"
           echo "test-lowest: $TEST_LOWEST_RESULT"
+          echo "test-otel: $TEST_OTEL_RESULT"
           echo "build: $BUILD_RESULT"
           echo "container-build: $CONTAINER_BUILD_RESULT"
 
@@ -327,6 +355,7 @@ jobs:
              [[ "$TYPE_CHECK_RESULT" != "success" ]] || \
              ! gated_ok "$TEST_RESULT" || \
              ! gated_ok "$TEST_LOWEST_RESULT" || \
+             ! gated_ok "$TEST_OTEL_RESULT" || \
              ! gated_ok "$BUILD_RESULT" || \
              ! gated_ok "$CONTAINER_BUILD_RESULT"; then
             echo "One or more checks failed"
@@ -340,5 +369,6 @@ jobs:
           TYPE_CHECK_RESULT: ${{ needs.type-check.result }}
           TEST_RESULT: ${{ needs.test.result }}
           TEST_LOWEST_RESULT: ${{ needs.test-lowest.result }}
+          TEST_OTEL_RESULT: ${{ needs.test-otel.result }}
           BUILD_RESULT: ${{ needs.build.result }}
           CONTAINER_BUILD_RESULT: ${{ needs.container-build.result }}

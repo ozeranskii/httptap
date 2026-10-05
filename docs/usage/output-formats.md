@@ -284,9 +284,12 @@ pip install 'httptap[otel]'
 httptap --otlp http://localhost:4318/v1/traces https://api.example.com/health
 ```
 
-Each request step creates an `http.request` span. Its child spans represent
-DNS, connection, TLS, server wait, and transfer phases. The export omits the
-full request URL so query parameters are not sent to the collector.
+A run is exported as one trace: an `httptap.analysis` root span with one
+`http.request` span per redirect step, laid out one after another, and child
+spans for the DNS, connection, TLS, server wait and transfer phases. Delivery
+is bounded by `-m`/`--max-time`; a collector error is reported as a warning and does
+not change the exit code. The export omits the full request URL, so query
+parameters are not sent to the collector.
 
 ## Redirect Chains
 

@@ -271,8 +271,9 @@ httptap --prometheus /var/lib/node_exporter/httptap.prom https://httpbin.io/get
 
 #### `--otlp ENDPOINT`
 
-Export one OpenTelemetry span per request and child spans for DNS, connection,
-TLS, server wait, and transfer phases. Install the optional dependency first:
+Export the run as one OpenTelemetry trace: a root span, one span per request
+step and child spans for DNS, connection, TLS, server wait, and transfer
+phases. Install the optional dependency first:
 
 ```bash
 pip install 'httptap[otel]'
