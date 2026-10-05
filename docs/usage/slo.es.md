@@ -6,7 +6,7 @@ description: Usa --slo o --slo-file para condicionar solicitudes a presupuestos 
 # Comprobación de umbrales SLO
 
 `httptap --slo` y `--slo-file` comprueban los tiempos medidos frente a presupuestos de latencia
-por fase y sale con un código distinto de cero cuando se supera cualquier presupuesto.
+por fase y salen con un código distinto de cero cuando se supera cualquier presupuesto.
 Esto convierte una única solicitud en una sonda de aprobado/fallido adecuada para
 gates de CI, monitorización sintética basada en cron, comprobaciones de disponibilidad y
 pruebas de humo tras el despliegue, sin escribir un analizador de shell personalizado.
@@ -78,9 +78,11 @@ archivo para las claves coincidentes.
 - Valor cero, negativo o no finito (`--slo total=0`, `total=nan`,
   `total=inf`).
 - Falta el `=` (`--slo total500`).
+- Un `--slo-file` que no se puede leer o que contiene cualquiera de los casos anteriores.
 
-El error específico se imprime en un panel con formato Rich para el uso
-interaction, y en texto plano con `--metrics-only`.
+El error específico se imprime en stderr en un panel `SLO Error` con formato
+Rich, también con `--metrics-only`; no se escribe nada en stdout porque no se
+realiza ninguna solicitud.
 
 ## Reglas de evaluación
 
@@ -89,7 +91,7 @@ una cadena de solicitudes:
 
 - Solicitud única → se comprueba frente a esa solicitud.
 - Cadena de redirecciones (`--follow`) → se comprueba frente a la respuesta terminal,
-  no frente a las redirecciones intermedias. Se assume que a los usuarios les importa
+  no frente a las redirecciones intermedias. Se asume que a los usuarios les importa
   lo que realmente sirvió su solicitud.
 - Todos los pasos con error → el SLO se omite por completo; el código de salida refleja
   el fallo de red (véase más abajo).
@@ -222,22 +224,29 @@ resumen es retrocompatible con los consumidores existentes.
       https://staging.example.com/
 ```
 
-El paso falla solo con salida `4` o `64`. Los errores de red (salida `75`)
-pueden gestionarse por separado:
+Este paso falla con cualquier código de salida distinto de cero, incluidos los errores
+de red (`75`). Para que la compilación falle ante una violación de SLO (o cualquier otro
+error) pero solo se emita una advertencia ante errores de red, registra el código de salida
+en `$GITHUB_OUTPUT` y actúa en consecuencia en un paso posterior:
 
 ```yaml
 - name: Smoke-test staging latency
   id: smoke
-  continue-on-error: true
-  run: httptap --slo total=2000 https://staging.example.com/
-- name: Fail CI only on SLO violation
-  if: steps.smoke.outcome == 'failure' && steps.smoke.conclusion != 'success'
   run: |
-    if [ "${{ steps.smoke.outputs.exit_code }}" = "4" ]; then
-      echo "SLO violation — failing build."
-      exit 1
+    set +e
+    httptap --slo total=2000 https://staging.example.com/
+    code=$?
+    echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+    if [ "${code}" -ne 0 ] && [ "${code}" -ne 75 ]; then
+      exit "${code}"
     fi
+- name: Warn on network errors
+  if: steps.smoke.outputs.exit_code == '75'
+  run: echo "::warning::httptap could not reach staging (exit 75)."
 ```
+
+`set +e` mantiene el shell en ejecución tras una salida distinta de cero para que el código
+pueda registrarse. Una violación de SLO (`4`) hace fallar el propio paso de smoke test.
 
 ### Sonda de disponibilidad (readiness) de Kubernetes
 
@@ -271,7 +280,7 @@ done
 - Empieza con `--slo total=<latencia P95>` y añade presupuestos por fase
   una vez que tengas datos de referencia de las exportaciones `--json`.
 - `xfer` y `wait` son métricas derivadas; su suma está acotada por
-  `total`. Si estableces un presupuesto de `total`, las fases individuals quedan
+  `total`. Si estableces un presupuesto de `total`, las fases individuales quedan
   implícitamente limitadas.
 - Combínalo con `--timeout`: `--slo` comprueba la latencia *después* de que
   la solicitud se completa; `--timeout` mata de forma abrupta una solicitud que se cuelga.

@@ -34,7 +34,7 @@ httptap --data '{"name": "John Doe", "email": "john@example.com"}' https://httpb
     当提供了 `--data` 而未提供 `--method` 时，httptap 会自动切换为 POST（类似 curl）。
 
 !!! tip "兼容 curl 的参数"
-    最常见的 curl 参数可原样使用。使用 `-X/--request` 指定 HTTP 方法，`-L/--location` 跟随重定向，`-m/--max-time` 设置超时，`-k/--insecure` 禁用证书校验，`-x` 指定代理，`--http1.1` 强制使用 HTTP/1.1（等价于 `--no-http2`）。并非所有 curl 选项都受支持，因此替换命令时请只使用这些共有参数。
+    最常见的 curl 参数可原样使用。使用 `-X/--request` 指定 HTTP 方法，`-L/--location` 跟随重定向，`-m/--max-time` 设置超时，`-k/--insecure` 禁用证书校验，`-x` 指定代理，`--http1.1` 强制使用 HTTP/1.1（等价于 `--no-http2`）。`-f/--fail`、`-4/--ipv4`、`-6/--ipv6` 和 `--resolve HOST:PORT:ADDR` 与 curl 中的名称相同。并非所有 curl 选项都受支持，因此替换命令时请只使用这些共有参数。
 
 从文件加载数据：
 
@@ -142,6 +142,8 @@ httptap --json output.json https://httpbin.io
 - 完整的重定向链（如果使用了 `--follow`）
 - SLO 评估（如果提供了 `--slo`）
 
+使用 `--json -` 可将 JSON 写入标准输出而非文件，例如通过管道传给 `jq`。
+
 ## SLO 阈值校验
 
 使用 `--slo` 基于各阶段延迟预算为 CI 任务、cron 探针或 Kubernetes 就绪检查设置门禁：
@@ -150,7 +152,7 @@ httptap --json output.json https://httpbin.io
 httptap --slo total=500,ttfb=200 https://httpbin.io/get
 ```
 
-当每个预算都通过时退出码为 `0`，当任一阈值被违反时退出码为 `4`。完整的瀑布图仍会被渲染，以便你看清校验*为何*失败。
+当每个预算都通过时退出码为 `0`，当任一阈值被违反时退出码为 `4`。阈值也可以从文件中读取，文件每行一个 `KEY=MS` 条目：`--slo-file slo.txt`。完整的瀑布图仍会被渲染，以便你看清校验*为何*失败。
 
 !!! tip "支持的 SLO 键"
     `dns`、`connect`、`tls`、`ttfb`、`wait`、`xfer`、`total`——每一个都映射到一个计时阶段。完整规范与实用示例请参见专门的 [SLO 阈值校验](../usage/slo.md) 页面。

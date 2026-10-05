@@ -29,6 +29,8 @@ analyzer = HTTPTapAnalyzer(dns_resolver=CustomDNSResolver())
 steps = analyzer.analyze_url("https://httpbin.io")
 ```
 
+このサブクラスは `resolve()` のみをオーバーライドしているため、httptap は継承された `resolve_all()` ではなくこのメソッドを呼び出します。そのため、各ホストは単一のアドレスに解決され、接続に失敗した場合に次のアドレスへフォールバックすることはありません。このフォールバックを維持するには、`resolve_all()` もオーバーライドしてください。[`resolve_all()` によるアドレスのフォールバック](../api/interfaces.md#address-fallback-with-resolve_all)を参照してください。名前を解決できない場合は、カスタムリゾルバーから `DNSResolutionError` を送出してください。そうすることで、その失敗は内部エラーではなくネットワークエラーとして報告されます。
+
 ## カスタムな TLS インスペクション
 
 追加の証明書情報を抽出するために、カスタムの TLS インスペクションロジックを実装します。
@@ -182,10 +184,11 @@ CLI 出力には `TLS CA: custom bundle` と表示され、システム以外の
 
 ## カスタムリクエストエグゼキューター
 
-完全にカスタマイズされた挙動のために、独自のリクエストエグゼキューターを提供できます。エグゼキューターはすべてのパラメーターを `RequestOptions` にパッケージ化した形で受け取るため、httptap によって追加される新しいフラグは後方互換のままです。
+完全にカスタマイズされた挙動のために、独自のリクエストエグゼキューターを提供できます。エグゼキューターはすべてのパラメーターを `RequestOptions` にパッケージ化した形で受け取るため、httptap によって追加される新しいフラグは後方互換のままです。トランスポートがサポートするすべてのフィールドを転送してください。1 つでも落とすと、リクエストが暗黙のうちに変わってしまいます（たとえば、`method` と `content` を無視すると `POST` がボディなしの `GET` になり、`proxy` や `ca_bundle_path` を無視すると `--proxy` や `--cacert` の設定が失われます）。
 
 ```python
 from httptap import HTTPTapAnalyzer, RequestExecutor, RequestOptions, RequestOutcome
+from httptap.http_client import make_request
 
 
 class RecordingExecutor(RequestExecutor):
@@ -195,17 +198,20 @@ class RecordingExecutor(RequestExecutor):
     def execute(self, options: RequestOptions) -> RequestOutcome:
         self.last_options = options
         # Call the built-in client (or your preferred HTTP library)
-        from httptap.http_client import make_request
-
         timing, network, response = make_request(
             options.url,
             options.timeout,
+            deadline=options.deadline,
+            method=options.method,
+            content=options.content,
             http2=options.http2,
             verify_ssl=options.verify_ssl,
+            ca_bundle_path=options.ca_bundle_path,
+            proxy=options.proxy,
+            noproxy=options.noproxy,
             dns_resolver=options.dns_resolver,
             tls_inspector=options.tls_inspector,
             timing_collector=options.timing_collector,
-            force_new_connection=options.force_new_connection,
             headers=options.headers,
         )
         return RequestOutcome(timing=timing, network=network, response=response)
@@ -216,6 +222,8 @@ analyzer = HTTPTapAnalyzer(request_executor=executor)
 analyzer.analyze_url("https://httpbin.io/get", headers={"X-Debug": "1"})
 print(executor.last_options.headers)  # {'X-Debug': '1'}
 ```
+
+`force_new_connection` は非推奨で無視されるため、転送していません。デフォルトの挙動を再実装する代わりにラップしたい場合は、`HTTPClientRequestExecutor().execute(options)` に委譲してください。トランスポートの障害には `httptap.http_client.HTTPClientError` を送出してください。そうすることで、アナライザーはそれを部分的なデータ付きのネットワークエラー（終了コード `75`）として記録します。それ以外の例外は内部エラー（終了コード `70`）として報告されます。
 
 ## カスタムな可視化
 

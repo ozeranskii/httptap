@@ -69,8 +69,9 @@ httptap --slo-file slo.txt https://api.example.com/health
 - 数値でない値（`--slo total=fast`）。
 - ゼロ、負、または有限でない値（`--slo total=0`、`total=nan`、`total=inf`）。
 - `=` の欠落（`--slo total500`）。
+- 読み込めない `--slo-file`、または上記のいずれかを含む `--slo-file`。
 
-具体的なエラーは、インタラクティブな使用のために Rich 書式のパネルで出力され、`--metrics-only` ではプレーンテキストで出力されます。
+具体的なエラーは、`--metrics-only` の場合も含め、Rich 書式の `SLO Error` パネルとして stderr に出力されます。リクエストは行われないため、stdout には何も書き込まれません。
 
 ## 評価ルール
 
@@ -82,7 +83,7 @@ SLO しきい値は、リクエストチェーンの**最終的に成功した�
 
 しきい値は `actual ≤ threshold` のときに合格します。等しい場合は違反とは**みなされません**。違反は決定論的な出力のために、そのキーのアルファベット順で報告されます。
 
-## 終了コード
+## 終了コード { #exit-codes }
 
 `--slo` は `httptap` の全体的な終了コードの優先順位に統合されています:
 
@@ -196,21 +197,25 @@ Step 1: ... proxy=direct slo=pass
       https://staging.example.com/
 ```
 
-このステップは終了コード `4` または `64` の場合のみ失敗します。ネットワークエラー（終了コード `75`）は別途処理できます:
+このステップは、ネットワークエラー（`75`）を含め、非ゼロの終了コードであれば失敗します。SLO 違反（またはその他のエラー）ではビルドを失敗させつつ、ネットワークエラーでは警告にとどめたい場合は、終了コードを `$GITHUB_OUTPUT` に記録し、後続のステップでそれに応じて処理します:
 
 ```yaml
 - name: Smoke-test staging latency
   id: smoke
-  continue-on-error: true
-  run: httptap --slo total=2000 https://staging.example.com/
-- name: Fail CI only on SLO violation
-  if: steps.smoke.outcome == 'failure' && steps.smoke.conclusion != 'success'
   run: |
-    if [ "${{ steps.smoke.outputs.exit_code }}" = "4" ]; then
-      echo "SLO violation — failing build."
-      exit 1
+    set +e
+    httptap --slo total=2000 https://staging.example.com/
+    code=$?
+    echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+    if [ "${code}" -ne 0 ] && [ "${code}" -ne 75 ]; then
+      exit "${code}"
     fi
+- name: Warn on network errors
+  if: steps.smoke.outputs.exit_code == '75'
+  run: echo "::warning::httptap could not reach staging (exit 75)."
 ```
+
+`set +e` により、非ゼロで終了した後もシェルが実行を続けるため、終了コードを記録できます。SLO 違反（`4`）の場合は、スモークステップ自体が失敗します。
 
 ### Kubernetes readiness プローブ
 

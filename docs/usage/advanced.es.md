@@ -29,6 +29,13 @@ analyzer = HTTPTapAnalyzer(dns_resolver=CustomDNSResolver())
 steps = analyzer.analyze_url("https://httpbin.io")
 ```
 
+Como esta subclase solo sobrescribe `resolve()`, httptap la llama en lugar del `resolve_all()`
+heredado, así que cada host se resuelve a una única dirección y no hay respaldo a la siguiente
+dirección cuando falla una conexión. Sobrescribe también `resolve_all()` para conservar ese respaldo;
+consulta [Respaldo de direcciones con `resolve_all()`](../api/interfaces.md#address-fallback-with-resolve_all).
+Lanza `DNSResolutionError` desde un resolutor personalizado cuando un nombre no se pueda resolver, para
+que el fallo se informe como un error de red y no como uno interno.
+
 ## Inspección TLS personalizada
 
 Implementa lógica de inspección TLS personalizada para extraer información adicional del certificado.
@@ -118,8 +125,8 @@ httptap --ignore-ssl https://self-signed.badssl.com
 
 La solicitud sigue registrando los metadatos de TLS, pero los errores de certificado se suprimen para que puedas centrarte en el flujo del protocolo. Usa este flag solo en entornos de confianza, porque desactiva la protección frente a ataques de intermediario (man-in-the-middle).
 El cliente relaja muchos requisitos de cifrado y protocolo (hashes débiles,
-versions de TLS más antiguas, grupos DH pequeños) para que sea más probable que los
-endpoints heredados complement la negociación TLS. Los algorithms extremadamente
+versiones de TLS más antiguas, grupos DH pequeños) para que sea más probable que los
+endpoints heredados completen la negociación TLS. Los algoritmos extremadamente
 obsoletos que OpenSSL elimina por completo (por ejemplo, RC4, 3DES en algunas
 plataformas) pueden fallar aun en este modo.
 
@@ -145,9 +152,9 @@ La salida Rich y la exportación JSON incluyen la URI del proxy y su origen
 (por ejemplo, `(from arg --proxy)`, `(from env HTTPS_PROXY)`,
 `(bypassed by env no_proxy)`) para que puedas confirmar qué ruta se usó.
 
-### Protocols de proxy y resolución DNS
+### Protocolos de proxy y resolución DNS
 
-httptap admite cuatro protocols de proxy, cada uno con un comportamiento de resolución DNS distinto:
+httptap admite cuatro protocolos de proxy, cada uno con un comportamiento de resolución DNS distinto:
 
 | Protocolo   | DNS resuelto por | Caso de uso |
 |------------|----------------|----------|
@@ -165,7 +172,7 @@ Cuando no se proporciona el flag `--proxy`, httptap comprueba las variables de e
 1. `no_proxy` / `NO_PROXY` - Lista separada por comas de hosts a omitir (la minúscula tiene prioridad)
 2. `https_proxy` / `HTTPS_PROXY` - Proxy para solicitudes HTTPS (la minúscula tiene prioridad)
 3. `http_proxy` / `HTTP_PROXY` - Proxy para solicitudes HTTP (la minúscula tiene prioridad)
-4. `all_proxy` / `ALL_PROXY` - Proxy alternativo para todos los protocols
+4. `all_proxy` / `ALL_PROXY` - Proxy alternativo para todos los protocolos
 
 El flag `--proxy` siempre tiene prioridad sobre las variables de entorno.
 
@@ -190,10 +197,14 @@ La salida de la CLI mostrará `TLS CA: custom bundle` para indicar que se usó e
 
 Para un comportamiento totalmente personalizado puedes proporcionar tu propio ejecutor de solicitudes.
 Los ejecutores reciben todos los parámetros empaquetados dentro de `RequestOptions`, de modo que los nuevos
-flags añadidos por httptap siguen siendo retrocompatibles.
+flags añadidos por httptap siguen siendo retrocompatibles. Reenvía todos los campos que admita
+tu transporte; omitir uno cambia la solicitud sin avisar (por ejemplo, ignorar `method` y
+`content` convierte un `POST` en un `GET` sin cuerpo, e ignorar `proxy` o `ca_bundle_path`
+descarta la configuración de `--proxy` o `--cacert`).
 
 ```python
 from httptap import HTTPTapAnalyzer, RequestExecutor, RequestOptions, RequestOutcome
+from httptap.http_client import make_request
 
 
 class RecordingExecutor(RequestExecutor):
@@ -203,17 +214,20 @@ class RecordingExecutor(RequestExecutor):
     def execute(self, options: RequestOptions) -> RequestOutcome:
         self.last_options = options
         # Call the built-in client (or your preferred HTTP library)
-        from httptap.http_client import make_request
-
         timing, network, response = make_request(
             options.url,
             options.timeout,
+            deadline=options.deadline,
+            method=options.method,
+            content=options.content,
             http2=options.http2,
             verify_ssl=options.verify_ssl,
+            ca_bundle_path=options.ca_bundle_path,
+            proxy=options.proxy,
+            noproxy=options.noproxy,
             dns_resolver=options.dns_resolver,
             tls_inspector=options.tls_inspector,
             timing_collector=options.timing_collector,
-            force_new_connection=options.force_new_connection,
             headers=options.headers,
         )
         return RequestOutcome(timing=timing, network=network, response=response)
@@ -224,6 +238,13 @@ analyzer = HTTPTapAnalyzer(request_executor=executor)
 analyzer.analyze_url("https://httpbin.io/get", headers={"X-Debug": "1"})
 print(executor.last_options.headers)  # {'X-Debug': '1'}
 ```
+
+`force_new_connection` está obsoleto y se ignora, por lo que no se reenvía. Para
+envolver el comportamiento predeterminado en lugar de reimplementarlo, delega en
+`HTTPClientRequestExecutor().execute(options)`. Lanza
+`httptap.http_client.HTTPClientError` ante fallos de transporte para que el analizador
+los registre como errores de red (código de salida `75`) con datos parciales; cualquier otra
+excepción se informa como un error interno (código de salida `70`).
 
 ## Visualización personalizada
 
@@ -486,7 +507,7 @@ for key, value in step.response.headers.items():
 
     ---
 
-    Amplía httptap y contribute
+    Amplía httptap y contribuye
 
 -   :material-rocket-launch:{ .lg .middle } **[Proceso de publicación](../development/release.md)**
 

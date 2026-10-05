@@ -12,7 +12,7 @@ Antes de instalar httptap, asegúrate de tener:
 - Gestor de paquetes **pip** o **uv**
 - Sistema operativo **macOS, Linux o Windows**
 
-No se requieren dependencies del sistema más allá de la red estándar.
+No se requieren dependencias del sistema más allá de la red estándar.
 
 ## Ejecución con uvx
 
@@ -195,7 +195,7 @@ Homebrew coloca automáticamente los scripts de autocompletado en:
 - **Bash**: `$(brew --prefix)/etc/bash_completion.d/`
 - **Zsh**: `$(brew --prefix)/share/zsh/site-functions/`
 
-!!! success "No se require configuración adicional"
+!!! success "No se requiere configuración adicional"
     Homebrew gestiona toda la configuración del autocompletado automáticamente. ¡Solo reinicia tu shell y empieza a usar el autocompletado con Tab!
 
 ### Instalación del paquete de Python
@@ -244,7 +244,7 @@ Si instalaste httptap mediante `pip`, `uv` o `pipx`, necesitas instalar los extr
 
 ### Uso
 
-Una vez instalado y activado, puedes usar `Tab` para autocompletar commandos y opciones:
+Una vez instalado y activado, puedes usar `Tab` para autocompletar comandos y opciones:
 
 ```bash
 # Complete command options
@@ -260,7 +260,7 @@ httptap --follow --time<TAB>
 ```
 
 !!! note
-    El script de activación global proporciona autocompletado de arguments solo para bash y zsh. Otros shells no están cubiertos por el script y deben configurarse por separado.
+    El script de activación global proporciona autocompletado de argumentos solo para bash y zsh. Otros shells no están cubiertos por el script y deben configurarse por separado.
 
 ---
 
@@ -278,7 +278,7 @@ httptap --follow --time<TAB>
 
     ---
 
-    Referencia completa de la línea de commandos
+    Referencia completa de la línea de comandos
 
 -   :material-api:{ .lg .middle } **[Referencia de la API](../api/overview.md)**
 

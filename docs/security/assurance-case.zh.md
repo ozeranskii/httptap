@@ -18,7 +18,8 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 - 接受来自不受信任对端的网络输入（它不是服务器）；
 - 管理用户账户、会话或长期凭证；
 - 执行远程代码或求值服务器提供的脚本；
-- 在可选的 `--json` 导出之外持久化任何机密或用户数据。
+- 在可选的 `--json` 报告和 `--prometheus` textfile 之外持久化任何机密或用户数据；
+- 将测量数据发送到用户通过可选的 `--otlp` 指定的 OTLP collector 之外的任何地方。
 
 ## 安全需求
 
@@ -43,10 +44,12 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
    └──────────┬──────────┘
               │
               ▼
-   ┌─────────────────────┐
-   │ httptap process     │   trusted
-   │ (Python 3.11+)      │
-   └──────────┬──────────┘
+   ┌─────────────────────┐  --json, --prometheus  ┌─────────────────────┐
+   │ httptap process     │ ─────────────────────► │ Local files, stdout │  trusted
+   │ (Python 3.11+)      │                        └─────────────────────┘
+   │                     │  --otlp (OTLP/HTTP)    ┌─────────────────────┐
+   │                     │ ─────────────────────► │ OTLP collector      │  user-chosen
+   └──────────┬──────────┘                        └─────────────────────┘
               │  TLS/HTTP  ◄─── untrusted: network, proxy, remote host
               ▼
    ┌─────────────────────┐
@@ -56,6 +59,8 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 
 - **用户 → httptap** 是受信任的：假定用户有正当理由发起任何给定请求。输入校验仍会拒绝格式错误的 URL、方法、超时等，以防止操作者的失误。
 - **httptap → 网络 → 远程服务器** 是不受信任的。所有跨越此边界的数据都被视为受攻击者控制：响应头、状态码、`Location` 值、TLS 证书、内容体。
+- **httptap → 本地输出** 是受信任的：`--json` 将报告写入文件或 stdout，`--prometheus` 以原子方式写出 node_exporter textfile（先在同一目录中写临时文件，再重命名）。Prometheus 标签只携带主机名和重定向步骤编号，从不包含路径或查询字符串。文件会落在用户指定的位置，任何能够读取该位置的人都可以读取它们。
+- **httptap → OTLP collector** 会经由网络到达用户通过 `--otlp`（可选的 `httptap[otel]` extra）提供的端点，按给定的 `http://` 或 `https://` 进行传输。每个请求步骤会成为一个 span，并为每个阶段生成子 span，携带方法、状态码、响应体大小、主机名、对端 IP、HTTP 与 TLS 版本，以及失败步骤的错误信息。span 从不包含完整 URL（路径、查询字符串、凭证）或任何请求头。投递失败会以警告形式报告，不会改变退出码。
 - **构建流水线 → PyPI / GitHub Releases** 是一个独立的信任边界，由 GitHub OIDC（无长期密钥）、Sigstore 签名以及按 SHA 固定的 actions 加以保护。
 
 ## 威胁模型
@@ -71,6 +76,7 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 | **Repudiation（抵赖）** | — | 超出范围；httptap 不是多用户系统。 |
 | **Information disclosure（信息泄露）** | `-H Authorization` 中的凭证泄露给位于不同主机上的重定向目标。 | httptap 自行处理重定向（httpx 中 `follow_redirects=False`），当重定向改变协议、主机或端口时丢弃 `Authorization`、`Cookie` 和 `Proxy-Authorization`；`303`，以及 `POST` 之后的 `301`/`302`，会切换为不带请求体的 `GET`（SR-3）。 |
 | **Information disclosure（信息泄露）** | `--json` 导出将认证请求头或代理凭证写入磁盘。 | `Authorization`、`Proxy-Authorization`、`Cookie`、`Set-Cookie` 和 API 密钥请求头在输出和导出中会被遮蔽，代理 URL 中的凭证会被脱敏；SECURITY.md 和 docs/troubleshooting.md 仍建议用户在共享前检查导出内容。 |
+| **Information disclosure（信息泄露）** | 遥测导出会向读取 textfile 或运行 collector 的人泄露请求详情。 | Prometheus 标签仅限主机名和步骤；OTLP span 省略完整 URL 和请求头。OTLP 导出需显式启用，并且只会发送到通过 `--otlp` 指定的端点；对于远程 collector，推荐使用 `https://`。 |
 | **Information disclosure（信息泄露）** | 在不安全的代理上发生 MITM。 | 代理 URL 的协议方案会被校验；对敏感目标推荐使用 `socks5h://` / `https://`；代理来源会在输出和 JSON 中报告以供审计。 |
 | **Denial of service（拒绝服务）** | 恶意服务器流式发送无界的请求体。 | 通过 `--timeout` 设定每请求超时（默认 20 秒）；传输阶段受同一截止时限约束。 |
 | **Denial of service（拒绝服务）** | 恶意服务器流式发送 zip 炸弹或巨大的请求体。 | httptap 除为计时指标统计字节数外，不会解码或持久化请求体，因此内存开销是线性的，并受超时约束。 |
@@ -115,7 +121,7 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 | CWE-89 | SQL 注入 | 无数据库。 |
 | CWE-94 | 代码注入 | 不使用 `eval`/`exec`；从不解析响应体。 |
 | CWE-116 | 不当的输出编码 | 服务器控制的字符串在 Rich 标记渲染前进行转义；JSON 导出使用带严格转义的 `json.dumps`。 |
-| CWE-200 | 敏感信息泄露 | 敏感请求头在输出和 JSON 导出中会被遮蔽，代理 URL 凭证会被脱敏；重定向时凭证请求头不会转发到其他源（SR-3）；SECURITY.md 与文档建议在共享前检查导出内容。 |
+| CWE-200 | 敏感信息泄露 | 敏感请求头在输出和 JSON 导出中会被遮蔽，代理 URL 凭证会被脱敏；Prometheus 和 OTLP 导出不携带 URL 路径、查询字符串或请求头；重定向时凭证请求头不会转发到其他源（SR-3）；SECURITY.md 与文档建议在共享前检查导出内容。 |
 | CWE-295 | 不当的证书校验 | 默认启用 TLS 校验；`--ignore-ssl` 仅在显式选择时启用，并有明确记载。 |
 | CWE-319 | 明文传输 | 优先使用 HTTPS；纯 HTTP 需显式的 `http://` URL；代理来源会被报告。 |
 | CWE-327 | 弱加密 | 委托给标准库 `ssl`；弱算法仅在诊断远程服务器时才浮现。 |
@@ -162,6 +168,7 @@ gh attestation verify dist/httptap-X.Y.Z-py3-none-any.whl \
 | 2026-04-12 | httptap 0.4.7 的首个保障论证（银级提交）。 |
 | 2026-04-13 | 面向 0.5.0 的开源加固：gitsign 签名的发布提交/标签、TestPyPI 预检、带 SLSA 来源证明的已签名 GHCR 容器镜像、CI 中的 hadolint、man-page 制品。 |
 | 2026-09-17 | 0.6.2 中的安全修复（[GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)）：通过重定向时的显式源检查落实 SR-3，服务器控制的值在 Rich 渲染前转义（CWE-79/116），代理凭证被脱敏（CWE-200）；OpenVEX 现已记录该公告的状态。 |
+| 2026-10-05 | 将 `--prometheus` textfile 和 `--otlp` trace 输出加入信任边界、威胁模型以及 CWE-200 应对措施。 |
 
 ---
 
@@ -171,6 +178,4 @@ gh attestation verify dist/httptap-X.Y.Z-py3-none-any.whl \
 - [GOVERNANCE.md](https://github.com/ozeranskii/httptap/blob/main/GOVERNANCE.md) —— 项目角色、决策与连续性计划。
 - [ROADMAP.md](https://github.com/ozeranskii/httptap/blob/main/ROADMAP.md) —— 范围、非目标与弃用策略。
 - [故障排查与常见问题](../troubleshooting.md) —— 运维指引。
-- [CWE Top 25](https://cwe.mitre.org/top25/) 和
-  [OWASP ASVS 4.0](https://owasp.org/www-project-application-security-verification-standard/)
-  —— 实现弱点的参考目录。
+- [CWE Top 25](https://cwe.mitre.org/top25/) 和 [OWASP ASVS 4.0](https://owasp.org/www-project-application-security-verification-standard/) —— 实现弱点的参考目录。

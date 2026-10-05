@@ -1,12 +1,12 @@
 ---
-description: Ejecuta httptap desde la línea de commandos y lee el desglose de tiempos por fase de cualquier solicitud HTTP.
+description: Ejecuta httptap desde la línea de comandos y lee el desglose de tiempos por fase de cualquier solicitud HTTP.
 ---
 
 # Uso básico
 
-## Interfaz de línea de commandos
+## Interfaz de línea de comandos
 
-La interfaz de línea de commandos de `httptap` ofrece varias opciones para personalizar tus solicitudes HTTP y la salida.
+La interfaz de línea de comandos de `httptap` ofrece varias opciones para personalizar tus solicitudes HTTP y la salida.
 
 ## Sintaxis
 
@@ -16,7 +16,7 @@ httptap [OPTIONS] URL
 
 ## Opciones
 
-> **Compatibilidad con curl:** Los flags habituales de curl se aceptan como alias. Cambia `curl` por `httptap` y sigue usando opciones familiares como `-X/--request`, `-L/--location`, `-m/--max-time`, `-k/--insecure`, `-x` y `--http1.1`. Esto no es un clon completo de curl: limítate a los flags coincidentes que se enumeran aquí.
+> **Compatibilidad con curl:** Los flags habituales de curl se aceptan como alias. Cambia `curl` por `httptap` y sigue usando opciones familiares como `-X/--request`, `-L/--location`, `-m/--max-time`, `-k/--insecure`, `-x` y `--http1.1`; `-f/--fail`, `-4/--ipv4`, `-6/--ipv6` y `--resolve` usan los mismos nombres que en curl. Esto no es un clon completo de curl: limítate a los flags coincidentes que se enumeran aquí.
 
 ### Opciones de solicitud
 
@@ -39,7 +39,7 @@ httptap --method POST https://httpbin.io/post
 
 #### `-d, --data DATA`
 
-Envía datos en el cuerpo de la solicitud. Puede set una cadena en línea o una referencia a un archivo usando la sintaxis `@filename`.
+Envía datos en el cuerpo de la solicitud. Puede ser una cadena en línea o una referencia a un archivo usando la sintaxis `@filename`.
 
 **Datos JSON en línea:**
 ```bash
@@ -97,6 +97,9 @@ httptap --follow https://httpbin.io/redirect/3
 ```
 
 Por defecto, httptap no sigue las redirecciones y se detiene en la primera respuesta de redirección (código de estado 3xx).
+
+Si la respuesta sigue siendo una redirección tras seguir 10 redirecciones, httptap se detiene, imprime una advertencia,
+marca ese paso con `redirect_limit_reached: true` en la exportación JSON y sale con el código `47`.
 
 Al seguir redirecciones, httptap aplica las mismas reglas que curl y los navegadores:
 
@@ -170,7 +173,7 @@ httptap --ignore-ssl https://self-signed.badssl.com
 
 #### `-x, --proxy URL`
 
-Enruta las solicitudes a través del proxy especificado. Admite los protocols HTTP, HTTPS, SOCKS5 y SOCKS5H.
+Enruta las solicitudes a través del proxy especificado. Admite los protocolos HTTP, HTTPS, SOCKS5 y SOCKS5H.
 
 *Alias compatible con curl:* `-x`.
 
@@ -184,11 +187,11 @@ httptap --proxy socks5h://proxy.local:1080 https://httpbin.io/get
 # proxy SOCKS5 (DNS resuelto localmente)
 httptap --proxy socks5://proxy.local:1080 https://httpbin.io/get
 
-# Ignore las variables de entorno de proxy y conecta directamente
+# Ignora las variables de entorno de proxy y conecta directamente
 httptap --proxy "" https://httpbin.io/get
 ```
 
-El flag `--proxy` tiene prioridad sobre las variables de entorno (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`). Usa `--proxy ""` para ignorar todas las variables de entorno de proxy y conectar directamente. Consulta [Funciones avanzadas](advanced.md#using-proxies) para más detalles sobre los protocols de proxy, la resolución DNS y la configuración mediante variables de entorno.
+El flag `--proxy` tiene prioridad sobre las variables de entorno (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`). Usa `--proxy ""` para ignorar todas las variables de entorno de proxy y conectar directamente. Consulta [Funciones avanzadas](advanced.md#using-proxies) para más detalles sobre los protocolos de proxy, la resolución DNS y la configuración mediante variables de entorno.
 
 Las credenciales de la URL del proxy (`http://user:password@proxy:3128`), incluidas las que proceden de variables de entorno, se usan para la conexión pero se enmascaran en la salida y en la exportación JSON (`http://user:****@proxy:3128`).
 
@@ -271,8 +274,9 @@ httptap --prometheus /var/lib/node_exporter/httptap.prom https://httpbin.io/get
 
 #### `--otlp ENDPOINT`
 
-Exporta un span de OpenTelemetry por solicitud y spans hijos para las fases de DNS, conexión,
-TLS, espera del servidor y transferencia. Instala primero la dependencia opcional:
+Exporta la ejecución como una única traza de OpenTelemetry: un span raíz, un span por cada paso
+de la solicitud y spans hijos para las fases de DNS, conexión, TLS, espera del servidor y
+transferencia. Instala primero la dependencia opcional:
 
 ```bash
 pip install 'httptap[otel]'
@@ -282,7 +286,7 @@ httptap --otlp http://localhost:4318/v1/traces https://httpbin.io/get
 #### `--slo KEY=MS[,KEY=MS...]`, `--slo-file PATH`
 
 Comprueba el paso final correcto frente a presupuestos de latencia por fase. Ante una
-violación, `httptap` sigue renderizando el inform completo pero sale con el código
+violación, `httptap` sigue renderizando el informe completo pero sale con el código
 `4` para que el resultado pueda condicionar trabajos de CI, sondas de cron o comprobaciones
 de disponibilidad (readiness) de Kubernetes.
 
@@ -454,6 +458,6 @@ httptap --metrics-only https://httpbin.io/delay/1 >> api-latency.log
 
     ---
 
-    Amplía httptap con protocols
+    Amplía httptap con protocolos
 
 </div>

@@ -42,10 +42,13 @@ description: 基于 Rich 的命令行工具，将一次 HTTP 请求拆解为每�
 - **分阶段计时** —— 基于 httpcore 的 trace 钩子进行精确测量（当底层数据不可用时提供合理的回退估算）。
 - **全部 HTTP 方法** —— GET、POST、PUT、PATCH、DELETE、HEAD、OPTIONS，均支持请求体。
 - **请求体支持** —— 内联或从文件发送 JSON、XML 或任意数据，并自动检测 Content-Type。
-- **IPv4/IPv6 感知** —— 解析器与 TLS 检查器会同时报告地址及其地址族。
+- **IPv4/IPv6 感知** —— 解析器与 TLS 检查器会同时报告地址及其地址族；`-4`/`-6` 将解析限定为单一地址族，`--resolve HOST:PORT:ADDR` 则可将主机固定到某个地址，同时保留原始 `Host` 头和 TLS SNI。
 - **TLS 洞察** —— 证书 CN、SAN、颁发者、序列号、有效期窗口与到期倒计时，以及加密套件和协议版本，均直接从当前连接自动采集（无需额外握手）。
 - **多种输出模式** —— 丰富的瀑布图视图、紧凑的单行摘要，或用于脚本化的 `--metrics-only`。
-- **JSON 导出** —— 持久化完整的分步数据（包含重定向链）以便后续处理。
+- **JSON 导出** —— 持久化完整的分步数据（包含重定向链）以便后续处理，或通过 `--json -` 将其输出到标准输出。
+- **Prometheus 与 OpenTelemetry 导出** —— `--prometheus PATH` 写入 node_exporter textfile；`--otlp ENDPOINT`将分阶段 span 发送到 OTLP/HTTP collector（需要安装 `httptap[otel]`）。
+- **SLO 阈值校验** —— `--slo` 和 `--slo-file` 基于分阶段延迟预算为 CI 任务、cron 探测和就绪检查设置门禁。
+- **可脚本化的退出码** —— `-f/--fail` 在 HTTP 4xx/5xx 响应时以 `22` 退出；SLO 违规、网络错误和重定向次数上限也各有专属退出码。
 - **可扩展** —— 为 DNS、TLS、计时、可视化和导出提供清晰的 Protocol 接口，便于插入自定义行为。
 
 ## 快速示例
@@ -73,7 +76,9 @@ httptap --data '{"name": "John"}' https://httpbin.io/post
 - **Rich 模式**（默认）：带颜色和格式的精美瀑布图表格
 - **紧凑模式**（`--compact`）：适合日志的单行摘要
 - **指标模式**（`--metrics-only`）：用于脚本化和自动化的原始指标
-- **JSON 导出**（`--json`）：包含重定向链的完整请求数据
+- **JSON 导出**（`--json`）：包含重定向链的完整请求数据，可写入文件，或通过 `--json -` 输出到标准输出
+- **Prometheus textfile**（`--prometheus`）：供 node_exporter textfile collector 使用的分阶段 gauge 指标
+- **OpenTelemetry trace**（`--otlp`）：每个请求一个 span，各阶段为其子 span，发送到 OTLP/HTTP collector
 
 ### 高级网络洞察
 

@@ -158,7 +158,7 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -177,6 +177,7 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     }
   ],
@@ -205,6 +206,8 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
 | `summary`         | object  | エクスポート全体の集計値。                                                       |
 
 `_ms` で終わるタイミング値の単位はミリ秒です。リクエストおよびレスポンスのボディサイズの単位はバイトです。レスポンスサイズ（`bytes`、`final_bytes`）は、curl の `size_download` と同様に、`Content-Encoding` のデコード前にネットワーク上で受信したボディをカウントします。証明書とレスポンスの日付は、利用可能な場合 ISO 8601/RFC 3339 形式のタイムスタンプになります。ネストされた `steps` と `summary` の構造については上記の例を参照してください。
+
+`network.tls_custom_ca` は `--cacert` を使用した場合は `true`、それ以外の場合は `false` です。ステップの `redirect_limit_reached` は、そのステップで `--follow` が 10 回のリダイレクト上限に達して停止した場合に `true` になります。そのようなステップは `summary.errors` にもカウントされます。
 
 ### 機能
 
@@ -269,7 +272,7 @@ pip install 'httptap[otel]'
 httptap --otlp http://localhost:4318/v1/traces https://api.example.com/health
 ```
 
-各リクエストステップは `http.request` スパンを作成します。その子スパンは DNS、接続、TLS、サーバー待機、転送の各フェーズを表します。クエリパラメータがコレクターに送信されないよう、エクスポートには完全なリクエスト URL は含まれません。
+1 回の実行は 1 つのトレースとしてエクスポートされます。トレースは `httptap.analysis` ルートスパンと、リダイレクトステップごとに 1 つずつ順番に並ぶ `http.request` スパン、そして DNS、接続、TLS、サーバー待機、転送の各フェーズの子スパンで構成されます。送信は `-m`/`--max-time` の範囲内で行われます。コレクターのエラーは警告として報告され、終了コードは変わりません。クエリパラメータがコレクターに送信されないよう、エクスポートには完全なリクエスト URL は含まれません。
 
 ## リダイレクトチェーン
 

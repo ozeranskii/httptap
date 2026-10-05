@@ -320,13 +320,14 @@ uv run mkdocs serve
 
 ### 贡献创意
 
-- **HTTP/3 支持** - 扩展到最新的协议版本
-- **更多导出格式** - CSV、XML、Prometheus 指标
-- **额外的可视化** - 火焰图、图表
-- **性能优化** - 更快的 DNS、连接池
+以下方向遵循[路线图](https://github.com/ozeranskii/httptap/blob/main/ROADMAP.md)中的范围内主题；路线图同时列出了非目标（负载测试、WebSocket 或 gRPC 等非 HTTP 协议、GUI/TUI、插件加载器）：
+
+- **计时精度** - 改进 trace 钩子和回退估算
+- **更多导出格式** - 由具体需求驱动的更多机器可读导出器（Prometheus 和 OpenTelemetry 导出已经提供）
+- **SLO 扩展** - 相对于基线的相对预算、软 SLO 与硬 SLO
 - **更多 TLS 细节** - OCSP、证书链分析
-- **自定义报告器** - Slack、webhook 通知
-- **额外的协议** - WebSocket、gRPC 计时
+- **HTTP/3 支持** - 待上游提供稳定的 Python 支持之后
+- **文档** - 完整示例、故障排查方案、集成手册
 
 ## 获取帮助
 

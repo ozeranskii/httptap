@@ -30,7 +30,7 @@ La Apache License 2.0 es una licencia de código abierto permisiva que te permit
 
 ✅ **Usar** - Usar httptap para cualquier propósito, commercial o no commercial
 ✅ **Modificar** - Modificar el código fuente para adaptarlo a tus necesidades
-✅ **Distribuir** - Distribuir versions originals o modificadas
+✅ **Distribuir** - Distribuir versiones originales o modificadas
 ✅ **Sublicenciar** - Otorgar derechos a otros bajo términos diferentes
 ✅ **Uso commercial** - Usar httptap en products comerciales
 
@@ -59,13 +59,13 @@ httptap se proporciona "TAL CUAL" sin garantías de ningún tipo. Consulta el te
 Para el texto completo de la licencia, consulta:
 
 - [Archivo LICENSE en el repositorio](https://github.com/ozeranskii/httptap/blob/main/LICENSE)
-- [Texto official de la Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+- [Texto oficial de la Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 
 ## Licencias de terceros
 
-httptap depende de various proyectos de código abierto:
+httptap depende de varios proyectos de código abierto:
 
-### Dependencies directas
+### Dependencias directas
 
 | Paquete   | Licencia      | Enlace                                  |
 |-----------|--------------|---------------------------------------|
@@ -74,7 +74,7 @@ httptap depende de various proyectos de código abierto:
 | Rich      | MIT          | https://github.com/Textualize/rich    |
 | dnspython | ISC          | https://github.com/rthalley/dnspython |
 
-Todas las dependencies usan licencias permisivas compatibles con Apache 2.0.
+Todas las dependencias usan licencias permisivas compatibles con Apache 2.0.
 
 ## Preguntas
 

@@ -29,6 +29,8 @@ analyzer = HTTPTapAnalyzer(dns_resolver=CustomDNSResolver())
 steps = analyzer.analyze_url("https://httpbin.io")
 ```
 
+由于该子类只重写了 `resolve()`，httptap 会调用它，而不是继承来的 `resolve_all()`，因此每个主机都只会解析为单个地址，连接失败时也不会回退到下一个地址。若要保留这种回退行为，请同时重写 `resolve_all()`；参见 [使用 `resolve_all()` 进行地址回退](../api/interfaces.md#address-fallback-with-resolve_all)。当名称无法解析时，请在自定义解析器中抛出 `DNSResolutionError`，这样该失败会被报告为网络错误，而不是内部错误。
+
 ## 自定义 TLS 检查
 
 实现自定义的 TLS 检查逻辑，以提取额外的证书信息。
@@ -182,10 +184,11 @@ CLI 输出会显示 `TLS CA: custom bundle`，以表明使用了非系统信任�
 
 ## 自定义请求执行器
 
-对于完全自定义的行为，你可以提供你自己的请求执行器。执行器会接收打包在 `RequestOptions` 中的所有参数，因此 httptap 新增的参数仍保持向后兼容。
+对于完全自定义的行为，你可以提供你自己的请求执行器。执行器会接收打包在 `RequestOptions` 中的所有参数，因此 httptap 新增的参数仍保持向后兼容。请转发你的传输层所支持的每一个字段；遗漏任何一个都会悄无声息地改变请求（例如，忽略 `method` 和 `content` 会把 `POST` 变成不带请求体的 `GET`，忽略 `proxy` 或 `ca_bundle_path` 则会丢失 `--proxy` 或 `--cacert` 设置）。
 
 ```python
 from httptap import HTTPTapAnalyzer, RequestExecutor, RequestOptions, RequestOutcome
+from httptap.http_client import make_request
 
 
 class RecordingExecutor(RequestExecutor):
@@ -195,17 +198,20 @@ class RecordingExecutor(RequestExecutor):
     def execute(self, options: RequestOptions) -> RequestOutcome:
         self.last_options = options
         # Call the built-in client (or your preferred HTTP library)
-        from httptap.http_client import make_request
-
         timing, network, response = make_request(
             options.url,
             options.timeout,
+            deadline=options.deadline,
+            method=options.method,
+            content=options.content,
             http2=options.http2,
             verify_ssl=options.verify_ssl,
+            ca_bundle_path=options.ca_bundle_path,
+            proxy=options.proxy,
+            noproxy=options.noproxy,
             dns_resolver=options.dns_resolver,
             tls_inspector=options.tls_inspector,
             timing_collector=options.timing_collector,
-            force_new_connection=options.force_new_connection,
             headers=options.headers,
         )
         return RequestOutcome(timing=timing, network=network, response=response)
@@ -216,6 +222,8 @@ analyzer = HTTPTapAnalyzer(request_executor=executor)
 analyzer.analyze_url("https://httpbin.io/get", headers={"X-Debug": "1"})
 print(executor.last_options.headers)  # {'X-Debug': '1'}
 ```
+
+`force_new_connection` 已弃用并会被忽略，因此不会转发它。若想包装默认行为而非重新实现，请委托给`HTTPClientRequestExecutor().execute(options)`。传输失败时请抛出`httptap.http_client.HTTPClientError`，这样分析器会将其记录为网络错误（退出码 `75`）并保留部分数据；任何其他异常都会被报告为内部错误（退出码 `70`）。
 
 ## 自定义可视化
 

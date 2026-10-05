@@ -16,7 +16,7 @@ httptap [OPTIONS] URL
 
 ## オプション
 
-> **curl 互換性:** 一般的な curl のフラグはエイリアスとして受け付けられます。`curl` を `httptap` に置き換えて、`-X/--request`、`-L/--location`、`-m/--max-time`、`-k/--insecure`、`-x`、`--http1.1` のような馴染みのあるオプションをそのまま使い続けられます。これは完全な curl のクローンではありません。ここに挙げた重複するフラグにとどめてください。
+> **curl 互換性:** 一般的な curl のフラグはエイリアスとして受け付けられます。`curl` を `httptap` に置き換えて、`-X/--request`、`-L/--location`、`-m/--max-time`、`-k/--insecure`、`-x`、`--http1.1` のような馴染みのあるオプションをそのまま使い続けられます。`-f/--fail`、`-4/--ipv4`、`-6/--ipv6`、`--resolve` も curl と同じ名前です。これは完全な curl のクローンではありません。ここに挙げた重複するフラグにとどめてください。
 
 ### リクエストオプション
 
@@ -97,6 +97,8 @@ httptap --follow https://httpbin.io/redirect/3
 ```
 
 デフォルトでは、httptap はリダイレクトを追跡せず、最初のリダイレクトレスポンス（3xx ステータスコード）で停止します。
+
+10 回リダイレクトを追跡した後もレスポンスがまだリダイレクトである場合、httptap は停止して警告を表示し、JSON エクスポートでそのステップに `redirect_limit_reached: true` を付け、終了コード `47` で終了します。
 
 リダイレクトを追跡する際、httptap は curl やブラウザと同じルールを適用します:
 
@@ -257,7 +259,7 @@ httptap --prometheus /var/lib/node_exporter/httptap.prom https://httpbin.io/get
 
 #### `--otlp ENDPOINT`
 
-リクエストごとに 1 つの OpenTelemetry スパンと、DNS、接続、TLS、サーバー待機、転送の各フェーズの子スパンをエクスポートします。事前にオプションの依存関係をインストールしてください:
+実行全体を 1 つの OpenTelemetry トレースとしてエクスポートします。トレースはルートスパン、リクエストステップごとに 1 つのスパン、そして DNS、接続、TLS、サーバー待機、転送の各フェーズの子スパンで構成されます。事前にオプションの依存関係をインストールしてください:
 
 ```bash
 pip install 'httptap[otel]'

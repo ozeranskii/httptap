@@ -1,5 +1,5 @@
 ---
-description: Comienza con httptap mediante solicitudes básicas y ejemplos habituales de la línea de commandos.
+description: Comienza con httptap mediante solicitudes básicas y ejemplos habituales de la línea de comandos.
 ---
 
 # Inicio rápido
@@ -34,7 +34,7 @@ httptap --data '{"name": "John Doe", "email": "john@example.com"}' https://httpb
     Cuando se proporciona `--data` sin `--method`, httptap cambia automáticamente a POST (similar a curl).
 
 !!! tip "Opciones compatibles con curl"
-    Las opciones más comunes de curl funcionan sin cambios. Usa `-X/--request` para el método HTTP, `-L/--location` para seguir redirecciones, `-m/--max-time` para los tiempos de espera, `-k/--insecure` para desactivar la verificación de certificados, `-x` para los proxies y `--http1.1` para forzar HTTP/1.1 (equivalente a `--no-http2`). No todas las opciones de curl son compatibles, así que cíñete a estas opciones compartidas al intercambiar commandos.
+    Las opciones más comunes de curl funcionan sin cambios. Usa `-X/--request` para el método HTTP, `-L/--location` para seguir redirecciones, `-m/--max-time` para los tiempos de espera, `-k/--insecure` para desactivar la verificación de certificados, `-x` para los proxies y `--http1.1` para forzar HTTP/1.1 (equivalente a `--no-http2`). `-f/--fail`, `-4/--ipv4`, `-6/--ipv6` y `--resolve HOST:PORT:ADDR` usan los mismos nombres que en curl. No todas las opciones de curl son compatibles, así que cíñete a estas opciones compartidas al intercambiar comandos.
 
 Carga datos desde un archivo:
 
@@ -148,6 +148,8 @@ El archivo JSON contendrá:
 - Cadena de redirecciones completa (si se usa `--follow`)
 - Evaluación del SLO (si se proporciona `--slo`)
 
+Usa `--json -` para escribir el JSON en stdout en lugar de en un archivo, por ejemplo para canalizarlo a `jq`.
+
 ## Comprobación de umbrales de SLO
 
 Condiciona los trabajos de CI, las sondas de cron o las comprobaciones de disponibilidad de Kubernetes a
@@ -158,7 +160,8 @@ httptap --slo total=500,ttfb=200 https://httpbin.io/get
 ```
 
 El código de salida es `0` cuando todos los presupuestos se cumplen y `4` cuando se viola cualquier umbral.
-La cascada completa se sigue representando para que puedas ver *por qué*
+Los umbrales también se pueden leer de un archivo con una entrada `KEY=MS`
+por línea: `--slo-file slo.txt`. La cascada completa se sigue representando para que puedas ver *por qué*
 falló la comprobación.
 
 !!! tip "Claves de SLO admitidas"
@@ -268,7 +271,7 @@ Esto ayuda a identificar la variabilidad del rendimiento y a establecer líneas 
 
     ---
 
-    Referencia completa de la línea de commandos
+    Referencia completa de la línea de comandos
 
 -   :material-palette:{ .lg .middle } **[Formatos de salida](../usage/output-formats.md)**
 

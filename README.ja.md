@@ -120,15 +120,22 @@
 - **すべての HTTP メソッド** —— GET、POST、PUT、PATCH、DELETE、HEAD、OPTIONS をリクエストボディ対応で。
 - **リクエストボディ対応** —— JSON、XML、または任意のデータをインラインまたはファイルから送信し、Content-Type を
   自動検出。
-- **IPv4/IPv6 対応** —— リゾルバーと TLS インスペクターがアドレスとそのファミリーの両方をレポートします。
+- **IPv4/IPv6 対応** —— リゾルバーと TLS インスペクターがアドレスとそのファミリーの両方をレポートします。`-4`/`-6` で
+  名前解決を一方のファミリーに限定でき、`--resolve HOST:PORT:ADDR` で元の `Host` ヘッダーと TLS SNI を保ったまま
+  ホストを特定のアドレスに固定できます。
 - **TLS の洞察** —— 証明書の CN、SAN、発行者、シリアル、有効期間と有効期限までのカウントダウン、加えて暗号スイートと
   プロトコルバージョンが、稼働中の接続から自動的に取得されます（追加のハンドシェイクは不要）。
 - **複数の出力モード** —— リッチなウォーターフォールビュー、コンパクトな単一行の概要、あるいはスクリプト向けの
   `--metrics-only`。
-- **JSON エクスポート** —— 後続の処理のために完全なステップデータ（リダイレクトチェーンを含む）を永続化します。
-- **SLO しきい値チェック** —— `--slo total=500,ttfb=200` は、フェーズごとのレイテンシ予算に基づいて CI ジョブ、cron
-  プローブ、レディネスチェックにゲートを設けます。違反時には非ゼロで終了しつつ、完全なレポートは引き続き
-  レンダリングします。
+- **JSON エクスポート** —— 後続の処理のために完全なステップデータ（リダイレクトチェーンを含む）を永続化するか、
+  `--json -` で stdout にストリーム出力します。
+- **Prometheus と OpenTelemetry へのエクスポート** —— `--prometheus PATH` は node_exporter のテキストファイルを
+  書き出し、`--otlp ENDPOINT` はフェーズごとのスパンを OTLP/HTTP コレクターへ送信します（`httptap[otel]` が必要）。
+- **SLO しきい値チェック** —— `--slo total=500,ttfb=200`（または `--slo-file` でファイルから読み込んだしきい値）は、
+  フェーズごとのレイテンシ予算に基づいて CI ジョブ、cron プローブ、レディネスチェックにゲートを設けます。違反時には
+  非ゼロで終了しつつ、完全なレポートは引き続きレンダリングします。
+- **スクリプトで扱いやすい終了コード** —— `-f/--fail` は HTTP 4xx/5xx レスポンスで `22` で終了し、SLO 違反、
+  ネットワークエラー、リダイレクト上限にもそれぞれ専用の[終了コード](#終了コード)があります。
 - **拡張可能** —— DNS、TLS、計時、可視化、エクスポートのためのクリーンな Protocol インターフェースを備え、カスタムな
   挙動を差し込めます。
 
@@ -272,7 +279,7 @@ httptap を `pip` または `uv` でインストールした場合、オプシ�
 ```shell
 # Complete command options
 httptap --<TAB>
-# Shows: --method, --data, --follow, --timeout, --no-http2, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --version, --help
+# Shows: --method, --data, --follow, --timeout, --no-http2, --fail, --ipv4, --ipv6, --resolve, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --prometheus, --otlp, --slo, --slo-file, --version, --help
 
 # Complete after typing partial option
 httptap --fol<TAB>
@@ -308,7 +315,8 @@ httptap https://httpbin.io/post --data '{"name": "John", "email": "john@example.
 **curl 互換フラグ：** httptap は最も一般的な curl の構文を受け付けるため、多くの場合 `curl` を `httptap` へそのまま
 置き換えられます。エイリアスには、`--method` に対する `-X/--request`、`--follow` に対する `-L/--location`、
 `--timeout` に対する `-m/--max-time`、`--ignore-ssl` に対する `-k/--insecure`、`--proxy` に対する `-x`、そして
-`--no-http2` に対する `--http1.1` が含まれます。（すべての curl オプションがサポートされているわけではありません——
+`--no-http2` に対する `--http1.1` が含まれます。`-f/--fail`、`-4/--ipv4`、`-6/--ipv6`、`--resolve HOST:PORT:ADDR` も
+curl と同じ名前です。（すべての curl オプションがサポートされているわけではありません——
 コマンドを置き換える際は、これらの共通フラグにとどめてください。）
 
 ファイルからデータを読み込みます：
@@ -499,10 +507,17 @@ httptap は BSD の `sysexits.h` の慣習に従うため、shell パイプラ�
 |:-----:|-------------------------|------------------------------------------------------------|
 | `0`   | `EX_OK`                 | 成功。                                                     |
 | `4`   | —                       | SLO しきい値違反（リクエストは成功したが遅すぎる）。            |
+| `22`  | —                       | `-f` / `--fail` 使用時の HTTP 4xx/5xx レスポンス。            |
+| `47`  | —                       | リダイレクトの最大回数まで追跡した。                          |
 | `64`  | `EX_USAGE`              | 不正なコマンドライン引数。                                    |
 | `70`  | `EX_SOFTWARE`           | 内部エラー（予期しない例外、バグ）。                          |
+| `73`  | `EX_CANTCREAT`          | `--json` の出力ファイルを書き込めなかった。                   |
 | `75`  | `EX_TEMPFAIL`           | ネットワーク／TLS エラー（部分的な出力がレンダリングされる場合があります）。 |
 | `128 + N` | シグナルオフセット    | シグナル `N` によって終了（例：`SIGINT`／Ctrl-C の場合は `130`）。 |
+
+複数の条件が該当する場合は、優先度の最も高いコードが採用されます：
+`70` > `47` > `75` > `73` > `22` > `4` > `0`。不正な引数（`64`）は、リクエストを行う前に報告されます。
+優先順位の完全な表は [SLO の終了コード](https://docs.httptap.dev/usage/slo/#exit-codes) を参照してください。
 
 例 —— 一時的なネットワークの問題は許容しつつ、使用方法のエラー時のみ CI ジョブを失敗させます：
 
@@ -519,26 +534,22 @@ fi
 
 ## リリース
 
-### 前提条件
+リリースは、手動でトリガーする **Release** ワークフロー（GitHub Actions → **Release** → **Run workflow**）で、
+正確なバージョン（例：`0.3.0`）または `patch`/`minor`/`major` のバンプを指定して作成します：
 
-- リポジトリ設定で GitHub Environment `pypi` を構成しておく必要があります
-- `ozeranskii/httptap` 向けに PyPI Trusted Publishing を構成しておく必要があります
+1. **Prepare** —— `uv version` でバージョンを上げ、`uv.lock` を更新し、`git-cliff` の変更履歴エントリを
+   `CHANGELOG.md` の先頭に追加し、gitsign で署名したリリースコミットとタグをローカルに作成します。この時点では
+   まだ何もプッシュされません。
+2. **Build** —— プッシュ前のタグで全テストスイートを実行し、wheel と sdist をビルドし、SBOM（CycloneDX、SPDX）、
+   OpenVEX ドキュメント、man ページを生成し、ビルドプロベナンスを証明します。
+3. **Push** —— ビルドと証明が成功した後にのみ、`main` をリリースコミットまで fast-forward し、タグをプッシュします。
+   リリース中に `main` が進んでいた場合はプッシュが失敗し、何も公開されません。
+4. **Publish** —— Trusted Publishing（OIDC）経由で TestPyPI、続いて PyPI にアップロードし、署名済みのマルチ
+   アーキテクチャのコンテナイメージを GHCR にプッシュし、wheel、sdist、SBOM、VEX、man ページを含む GitHub Release を
+   作成します。
 
-### 手順
-
-1. GitHub Actions から **Release** ワークフローをトリガーします：
-   - 正確なバージョンを指定する（例：`0.3.0`）、または
-   - バンプの種類を選択する：`patch`、`minor`、または `major`
-2. ワークフローは次を行います：
-   - `uv version` を使って `pyproject.toml` のバージョンを更新する
-   - `git-cliff` で変更履歴を生成し、`CHANGELOG.md` を更新する
-   - 変更をコミットし、git タグを作成する
-   - タグ付けされたバージョンで全テストスイートを実行する
-   - wheel とソース配布物をビルドする
-   - Syft を使って CycloneDX および SPDX 形式の SBOM を生成する
-   - 現在の OpenVEX ドキュメント（`.vex/httptap.openvex.json`）を添付する
-   - Trusted Publishing（OIDC）経由で PyPI に公開する
-   - wheel、sdist、SBOM、VEX のアセットを含む GitHub Release を作成する
+前提条件（GitHub の environment、Trusted Publishing、デプロイキー）とジョブの詳細は
+[リリースプロセスのドキュメント](https://docs.httptap.dev/development/release/)を参照してください。
 
 ---
 
@@ -555,6 +566,9 @@ fi
 
 ```json
 {
+  "schema_version": 1,
+  "httptap_version": "0.6.3",
+  "timestamp": "2026-09-18T08:00:00Z",
   "initial_url": "https://httpbin.io/redirect/2",
   "total_steps": 3,
   "steps": [
@@ -590,7 +604,7 @@ fi
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -611,6 +625,7 @@ fi
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     },
     {
@@ -645,7 +660,7 @@ fi
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -666,6 +681,7 @@ fi
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     },
     {
@@ -700,7 +716,7 @@ fi
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -721,6 +737,7 @@ fi
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     }
   ],
@@ -765,6 +782,11 @@ class HardcodedDNS(SystemDNSResolver):
 analyzer = HTTPTapAnalyzer(dns_resolver=HardcodedDNS())
 steps = analyzer.analyze_url("https://httpbin.io")
 ```
+
+`HardcodedDNS` は `resolve()` のみをオーバーライドしているため、httptap は継承された `resolve_all()` の代わりに
+これを呼び出し、その単一のアドレスに接続します。接続のフォールバック用に複数のアドレスを返すには `resolve_all()`
+もオーバーライドし、名前を解決できない場合は `DNSResolutionError` を送出してください。
+[Protocol Interfaces](https://docs.httptap.dev/api/interfaces/#dnsresolver) を参照してください。
 
 ---
 

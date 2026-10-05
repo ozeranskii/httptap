@@ -44,10 +44,19 @@ el análisis de regresiones y el registro de líneas base de rendimiento.
   alternativas sensatas cuando los datos de bajo nivel no están disponibles)
 - **Todos los métodos HTTP** – GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS con soporte de cuerpo de solicitud
 - **Soporte de cuerpo de solicitud** – envía JSON, XML o cualquier dato en línea o desde un archivo con detección automática de Content-Type
-- **Consciente de IPv4/IPv6** – el resolutor y el inspector de TLS informan tanto la dirección como su familia
-- **Información de TLS** – el CN del certificado, los SAN, el emisor, el número de series, la ventana de validez y la cuenta atrás de caducidad, además del conjunto de cifrado y la versión del protocolo, se capturan automáticamente desde la conexión activa (sin negociación TLS adicional)
+- **Consciente de IPv4/IPv6** – el resolutor y el inspector de TLS informan tanto la dirección como su familia; `-4`/`-6`
+  restringen la resolución a una familia, y `--resolve HOST:PORT:ADDR` fija un host a una dirección conservando la
+  cabecera `Host` original y el SNI de TLS
+- **Información de TLS** – el CN del certificado, los SAN, el emisor, el número de serie, la ventana de validez y la cuenta atrás de caducidad, además del conjunto de cifrado y la versión del protocolo, se capturan automáticamente desde la conexión activa (sin negociación TLS adicional)
 - **Múltiples modos de salida** – vista de cascada de Rich, resúmenes compactos de una sola línea o `--metrics-only` para scripting
-- **Exportación JSON** – conserva los datos completos de los pasos (incluidas las cadenas de redirecciones) para su procesamiento posterior
+- **Exportación JSON** – conserva los datos completos de los pasos (incluidas las cadenas de redirecciones) para su
+  procesamiento posterior, o envíalos a stdout con `--json -`
+- **Exportación a Prometheus y OpenTelemetry** – `--prometheus PATH` escribe un archivo textfile de node_exporter;
+  `--otlp ENDPOINT` envía spans por fase a un collector OTLP/HTTP (requiere `httptap[otel]`)
+- **Comprobación de umbrales SLO** – `--slo` y `--slo-file` condicionan trabajos de CI, sondas cron y comprobaciones de
+  readiness a presupuestos de latencia por fase
+- **Códigos de salida para scripts** – `-f/--fail` sale con `22` ante respuestas HTTP 4xx/5xx, y las violaciones de SLO,
+  los errores de red y el límite de redirecciones tienen cada uno su propio código de salida
 - **Extensible** – interfaces Protocol limpias para DNS, TLS, temporización, visualización y exportación para que puedas
   incorporar comportamiento personalizado
 
@@ -76,7 +85,10 @@ Consulta el desglose detallado de la temporización de cada fase de la solicitud
 - **Modo Rich** (predeterminado): hermosa tabla de cascada con colores y formato
 - **Modo compacto** (`--compact`): resúmenes de una sola línea adecuados para logs
 - **Modo de métricas** (`--metrics-only`): métricas en bruto para scripting y automatización
-- **Exportación JSON** (`--json`): datos completos de la solicitud, incluidas las cadenas de redirecciones
+- **Exportación JSON** (`--json`): datos completos de la solicitud, incluidas las cadenas de redirecciones, a un archivo o
+  a stdout con `--json -`
+- **Textfile de Prometheus** (`--prometheus`): gauges por fase para el textfile collector de node_exporter
+- **Trazas de OpenTelemetry** (`--otlp`): un span por solicitud con spans hijos por fase, enviados a un collector OTLP/HTTP
 
 ### Información avanzada de red
 
@@ -124,7 +136,7 @@ Sigue las redirecciones HTTP y consulta el desglose de la temporización de cada
 
 - Python 3.11-3.15
 - macOS, Linux o Windows
-- Sin dependencies del sistema más allá de la red estándar
+- Sin dependencias del sistema más allá de la red estándar
 
 ## Licencia
 
@@ -132,7 +144,7 @@ Apache License 2.0 © Sergei Ozeranskii
 
 ## Conecta
 
-Sigue al author para conocer ideas basadas en experiencia del mundo real:
+Sigue al autor para conocer ideas basadas en experiencia del mundo real:
 
 - :fontawesome-brands-telegram:{ .telegram } **[Canal de Telegram](https://t.me/sergeiozeranskii)** - Desarrollo, DevOps, arquitectura y seguridad. Experiencia real e ideas prácticas sin relleno.
 - :fontawesome-brands-github: **[GitHub](https://github.com/ozeranskii)** - Proyectos de código abierto y contribuciones

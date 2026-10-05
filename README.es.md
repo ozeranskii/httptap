@@ -120,17 +120,23 @@ análisis de regresiones y el registro de líneas base de rendimiento.
 - **Todos los métodos HTTP** – GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS con soporte para cuerpo de solicitud.
 - **Soporte de cuerpo de solicitud** – envía JSON, XML o cualquier dato en línea o desde un archivo con detección
   automática de Content-Type.
-- **Compatible con IPv4/IPv6** – el solucionador y el inspector TLS informan tanto la dirección como su familia.
+- **Compatible con IPv4/IPv6** – el solucionador y el inspector TLS informan tanto la dirección como su familia; `-4`/`-6`
+  restringen la resolución a una familia, y `--resolve HOST:PORT:ADDR` fija un host a una dirección conservando la
+  cabecera `Host` original y el SNI de TLS.
 - **Información TLS** – el CN del certificado, los SAN, el emisor, el número de serie, la ventana de validez y la cuenta
   regresiva de caducidad, además del conjunto de cifrado y la versión del protocolo, se capturan automáticamente desde la
   conexión en vivo (sin negociación TLS adicional).
 - **Múltiples modos de salida** – vista de cascada enriquecida, resúmenes compactos de una sola línea o `--metrics-only`
   para scripting.
 - **Exportación a JSON** – conserva los datos completos de cada paso (incluidas las cadenas de redirección) para su
-  procesamiento posterior.
-- **Comprobación de umbrales SLO** – `--slo total=500,ttfb=200` condiciona los trabajos de CI, las sondas cron y las
-  comprobaciones de disponibilidad según presupuestos de latencia por fase; código de salida distinto de cero ante una
-  violación, sin dejar de mostrar el informe completo.
+  procesamiento posterior, o envíalos a stdout con `--json -`.
+- **Exportación a Prometheus y OpenTelemetry** – `--prometheus PATH` escribe un archivo textfile de node_exporter;
+  `--otlp ENDPOINT` envía spans por fase a un collector OTLP/HTTP (requiere `httptap[otel]`).
+- **Comprobación de umbrales SLO** – `--slo total=500,ttfb=200` (o umbrales leídos de un archivo con `--slo-file`)
+  condiciona los trabajos de CI, las sondas cron y las comprobaciones de disponibilidad según presupuestos de latencia
+  por fase; código de salida distinto de cero ante una violación, sin dejar de mostrar el informe completo.
+- **Códigos de salida para scripts** – `-f/--fail` sale con `22` ante respuestas HTTP 4xx/5xx, y las violaciones de SLO,
+  los errores de red y el límite de redirecciones tienen cada uno su propio [código de salida](#códigos-de-salida).
 - **Extensible** – interfaces Protocol limpias para DNS, TLS, medición, visualización y exportación que permiten
   incorporar comportamientos personalizados.
 
@@ -270,7 +276,7 @@ Una vez instalado el autocompletado, puedes usar `Tab` para autocompletar comand
 ```shell
 # Complete command options
 httptap --<TAB>
-# Shows: --method, --data, --follow, --timeout, --no-http2, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --version, --help
+# Shows: --method, --data, --follow, --timeout, --no-http2, --fail, --ipv4, --ipv6, --resolve, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --prometheus, --otlp, --slo, --slo-file, --version, --help
 
 # Complete after typing partial option
 httptap --fol<TAB>
@@ -303,7 +309,7 @@ httptap https://httpbin.io/post --data '{"name": "John", "email": "john@example.
 
 **Nota:** Cuando se proporciona `--data` sin `--method`, httptap cambia automáticamente a POST (similar a curl).
 
-**Flags compatibles con curl:** httptap acepta la sintaxis más común de curl, por lo que a menudo puedes reemplazar `curl` directamente por `httptap`. Los alias incluyen `-X/--request` para `--method`, `-L/--location` para `--follow`, `-m/--max-time` para `--timeout`, `-k/--insecure` para `--ignore-ssl`, `-x` para `--proxy` y `--http1.1` para `--no-http2`. (No todas las opciones de curl son compatibles: limítate a estos flags compartidos al intercambiar comandos.)
+**Flags compatibles con curl:** httptap acepta la sintaxis más común de curl, por lo que a menudo puedes reemplazar `curl` directamente por `httptap`. Los alias incluyen `-X/--request` para `--method`, `-L/--location` para `--follow`, `-m/--max-time` para `--timeout`, `-k/--insecure` para `--ignore-ssl`, `-x` para `--proxy` y `--http1.1` para `--no-http2`. `-f/--fail`, `-4/--ipv4`, `-6/--ipv6` y `--resolve HOST:PORT:ADDR` usan los mismos nombres que en curl. (No todas las opciones de curl son compatibles: limítate a estos flags compartidos al intercambiar comandos.)
 
 Carga datos desde un archivo:
 
@@ -495,10 +501,19 @@ con pipelines de shell, trabajos de CI y servicios de systemd.
 |:-----:|-------------------------|------------------------------------------------------------|
 | `0`   | `EX_OK`                 | Éxito.                                                     |
 | `4`   | —                       | Violación de umbral SLO (la solicitud tuvo éxito pero fue demasiado lenta). |
+| `22`  | —                       | Respuesta HTTP 4xx/5xx cuando se usa `-f` / `--fail`.      |
+| `47`  | —                       | Se alcanzó el número máximo de redirecciones seguidas.     |
 | `64`  | `EX_USAGE`              | Argumentos de línea de comandos no válidos.                |
 | `70`  | `EX_SOFTWARE`           | Error interno (excepción inesperada, error de programa).   |
+| `73`  | `EX_CANTCREAT`          | No se pudo escribir el archivo de salida de `--json`.      |
 | `75`  | `EX_TEMPFAIL`           | Error de red / TLS (aún puede mostrarse salida parcial).   |
 | `128 + N` | Desplazamiento de señal | Terminado por la señal `N` (p. ej., `130` para `SIGINT` / Ctrl-C). |
+
+Cuando se cumplen varias condiciones, gana el código de mayor prioridad:
+`70` > `47` > `75` > `73` > `22` > `4` > `0`. Los argumentos no válidos (`64`) se
+informan antes de realizar ninguna solicitud. Consulta los
+[códigos de salida de SLO](https://docs.httptap.dev/usage/slo/#exit-codes) para ver la
+tabla de prioridades completa.
 
 Ejemplo: hacer fallar un trabajo de CI solo ante errores de uso, tolerando
 problemas de red transitorios:
@@ -516,26 +531,23 @@ fi
 
 ## Publicación de versiones
 
-### Requisitos previos
+Las versiones se publican mediante el flujo de trabajo **Release**, que se activa manualmente (GitHub Actions →
+**Release** → **Run workflow**), con una versión exacta (p. ej., `0.3.0`) o un incremento `patch`/`minor`/`major`:
 
-- El entorno de GitHub `pypi` debe estar configurado en los ajustes del repositorio
-- Trusted Publishing de PyPI configurado para `ozeranskii/httptap`
+1. **Prepare** – incrementa la versión con `uv version`, actualiza `uv.lock`, antepone la entrada del registro de
+   cambios de `git-cliff` a `CHANGELOG.md` y crea localmente un commit y una etiqueta de publicación firmados con
+   gitsign. Todavía no se envía nada.
+2. **Build** – ejecuta la suite de pruebas completa sobre la etiqueta aún no enviada, compila el wheel y el sdist, genera
+   los SBOM (CycloneDX, SPDX), el documento OpenVEX y la página de manual, y atesta la procedencia de la compilación.
+3. **Push** – solo después de que la compilación y la atestación tengan éxito, avanza `main` mediante fast-forward hasta
+   el commit de publicación y envía la etiqueta. Si `main` avanzó durante la publicación, el envío falla y no se publica
+   nada.
+4. **Publish** – sube a TestPyPI y después a PyPI mediante Trusted Publishing (OIDC), envía la imagen de contenedor
+   multiarquitectura firmada a GHCR y crea la GitHub Release con el wheel, el sdist, el SBOM, el VEX y la página de
+   manual.
 
-### Pasos
-
-1. Activa el flujo de trabajo **Release** desde GitHub Actions:
-   - Proporciona la versión exacta (p. ej., `0.3.0`), O BIEN
-   - Selecciona el tipo de incremento: `patch`, `minor` o `major`
-2. El flujo de trabajo hará lo siguiente:
-   - Actualizar la versión en `pyproject.toml` usando `uv version`
-   - Generar el registro de cambios con `git-cliff` y actualizar `CHANGELOG.md`
-   - Confirmar los cambios y crear una etiqueta de git
-   - Ejecutar la suite de pruebas completa sobre la versión etiquetada
-   - Compilar el wheel y la distribución de código fuente
-   - Generar el SBOM en formatos CycloneDX y SPDX mediante Syft
-   - Adjuntar el documento OpenVEX actual (`.vex/httptap.openvex.json`)
-   - Publicar en PyPI mediante Trusted Publishing (OIDC)
-   - Crear la GitHub Release con los activos de wheel, sdist, SBOM y VEX
+Los requisitos previos (entornos de GitHub, Trusted Publishing, clave de despliegue) y los detalles de cada trabajo se
+encuentran en la [documentación del proceso de publicación](https://docs.httptap.dev/development/release/).
 
 ---
 
@@ -552,6 +564,9 @@ El resumen de redirección incluye una fila de total:
 
 ```json
 {
+  "schema_version": 1,
+  "httptap_version": "0.6.3",
+  "timestamp": "2026-09-18T08:00:00Z",
   "initial_url": "https://httpbin.io/redirect/2",
   "total_steps": 3,
   "steps": [
@@ -587,7 +602,7 @@ El resumen de redirección incluye una fila de total:
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -608,6 +623,7 @@ El resumen de redirección incluye una fila de total:
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     },
     {
@@ -642,7 +658,7 @@ El resumen de redirección incluye una fila de total:
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -663,6 +679,7 @@ El resumen de redirección incluye una fila de total:
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     },
     {
@@ -697,7 +714,7 @@ El resumen de redirección incluye una fila de total:
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -718,6 +735,7 @@ El resumen de redirección incluye una fila de total:
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     }
   ],
@@ -761,6 +779,11 @@ class HardcodedDNS(SystemDNSResolver):
 analyzer = HTTPTapAnalyzer(dns_resolver=HardcodedDNS())
 steps = analyzer.analyze_url("https://httpbin.io")
 ```
+
+`HardcodedDNS` solo sobrescribe `resolve()`, así que httptap lo llama en lugar del `resolve_all()` heredado y se conecta a
+esa única dirección. Sobrescribe también `resolve_all()` para devolver varias direcciones como respaldo de conexión, y
+lanza `DNSResolutionError` cuando un nombre no se pueda resolver; consulta
+[Interfaces Protocol](https://docs.httptap.dev/api/interfaces/#dnsresolver).
 
 ---
 
