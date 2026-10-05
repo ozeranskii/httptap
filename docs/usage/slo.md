@@ -85,11 +85,12 @@ their key for deterministic output.
 |:--------:|-----------------------------------------|:---------:|
 | 1        | Invalid arguments (bad `--slo` spec)    | `64`      |
 | 2        | Network / TLS failure on any step       | `75`      |
-| 3        | Internal error                          | `70`      |
-| 4        | SLO violation on final successful step  | `4`       |
-| 5        | Success                                 | `0`       |
+| 3        | HTTP 4xx/5xx response with `--fail`     | `22`      |
+| 4        | Internal error                          | `70`      |
+| 5        | SLO violation on final successful step  | `4`       |
+| 6        | Success                                 | `0`       |
 
-Network errors always take precedence over SLO violations, so a
+Network errors and `--fail` responses always take precedence over SLO violations, so a
 failing host does not masquerade as a latency regression in a CI log.
 
 ## Output Formats
