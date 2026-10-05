@@ -219,8 +219,9 @@ def parse_slo_spec(raw: str) -> dict[str, float]:
 def parse_slo_file(path: Path) -> dict[str, float]:
     """Parse newline-delimited ``KEY=MS`` thresholds from a UTF-8 file.
 
-    Empty lines are ignored. Each non-empty line follows the same grammar as
-    :func:`parse_slo_spec`; comma-separated values are also accepted.
+    Empty lines and lines starting with ``#`` are ignored. Each remaining line
+    follows the same grammar as :func:`parse_slo_spec`; comma-separated values
+    are also accepted. A UTF-8 byte order mark is tolerated.
 
     Args:
         path: Path to the SLO threshold file.
@@ -234,12 +235,13 @@ def parse_slo_file(path: Path) -> dict[str, float]:
 
     """
     try:
-        raw = path.read_text(encoding="utf-8")
+        raw = path.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeError) as exc:
         msg = f"Failed to read SLO file '{path}': {exc}"
         raise SLOSpecError(msg) from exc
 
-    specification = ",".join(line.strip() for line in raw.splitlines() if line.strip())
+    lines = (line.strip() for line in raw.splitlines())
+    specification = ",".join(line for line in lines if line and not line.startswith("#"))
     try:
         return parse_slo_spec(specification)
     except SLOSpecError as exc:

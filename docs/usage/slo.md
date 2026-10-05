@@ -37,12 +37,13 @@ Pass a comma-separated list of `KEY=MS` pairs to `--slo`:
 ### File-based thresholds
 
 Use `--slo-file PATH` to read UTF-8 thresholds from a file, with one `KEY=MS`
-entry per line. Empty lines are ignored. The same validation rules apply as for
-`--slo`.
+entry per line. Empty lines and lines starting with `#` are ignored. The same
+validation rules apply as for `--slo`.
 
 `slo.txt`:
 
 ```text
+# Health endpoint budget
 total=500
 ttfb=200
 ```

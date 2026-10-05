@@ -131,6 +131,12 @@ class TestParseSLOFile:
 
         assert parse_slo_file(slo_file) == {"total": 500.0, "ttfb": 200.0}
 
+    def test_comments_and_byte_order_mark_are_ignored(self, tmp_path: Path) -> None:
+        slo_file = tmp_path / "slo.txt"
+        slo_file.write_text("# budgets\ntotal=500\n  # ttfb=1\nttfb=200\n", encoding="utf-8-sig")
+
+        assert parse_slo_file(slo_file) == {"total": 500.0, "ttfb": 200.0}
+
     def test_invalid_file_reports_path(self, tmp_path: Path) -> None:
         slo_file = tmp_path / "slo.txt"
         slo_file.write_text("total=fast", encoding="utf-8")
