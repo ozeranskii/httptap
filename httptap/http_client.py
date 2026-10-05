@@ -776,7 +776,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                     raise httpx.ConnectTimeout(msg)
                 addresses_left = len(addresses) - index
                 client.timeout = httpx.Timeout(attempt_timeout, connect=attempt_timeout / addresses_left)
-                request_target = f"[{ip}]" if ip_family == "IPv6" else ip
+                # Not keyed on ip_family: with a remote-DNS proxy the target is the
+                # URL host itself, which may be an IPv6 literal with no family set.
+                request_target = f"[{ip}]" if ":" in ip else ip
                 request_url = urlunsplit(
                     (parsed_url.scheme, f"{request_target}:{port}", parsed_url.path, parsed_url.query, "")
                 )

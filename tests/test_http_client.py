@@ -503,28 +503,95 @@ class TestErrorsCarryNetworkInfo:
         assert exc_info.value.network_info.proxy_source is not None
 
 
+def _serve_one_proxied_request() -> tuple[int, list[bytes], threading.Thread]:
+    """Start a forward proxy that records one request head and answers 204."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    received: list[bytes] = []
+
+    def serve() -> None:
+        with listener:
+            connection, _address = listener.accept()
+            with connection:
+                request = b""
+                while b"\r\n\r\n" not in request:
+                    request += connection.recv(4096)
+                received.append(request)
+                connection.sendall(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    return listener.getsockname()[1], received, thread
+
+
+class TestIPv6LiteralThroughRemoteDNSProxy:
+    """A proxy that resolves names itself still gets an IPv6 literal target in brackets."""
+
+    def test_forward_proxy_request_reaches_proxy(self) -> None:
+        proxy_port, received, thread = _serve_one_proxied_request()
+
+        _timing, network, response = make_request(
+            "http://[::1]:8081/path", timeout=5.0, http2=False, proxy=f"http://127.0.0.1:{proxy_port}"
+        )
+        thread.join(timeout=2)
+
+        assert response.status == 204
+        assert network.ip is None
+        assert network.proxy_url == f"http://127.0.0.1:{proxy_port}"
+        assert b"\r\nHost: [::1]:8081\r\n" in received[0]
+
+    @pytest.mark.parametrize(
+        "proxy", ["http://proxy.test:3128", "https://proxy.test:3128", "socks5h://proxy.test:1080"]
+    )
+    def test_request_target_is_bracketed(self, mocker: pytest_mock.MockerFixture, proxy: str) -> None:
+        captured: dict[str, Any] = {}
+
+        class DummyClient:
+            def __init__(self, *_: object, **__: object) -> None:
+                self.headers: dict[str, str] = {}
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                return None
+
+            def stream(self, _method: str, request_url: str, *, extensions: dict[str, object], **_kw: object) -> object:
+                captured["request_url"] = request_url
+                captured["sni"] = extensions["sni_hostname"]
+                captured["host"] = self.headers["Host"]
+
+                class _Stream:
+                    def __enter__(self) -> httpx.Response:
+                        return httpx.Response(200, request=httpx.Request("GET", request_url))
+
+                    def __exit__(self, *_exc: object) -> None:
+                        return None
+
+                return _Stream()
+
+        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+
+        make_request(
+            "https://[2001:db8::1]:8443/x",
+            proxy=proxy,
+            tls_inspector=FakeTLSInspector(),
+            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+        )
+
+        assert captured == {
+            "request_url": "https://[2001:db8::1]:8443/x",
+            "sni": "2001:db8::1",
+            "host": "[2001:db8::1]:8443",
+        }
+
+
 class TestProxyURLValidation:
     """Proxy URLs that cannot be used fail as network errors without leaking credentials."""
 
     def test_scheme_less_env_proxy_is_used_as_http_proxy(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        listener.bind(("127.0.0.1", 0))
-        listener.listen()
-        proxy_port = listener.getsockname()[1]
-        received: list[bytes] = []
-
-        def serve() -> None:
-            with listener:
-                connection, _address = listener.accept()
-                with connection:
-                    request = b""
-                    while b"\r\n\r\n" not in request:
-                        request += connection.recv(4096)
-                    received.append(request)
-                    connection.sendall(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
-
-        thread = threading.Thread(target=serve, daemon=True)
-        thread.start()
+        proxy_port, received, thread = _serve_one_proxied_request()
         monkeypatch.setenv("HTTP_PROXY", f"user:s3cret@127.0.0.1:{proxy_port}")
 
         _timing, network, response = make_request("http://origin.test:8080/path", timeout=5.0, http2=False)
