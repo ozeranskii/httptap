@@ -54,7 +54,7 @@ jobs:
           enable-cache: true
 
       - name: Export dependencies for audit
-        run: uv export --no-hashes --no-editable -o requirements.txt
+        run: uv export --no-hashes --no-editable --all-extras --no-emit-project -o requirements.txt
 
       - name: Upload requirements for review
         if: always()

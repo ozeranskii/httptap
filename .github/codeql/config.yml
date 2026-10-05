@@ -1,5 +1,8 @@
 name: "CodeQL Config"
 
+queries:
+  - uses: security-and-quality
+
 # Query filters to suppress false positives
 query-filters:
   - exclude:
