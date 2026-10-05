@@ -568,8 +568,11 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             # Local DNS: resolve hostname before connecting
             timing_collector.mark_dns_start()
             try:
-                if isinstance(dns_resolver, SystemDNSResolver):
-                    addresses, _dns_ms = dns_resolver.resolve_all(host, port, timeout)
+                # Resolvers may expose every address for fallback; the DNSResolver
+                # protocol only requires resolve(), so custom resolvers keep working.
+                resolve_all = getattr(dns_resolver, "resolve_all", None)
+                if callable(resolve_all):
+                    addresses, _dns_ms = resolve_all(host, port, timeout)
                 else:
                     ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, timeout)
                     addresses = [(ip, ip_family)]
@@ -577,7 +580,6 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                 raise HTTPClientError(str(e)) from e
             finally:
                 timing_collector.mark_dns_end()
-
 
         trace = TraceCollector()
 
@@ -608,17 +610,23 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             if parsed_url.username is not None and not has_authorization_header:
                 stream_kwargs["auth"] = (source_url.username, source_url.password)
 
-            for index, (ip, ip_family) in enumerate(addresses):
+            for index, (ip, ip_family) in enumerate(addresses):  # pragma: no branch - exits via break or raise
                 remaining_timeout = request_deadline - time.perf_counter()
                 if remaining_timeout <= 0:
                     msg = "Request timeout exhausted before connection could be established"
-                    raise httpx.ConnectTimeout(msg)  # noqa: TRY301
+                    raise httpx.ConnectTimeout(msg)
                 addresses_left = len(addresses) - index
                 client.timeout = httpx.Timeout(remaining_timeout, connect=remaining_timeout / addresses_left)
                 request_target = f"[{ip}]" if ip_family == "IPv6" else ip
                 request_url = urlunsplit(
                     (parsed_url.scheme, f"{request_target}:{port}", parsed_url.path, parsed_url.query, "")
                 )
+                # Record the address before connecting so a total failure still reports
+                # the last address tried, and restart timing/trace for each attempt so
+                # failed attempts are not billed to the server wait time.
+                network_info.ip = None if skip_local_dns else ip
+                network_info.ip_family = None if skip_local_dns else ip_family
+                trace = TraceCollector()
                 try:
                     timing_collector.mark_request_start()
                     with client.stream(
@@ -628,8 +636,6 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                         extensions={"trace": trace, "sni_hostname": host},
                         **stream_kwargs,  # type: ignore[arg-type]
                     ) as response:
-                        network_info.ip = None if skip_local_dns else ip
-                        network_info.ip_family = None if skip_local_dns else ip_family
                         timing_collector.mark_ttfb()
                         _populate_response_metadata(response, response_info)
                         _populate_tls_from_stream(response, network_info)

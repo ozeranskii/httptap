@@ -1173,7 +1173,6 @@ class TestMakeRequest:
             timeout=5.0,
             dns_resolver=SystemDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics()),
-            force_new_connection=False,
         )
 
         assert response.status == 200
@@ -1199,12 +1198,83 @@ class TestMakeRequest:
             timeout=5.0,
             dns_resolver=SystemDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics()),
-            force_new_connection=False,
         )
 
         assert response.status == 200
         assert network.ip == "127.0.0.1"
         assert network.ip_family == "IPv4"
+
+    def test_make_request_raises_when_every_address_times_out(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """The last connection timeout is reported once no address is left."""
+        mocker.patch.object(
+            SystemDNSResolver,
+            "resolve_all",
+            return_value=([("::1", "IPv6"), ("127.0.0.1", "IPv4")], 1.0),
+        )
+        httpx_mock.add_exception(httpx.ConnectTimeout("Connection timed out"), method="GET", url="http://[::1]/")
+        httpx_mock.add_exception(httpx.ConnectTimeout("Connection timed out"), method="GET", url="http://127.0.0.1/")
+
+        with pytest.raises(httptap.http_client.HTTPClientError, match="Request timeout"):
+            make_request(
+                "http://localhost/",
+                timeout=5.0,
+                dns_resolver=SystemDNSResolver(),
+                timing_collector=FakeTimingCollector(TimingMetrics()),
+            )
+
+    def test_make_request_stops_falling_back_when_deadline_is_spent(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        """No further address is tried once the overall timeout is used up."""
+        mocker.patch.object(
+            SystemDNSResolver,
+            "resolve_all",
+            return_value=([("::1", "IPv6"), ("127.0.0.1", "IPv4")], 1.0),
+        )
+        # deadline = 0 + 5; the first attempt starts at 0, the second would start at 10.
+        readings = iter([0.0, 0.0])
+        mocker.patch("httptap.http_client.time.perf_counter", side_effect=lambda: next(readings, 10.0))
+        httpx_mock.add_exception(httpx.ConnectTimeout("Connection timed out"), method="GET", url="http://[::1]/")
+
+        with pytest.raises(httptap.http_client.HTTPClientError, match="timeout exhausted"):
+            make_request(
+                "http://localhost/",
+                timeout=5.0,
+                dns_resolver=SystemDNSResolver(),
+                timing_collector=FakeTimingCollector(TimingMetrics()),
+            )
+
+    def test_make_request_uses_resolve_all_from_custom_resolver(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+    ) -> None:
+        """Any resolver exposing resolve_all gets the fallback, not only SystemDNSResolver."""
+
+        class MultiAddressResolver:
+            def resolve(self, _host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+                raise AssertionError
+
+            def resolve_all(self, _host: str, _port: int, _timeout: float) -> tuple[list[tuple[str, str]], float]:
+                return [("::1", "IPv6"), ("127.0.0.1", "IPv4")], 0.0
+
+        httpx_mock.add_exception(httpx.ConnectError("Connection refused"), method="GET", url="http://[::1]/")
+        httpx_mock.add_response(method="GET", url="http://127.0.0.1/", status_code=200)
+
+        _timing, network, response = make_request(
+            "http://localhost/",
+            timeout=5.0,
+            dns_resolver=MultiAddressResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics()),
+        )
+
+        assert response.status == 200
+        assert network.ip == "127.0.0.1"
 
     def test_make_request_does_not_fallback_after_tls_error(
         self,
@@ -1227,7 +1297,6 @@ class TestMakeRequest:
                 timeout=5.0,
                 dns_resolver=SystemDNSResolver(),
                 timing_collector=FakeTimingCollector(TimingMetrics()),
-                force_new_connection=False,
             )
 
         assert len(httpx_mock.get_requests()) == 1
@@ -1264,7 +1333,6 @@ class TestMakeRequest:
             timeout=10.0,
             dns_resolver=SystemDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics()),
-            force_new_connection=False,
         )
 
         assert response.status == 200
