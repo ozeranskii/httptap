@@ -532,6 +532,25 @@ def _evaluate_slo(
     return evaluate_slo(step, thresholds)
 
 
+def _merge_headers(defaults: Mapping[str, str], overrides: Mapping[str, str]) -> dict[str, str]:
+    """Overlay user headers on derived defaults, matching names case-insensitively."""
+    overridden = {name.lower() for name in overrides}
+    merged = {name: value for name, value in defaults.items() if name.lower() not in overridden}
+    merged.update(overrides)
+    return merged
+
+
+def _normalize_export_arguments(args: argparse.Namespace) -> None:
+    """Validate and normalize ``--json``, ``--prometheus`` and ``--otlp`` in place."""
+    json_path = getattr(args, "json", None)
+    if json_path != "-":
+        args.json = _validate_output_path(json_path, "JSON export")
+    args.prometheus = _validate_output_path(getattr(args, "prometheus", None), "Prometheus export")
+    args.otlp = _validate_otlp_endpoint(getattr(args, "otlp", None))
+    if args.otlp is not None:
+        ensure_otel_available()
+
+
 def _validate_output_path(path: str | None, option: str) -> str | None:
     """Normalize an optional export path or reject an empty value."""
     if path is None:
@@ -719,10 +738,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:  # noqa: PLR0911
         return False
 
     try:
-        args.prometheus = _validate_output_path(getattr(args, "prometheus", None), "Prometheus export")
-        args.otlp = _validate_otlp_endpoint(getattr(args, "otlp", None))
-        if args.otlp is not None:
-            ensure_otel_available()
+        _normalize_export_arguments(args)
     except (OTLPDependencyError, ValueError) as exc:
         console.print(
             Panel(
@@ -883,7 +899,7 @@ def _warn_redirect_limit(steps: Sequence[StepMetrics]) -> None:
             return
 
 
-def main() -> int:  # noqa: C901
+def main() -> int:
     """Run the CLI with Rich UI enhancements.
 
     Returns:
@@ -928,9 +944,7 @@ def main() -> int:  # noqa: C901
                 method.value,
             )
 
-        headers_dict = dict(auto_headers)
-        if args.headers:
-            headers_dict.update(args.headers)
+        headers_dict = _merge_headers(auto_headers, args.headers or {})
 
         noproxy = args.proxy == ""
         dns_resolver = None
