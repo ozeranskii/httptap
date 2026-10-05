@@ -22,7 +22,7 @@ httptap https://httpbin.io
 - **Barras de progreso visuals** para las fases de temporización
 - **Tablas estructuradas** para una lectura sencilla
 - **Detalles de red** incluyendo IP, versión de TLS e información del certificado
-- **Metadatos de la respuesta** que muestran estado, cabeceras y tamaño del cuerpo
+- **Metadatos de la respuesta** que muestran estado, tamaño del cuerpo, la cabecera `Server` y el destino de la redirección
 
 ### Cuándo usarlo
 
@@ -159,12 +159,12 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -174,11 +174,11 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
         "status": 200,
         "bytes": 389,
         "content_type": "application/json",
-        "server": null,
-        "date": "2025-10-23T19:20:36+00:00",
+        "server": "gunicorn/19.9.0",
+        "date": "2026-09-18T07:59:59+00:00",
         "location": null,
         "headers": {
-          "date": "Thu, 23 Oct 2025 19:20:36 GMT",
+          "date": "Fri, 18 Sep 2026 07:59:59 GMT",
           "content-type": "application/json",
           "server": "gunicorn/19.9.0"
         }
@@ -219,6 +219,10 @@ de solicitud y respuesta están en bytes. Los tamaños de respuesta (`bytes`, `f
 cuerpo tal como se recibe por la red, antes de decodificar `Content-Encoding`, como `size_download` de
 curl. Las fechas del certificado y de la respuesta son marcas de tiempo ISO 8601/RFC 3339 cuando
 están disponibles. Consulta el ejemplo anterior para ver la estructura anidada de `steps` y `summary`.
+
+Las credenciales se enmascaran: la contraseña (o un token suelto) de la parte userinfo de las `url` de los pasos,
+`response.location`, las cabeceras `Location` y `Content-Location`, y `network.proxy_url` se sustituye por `****`, y
+las cabeceras sensibles como `Authorization` y `Set-Cookie` también se enmascaran.
 
 `network.tls_custom_ca` es `true` cuando se usó `--cacert` y `false` en caso contrario. El campo
 `redirect_limit_reached` de un paso es `true` cuando `--follow` se detuvo en el límite de 10

@@ -200,7 +200,7 @@ Homebrew 会自动将补全脚本放置到：
 
 ### Python 包安装
 
-如果你通过 `pip`、`uv` 或 `pipx` 安装了 httptap，则需要安装可选的 `completion` 附加项：
+如果你通过 `pip`、`uv`、`uv tool` 或 `pipx` 安装了 httptap，则需要安装可选的 `completion` 附加项：
 
 === "使用 uv"
 
@@ -214,15 +214,28 @@ Homebrew 会自动将补全脚本放置到：
     pip install "httptap[completion]"
     ```
 
+=== "使用 uv tool"
+
+    ```bash
+    uv tool install --with-executables-from argcomplete "httptap[completion]"
+    ```
+
 === "使用 pipx"
 
     ```bash
-    pipx install "httptap[completion]"
+    pipx install --include-resources-from argcomplete "httptap[completion]"
     ```
+
+!!! note "隔离安装（`uv tool`、`pipx`）"
+    默认情况下，`uv tool install` 和 `pipx install` 只会把 `httptap` 命令加入 `PATH`，
+    不包括 argcomplete 的 `activate-global-python-argcomplete` 和 `register-python-argcomplete`
+    辅助脚本。上面的 `--with-executables-from argcomplete` 和 `--include-resources-from argcomplete`
+    选项会一并暴露它们。不支持 `--include-resources-from` 的旧版 pipx 可以改用 `--include-deps`，
+    它会暴露所有依赖的命令。
 
 #### 激活
 
-1. 激活你的虚拟环境（如果使用 venv）：
+1. 激活你的虚拟环境（如果使用 venv；`uv tool` 或 `pipx` 无需此步）：
 
     ```bash
     source .venv/bin/activate

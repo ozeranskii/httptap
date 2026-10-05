@@ -9,9 +9,11 @@ description: 运行 httptap 时的常见问题、错误信息与诊断。
 
 ## TLS 与证书
 
-### `TLS handshake failed: CERTIFICATE_VERIFY_FAILED`
+### `[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed`
 
-服务器出示了一个你的信任库无法识别的证书。
+服务器出示了一个你的信任库无法识别的证书。失败的步骤会报告类似
+`Request failed: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1077)`
+的错误；冒号后的原因（自签名、已过期、无法获取本地颁发者证书、主机名不匹配）以及 `_ssl.c` 的行号会有所不同。
 
 - **非生产主机上的自签名或过期证书** —— 添加 `--ignore-ssl`（禁用校验，仅在可信网络中使用）。
 - **内部 CA** —— 将 `--cacert`（别名 `--ca-bundle`）指向你的 PEM 包。
@@ -37,14 +39,18 @@ httptap 仅会在不校验证书的情况下重试一次诊断性 TLS 握手，�
 2. 协议方案与目标匹配——`HTTPS_PROXY` 用于 `https://` URL，`HTTP_PROXY` 用于 `http://`。
 3. 目标主机未被 `NO_PROXY` 匹配。检查 JSON 导出中的 `proxy_source` 字段；如果它显示 `NO_PROXY`，说明你的主机被排除了。
 
+### `Invalid proxy URL`
+
+格式错误的 `-x/--proxy` 值（不支持的协议、缺少主机、端口无效或超出范围、未闭合的 IPv6 字面量）会在发出任何请求之前以退出码 `64` 被拒绝。如果 `HTTP_PROXY`、`HTTPS_PROXY` 或 `ALL_PROXY` 存在同样的问题，请求会以指出该变量的网络错误（退出码 `75`）失败。两种错误显示的 URL 都会遮蔽密码。不带协议的值（如 `proxy.local:3128`）是有效的，会被视为 `http://`。
+
 ### `NO_PROXY` 模式参考
 
-- 精确主机：`api.internal.example`
-- 域名后缀：`.internal.example`（匹配 `foo.internal.example`）
+- 主机及其子域名：`api.internal.example`（也匹配 `v1.api.internal.example`）
+- 仅子域名：`.internal.example`（匹配 `foo.internal.example`，不匹配 `internal.example`）
 - 通配符：`*`（排除一切）
-- 多个条目：逗号分隔，去除首尾空白
+- 多个条目：逗号分隔，去除首尾空白，不区分大小写
 
-**不**支持 IP/CIDR 匹配——这遵循广泛采用的 curl 行为。
+IP 地址按普通主机名进行比较。**不**支持 CIDR 范围（curl 自 7.86.0 起支持）和带端口的条目。
 
 ## HTTP/2
 
@@ -71,6 +77,10 @@ httptap 通常从 `httpcore` 的 trace 钩子获取各阶段计时。当这些�
 
 系统解析器会缓存条目。第一次请求要支付到你 DNS 服务器的完整 RTT；后续请求则命中缓存（往往是亚毫秒级）。若要绕过缓存，请通过 Python API 提供自定义解析器，或刷新本地缓存（例如 macOS 上的 `sudo dscacheutil -flushcache`，systemd 上的 `resolvectl flush-caches`）。
 
+### `connect_ms` 远高于往返时间
+
+当主机解析出多个地址时，httptap 会按顺序尝试，连接失败时转到下一个地址。失败尝试所花的时间会计入 `connect_ms` 和 `total_ms`（与 curl 的 `time_connect` 相同），而 `ip` 显示的是实际响应的地址。使用 `--resolve` 可以只测量单个地址。
+
 ### 每个重定向步骤都显示完整的 `connect_ms` 和 `tls_ms`
 
 httptap 会为每个请求（包括每个重定向步骤）打开一个新连接，因此连接从不复用，每个步骤都要各自完成 TCP 连接和 TLS 握手。`ttfb_ms` 从 DNS 解析开始时计起，因此它已经包含了 `dns_ms`、`connect_ms` 和 `tls_ms`；服务器自身的处理时间是 `wait_ms`。如果某个步骤的计时全部为 `0`，说明它在收到响应之前就已失败——请检查其 `error` 字段。
@@ -87,7 +97,7 @@ httptap 遵循 [`NO_COLOR`](https://no-color.org) 约定和 Rich 的 TTY 检测�
 
 ### `--metrics-only` 不再显示 `proxy=` 字段
 
-它并没有——该字段始终存在。旧的截图/示例可能早于该变更。预期格式：
+它并没有——该字段在每个收到响应的步骤中都存在。旧的截图/示例可能早于该变更。失败的步骤会输出为 `Step N: ERROR - <message>`，不包含指标和 `proxy=` 字段。成功步骤的预期格式：
 
 ```
 Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
@@ -115,7 +125,7 @@ Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
 请检查三件事：
 
 1. 你设置的键映射到一个真实存在的计时阶段。有效的键是 `dns`、`connect`、`tls`、`ttfb`、`wait`、`xfer`、`total`——其他任何值都会以退出码 `64`（SLO Error 面板）拒绝该命令。
-2. SLO 是在**最终成功的步骤**上评估的，而非中间的重定向。如果 `--follow` 经过了若干跳，而最后一步很快，那么整个链的总时间不会被比较。请用 `total` 对照终端请求的预算，或在需要逐步保证时从 `--json` 手动聚合。
+2. SLO 是在**最终成功的步骤**上评估的，而非中间的重定向。如果 `--follow` 经过了若干跳，而最后一步很快，那么整个链的总时间不会被比较。请用 `total` 对照最后一个请求的预算，或在需要逐步保证时从 `--json` 手动聚合。达到重定向上限时，被评估的步骤是最后一个 `3xx` 响应。
 3. 如果每一步都出错，SLO 会被完全跳过——退出码反映的是网络故障（通常是 `75`）。此时 `--metrics-only` 输出中不会出现 `slo=` 标记。
 
 ### httptap 能输出 Prometheus 指标吗？

@@ -275,8 +275,7 @@ Antes de enviar, asegúrate de que:
 - [ ] El linter pasa (`uv run ruff check`)
 - [ ] Las comprobaciones de tipos pasan (`uv run mypy httptap`)
 - [ ] La documentación está actualizada (si es necesario)
-- [ ] CHANGELOG.md está actualizado (para cambios significativos)
-- [ ] Los mensajes de commit siguen el formato conventional
+- [ ] Los mensajes de commit siguen el formato conventional (git-cliff genera `CHANGELOG.md` a partir de ellos al publicar una versión; no lo edites a mano)
 
 ## Documentación
 

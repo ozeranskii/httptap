@@ -20,7 +20,7 @@ httptap https://httpbin.io
 - タイミングフェーズの**視覚的なプログレスバー**
 - 読みやすい**構造化されたテーブル**
 - IP、TLS バージョン、証明書情報を含む**ネットワークの詳細**
-- ステータス、ヘッダー、ボディサイズを示す**レスポンスのメタデータ**
+- ステータス、ボディサイズ、`Server` ヘッダー、リダイレクト先を示す**レスポンスのメタデータ**
 
 ### 使いどころ
 
@@ -151,12 +151,12 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -166,11 +166,11 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
         "status": 200,
         "bytes": 389,
         "content_type": "application/json",
-        "server": null,
-        "date": "2025-10-23T19:20:36+00:00",
+        "server": "gunicorn/19.9.0",
+        "date": "2026-09-18T07:59:59+00:00",
         "location": null,
         "headers": {
-          "date": "Thu, 23 Oct 2025 19:20:36 GMT",
+          "date": "Fri, 18 Sep 2026 07:59:59 GMT",
           "content-type": "application/json",
           "server": "gunicorn/19.9.0"
         }
@@ -206,6 +206,8 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
 | `summary`         | object  | エクスポート全体の集計値。                                                       |
 
 `_ms` で終わるタイミング値の単位はミリ秒です。リクエストおよびレスポンスのボディサイズの単位はバイトです。レスポンスサイズ（`bytes`、`final_bytes`）は、curl の `size_download` と同様に、`Content-Encoding` のデコード前にネットワーク上で受信したボディをカウントします。証明書とレスポンスの日付は、利用可能な場合 ISO 8601/RFC 3339 形式のタイムスタンプになります。ネストされた `steps` と `summary` の構造については上記の例を参照してください。
+
+認証情報はマスクされます。ステップの `url`、`response.location`、`Location` および `Content-Location` ヘッダー、`network.proxy_url` の userinfo に含まれるパスワード（または単独のトークン）は `****` に置き換えられ、`Authorization` や `Set-Cookie` などの機密ヘッダーもマスクされます。
 
 `network.tls_custom_ca` は `--cacert` を使用した場合は `true`、それ以外の場合は `false` です。ステップの `redirect_limit_reached` は、そのステップで `--follow` が 10 回のリダイレクト上限に達して停止した場合に `true` になります。そのようなステップは `summary.errors` にもカウントされます。
 

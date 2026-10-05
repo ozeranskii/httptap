@@ -33,7 +33,12 @@ steps = analyzer.analyze_url("https://httpbin.io")
 
 ## 自定义 TLS 检查
 
-实现自定义的 TLS 检查逻辑，以提取额外的证书信息。
+httptap 直接从返回响应的实际连接中读取 TLS 版本、加密套件和证书详情，因此自定义
+`TLSInspector` 不会替换这些数据。它只是回退方案：仅当 HTTPS 请求的实际连接未提供 TLS
+数据且未使用代理时，httptap 才会调用它，并用其结果填充 TLS 字段。检查器接收主机名、端口和
+剩余超时时间，并自行建立连接。检查失败时请抛出 `httptap.TLSInspectionError`，这样该步骤
+仍会被报告，只是不含 TLS 详情。证书验证失败后用于收集证书详情的诊断探测始终使用内置的
+`SocketTLSInspector`，从不使用自定义检查器。
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -154,6 +159,8 @@ httptap 支持四种代理协议，每种协议的 DNS 解析行为各不相同�
 
 `socks5h` 中的 `h` 后缀代表 "hostname"（一种 curl 约定）。使用 `socks5h://` 时，主机名会被发送到代理，由代理进行解析。使用 `socks5://` 时，客户端在本地解析 DNS，并将 IP 发送给代理。
 
+使用 `socks5://` 时，如果主机解析出多个地址，而代理报告无法连接其中某个地址，httptap 会尝试下一个地址。无法连接代理本身或代理认证失败时不会重试，因为对每个地址都会重复失败。IPv6 字面量目标（`https://[2001:db8::1]/`）适用于所有类型的代理。
+
 ### 环境变量代理
 
 当未提供 `--proxy` 参数时，httptap 会检查环境变量：
@@ -165,12 +172,16 @@ httptap 支持四种代理协议，每种协议的 DNS 解析行为各不相同�
 
 `--proxy` 参数始终优先于环境变量。
 
+未带协议的变量（`proxy.internal:3128`）会被视为 `http://` 代理，与 curl 相同。如果所选变量不是有效的代理 URL（不支持的协议、缺少主机、端口无效），请求会以网络错误（退出码 `75`）失败，错误信息会指出该变量，并显示遮蔽了密码的 URL。
+
 **NO_PROXY 模式：**
 
 - `*` - 对所有主机绕过代理
-- `example.com` - 精确主机名匹配
-- `.example.com` - example.com 的所有子域名
-- `sub.example.com` - 精确子域名匹配
+- `example.com` - 该主机本身及其所有子域名
+- `.example.com` - 仅 example.com 的子域名，不包括 example.com 本身
+- `sub.example.com` - sub.example.com 及其子域名
+
+匹配不区分大小写。不支持 CIDR 范围和带端口的条目。
 
 ## 自定义 CA 包
 
@@ -355,17 +366,20 @@ for url, total_ms in results:
 
 ## 错误处理
 
-在分析 URL 时优雅地处理错误。
+在分析 URL 时优雅地处理错误。只有请求本身失败（DNS、连接、TLS 或超时）时才会设置
+`has_error`；HTTP `4xx`/`5xx` 响应是已完成的步骤，因此需要单独检查 `response.status`。
 
 ```python
 from httptap import HTTPTapAnalyzer
 
 analyzer = HTTPTapAnalyzer()
-steps = analyzer.analyze_url("https://httpbin.io/status/500")
+steps = analyzer.analyze_url("https://nonexistent.invalid")
 
 step = steps[0]
 if step.has_error:
     print(f"Error: {step.error}")
+elif step.response.status >= 400:
+    print(f"HTTP error: {step.response.status}")
 else:
     print(f"Status: {step.response.status}")
 ```

@@ -44,10 +44,11 @@ class RequestOptions:
             is used.
         dns_resolver: Custom DNS resolver implementation. If None, the executor
             uses its default resolver.
-        tls_inspector: Custom TLS inspector implementation. If None, the executor
-            uses its default inspector.
+        tls_inspector: Custom TLS inspector implementation, used only for the
+            fallback probe when the live connection exposes no TLS data and no
+            proxy is in use. If None, the executor uses its default inspector.
         timing_collector: Timing collector instance used to measure request
-            phases. If None, no phase timing is collected for this request.
+            phases. If None, a fresh ``PerfCounterTimingCollector`` is used.
         force_new_connection: Deprecated and ignored. A new connection is
             always used because each request gets a fresh client. Accepted only
             for backward compatibility; passing a value emits a

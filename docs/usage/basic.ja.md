@@ -51,6 +51,8 @@ httptap --data '{"name": "John", "email": "john@example.com"}' https://httpbin.i
 httptap --data @payload.json https://httpbin.io/post
 ```
 
+インラインデータは curl と同様に、引数のバイト列そのままで送信されます。POSIX システムでは、有効な UTF-8 ではない引数もそのまま送信されます。
+
 **自動検出:**
 - Content-Type は自動的に検出されます（JSON、XML、プレーンテキスト）
 - 最初にファイル拡張子がチェックされます（.json、.xml、.txt）
@@ -86,6 +88,8 @@ httptap \
   https://httpbin.io/bearer
 ```
 
+ヘッダー名は HTTP トークン（英字、数字、および `` !#$%&'*+-.^_`|~ ``）でなければならず、値に使用できるのは印字可能な ASCII 文字、スペース、タブのみです。名前にスペースを含む、値に CR、LF その他の制御文字を含む、値に非 ASCII 文字を含む（httpx はヘッダー値を ASCII として送信します）など、これらの規則に違反するヘッダーは、リクエストを送信する前に終了コード `64` で拒否されます。エラーにはヘッダー名が示されますが、値は表示されません。
+
 #### `-L, --location, --follow`
 
 HTTP リダイレクトを追跡し、チェーン内の各ステップのタイミングを表示します（リダイレクトは最大 10 回）。
@@ -105,9 +109,15 @@ httptap --follow https://httpbin.io/redirect/3
 - `Authorization`、`Cookie`、`Proxy-Authorization` ヘッダーは元のオリジン（スキーム、ホスト、ポート）にのみ送信されます。リダイレクト先が別のオリジンになると、それ以降のチェーンではこれらのヘッダーは送信されません。同じホストでデフォルトポートのまま `http` → `https` にアップグレードする場合（80 → 443）は保持されます。
 - `303 See Other`、および `POST` 後の `301`/`302` では、次のリクエストはボディなしの `GET` に切り替わります。`307` と `308` はメソッドとボディを保持します。
 
+リダイレクトの `Location` がリクエストできない URL（無効または範囲外のポート、ホストの欠落、`http`/`https` 以外のスキーム、不正な IPv6 リテラル）の場合、`3xx` ステップはそのまま残り、チェーンはそのターゲットに対する失敗ステップ（エラー `Invalid redirect target: …`）で終わり、httptap は終了コード `75` で終了します。`--follow` を指定しない場合、`3xx` レスポンスは `Location` の内容にかかわらず受信したとおりに表示されます。
+
+`Location` URL に含まれる認証情報（`https://user:password@host/`）は出力と JSON エクスポートではマスクされます（`https://user:****@host/`）が、リダイレクトは実際の URL に対して行われます。
+
 #### `-m, --max-time, --timeout SECONDS`
 
 経過時間の合計が指定した秒数を超えた場合、リクエストチェーンを中止します。
+
+この制限は、リダイレクトを含むチェーン全体に対する厳密な期限です。名前解決、接続、レスポンスの待機、ボディの読み取りはすべてこの期限を共有し、応答が止まったサーバーや少しずつバイトを送り続けるサーバーも期限の時点で打ち切られます。その場合、ステップは `Request timeout: total deadline exceeded` で失敗し、httptap は終了コード `75` で終了します。
 
 *curl 互換エイリアス:* `-m`、`--max-time`。
 
@@ -149,6 +159,8 @@ httptap --resolve api.example.com:443:203.0.113.10 https://api.example.com/healt
 httptap --resolve api.example.com:443:[2001:db8::10] https://api.example.com/health
 ```
 
+国際化ホスト名はどちらの形式でも一致します。`bücher.example` のエントリは `https://xn--bcher-kva.example/` にも適用され、その逆も同様です。httptap はこのような名前を IDNA 2008 形式（`xn--…`）で名前解決します。これは `Host` ヘッダーと TLS SNI で送信される名前と同じです。
+
 `--resolve` は直接接続とローカル DNS の SOCKS5 プロキシに適用されます。HTTP、HTTPS、SOCKS5H プロキシはターゲットをリモートで名前解決するため、`-4`/`-6` と同様に、これらと `--resolve` の組み合わせは拒否されます。
 
 #### `-k, --insecure, --ignore-ssl`
@@ -187,6 +199,8 @@ httptap --proxy "" https://httpbin.io/get
 `--proxy` フラグは環境変数（`HTTP_PROXY`、`HTTPS_PROXY`、`NO_PROXY`）よりも優先されます。すべてのプロキシ環境変数を無視して直接接続するには `--proxy ""` を使用してください。プロキシプロトコル、名前解決、環境変数の設定の詳細については [高度な機能](advanced.md#using-proxies) を参照してください。
 
 プロキシ URL に含まれる認証情報（`http://user:password@proxy:3128`、環境変数から取得したものを含む）は接続に使用されますが、出力と JSON エクスポートではマスクされます（`http://user:****@proxy:3128`）。
+
+スキームなしで指定したプロキシ（`proxy.local:3128`）は、curl と同様に `http://` として扱われます。不正なプロキシ URL（サポートされていないスキーム、ホストの欠落、無効または範囲外のポート、閉じられていない IPv6 リテラル）は、リクエストを送信する前に終了コード `64` で拒否されます。エラーにはパスワードをマスクした URL が表示されます。
 
 #### `--cacert, --ca-bundle PATH`
 
@@ -358,12 +372,12 @@ httptap https://httpbin.io/status/200
 - フェーズ名と所要時間
 - 視覚的なプログレスバー
 - ネットワークの詳細（IP、TLS バージョン、証明書情報）
-- レスポンスのメタデータ（ステータス、サイズ、content-type）
+- レスポンスのメタデータ（ステータス、サイズ、`Server` ヘッダー、リダイレクト先）
 
 ### タイミングの内訳
 
 - **DNS (ms)** - ドメインを IP アドレスに解決するまでの時間
-- **Connect (ms)** - TCP 接続を確立するまでの時間。HTTP CONNECT プロキシ経由の場合は CONNECT のラウンドトリップも含まれるため、トンネルの確立はサーバー待機としてカウントされません
+- **Connect (ms)** - TCP 接続を確立するまでの時間。HTTP CONNECT プロキシ経由の場合は CONNECT のラウンドトリップも含まれるため、トンネルの確立はサーバー待機としてカウントされません。ホストに複数のアドレスがあり、最初のアドレスへの接続が失敗した場合、それに費やした時間もここと Total に含まれます（curl の `time_connect` と同様）
 - **TLS (ms)** - TLS ハンドシェイクにかかる時間（HTTPS のみ）
 - **TTFB (ms)** - 最初のバイトまでの時間（サーバー処理を含む）
 - **Transfer (ms)** - レスポンスボディをダウンロードするまでの時間

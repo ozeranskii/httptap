@@ -33,7 +33,14 @@ steps = analyzer.analyze_url("https://httpbin.io")
 
 ## カスタムな TLS インスペクション
 
-追加の証明書情報を抽出するために、カスタムの TLS インスペクションロジックを実装します。
+httptap は TLS バージョン、暗号スイート、証明書の詳細を、レスポンスを返したライブ接続から
+直接読み取ります。そのため、カスタムの `TLSInspector` がこれらのデータを置き換えることはありません。
+カスタムインスペクターはフォールバックにすぎず、HTTPS リクエストでライブ接続から TLS データが
+得られず、かつプロキシを使用していない場合にのみ呼び出され、その結果で TLS フィールドが埋められます。
+インスペクターはホスト名、ポート、残りのタイムアウトを受け取り、自身で接続を開きます。
+インスペクションに失敗した場合は `httptap.TLSInspectionError` を送出してください。そうすれば
+ステップは TLS の詳細なしで引き続き報告されます。証明書の検証失敗後に証明書の詳細を収集する
+診断プローブは、常に組み込みの `SocketTLSInspector` を使用し、カスタムインスペクターは使用しません。
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -154,6 +161,8 @@ httptap は 4 つのプロキシプロトコルをサポートしており、そ
 
 `socks5h` の `h` サフィックスは "hostname"（curl の慣例）を表します。`socks5h://` では、ホスト名がプロキシに送信され、プロキシがそれを解決します。`socks5://` では、クライアントがローカルで DNS を解決し、IP をプロキシに送信します。
 
+`socks5://` の場合、ホストが複数のアドレスに解決され、プロキシがそのうちの 1 つに接続できないと応答したときは、httptap は次のアドレスを試します。プロキシ自体への接続や認証の失敗は、どのアドレスでも同じ結果になるため再試行されません。IPv6 リテラルのターゲット（`https://[2001:db8::1]/`）はすべての種類のプロキシで使用できます。
+
 ### 環境変数によるプロキシ
 
 `--proxy` フラグが指定されない場合、httptap は環境変数をチェックします:
@@ -165,12 +174,16 @@ httptap は 4 つのプロキシプロトコルをサポートしており、そ
 
 `--proxy` フラグは常に環境変数よりも優先されます。
 
+スキームのない変数（`proxy.internal:3128`）は、curl と同様に `http://` プロキシとして扱われます。選択された変数が有効なプロキシ URL でない場合（サポートされていないスキーム、ホストの欠落、無効なポート）、リクエストはネットワークエラー（終了コード `75`）で失敗します。エラーには変数名と、パスワードをマスクした URL が表示されます。
+
 **NO_PROXY のパターン:**
 
 - `*` - すべてのホストでプロキシをバイパスする
-- `example.com` - 完全なホスト名の一致
-- `.example.com` - example.com のすべてのサブドメイン
-- `sub.example.com` - 完全なサブドメインの一致
+- `example.com` - そのホスト自体とすべてのサブドメイン
+- `.example.com` - example.com のサブドメインのみ（example.com 自体は含まない）
+- `sub.example.com` - sub.example.com とそのサブドメイン
+
+照合では大文字と小文字を区別しません。CIDR 範囲やポート指定のエントリはサポートされていません。
 
 ## カスタム CA バンドル
 
@@ -355,17 +368,21 @@ for url, total_ms in results:
 
 ## エラー処理
 
-URL を分析する際に、エラーを適切に処理します。
+URL を分析する際に、エラーを適切に処理します。`has_error` が設定されるのはリクエスト自体が
+失敗した場合（DNS、接続、TLS、タイムアウト）のみです。HTTP `4xx`/`5xx` レスポンスは完了した
+ステップなので、`response.status` を別途確認してください。
 
 ```python
 from httptap import HTTPTapAnalyzer
 
 analyzer = HTTPTapAnalyzer()
-steps = analyzer.analyze_url("https://httpbin.io/status/500")
+steps = analyzer.analyze_url("https://nonexistent.invalid")
 
 step = steps[0]
 if step.has_error:
     print(f"Error: {step.error}")
+elif step.response.status >= 400:
+    print(f"HTTP error: {step.response.status}")
 else:
     print(f"Status: {step.response.status}")
 ```

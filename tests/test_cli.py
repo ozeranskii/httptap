@@ -306,6 +306,7 @@ def test_help_hides_none_and_false_defaults() -> None:
     help_text = create_parser().format_help()
 
     assert "(default: None)" not in help_text
+    assert "(default: [])" not in help_text
     assert "(default: False)" not in help_text
     assert "(default: 20.0)" in help_text
 

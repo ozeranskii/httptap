@@ -67,12 +67,12 @@ httptap はいくつかのオープンソースプロジェクトに依存して
 
 ### 直接の依存関係
 
-| パッケージ   | ライセンス      | リンク                                  |
-|-----------|--------------|---------------------------------------|
-| httpx     | BSD-3-Clause | https://github.com/encode/httpx       |
-| httpcore  | BSD-3-Clause | https://github.com/encode/httpcore    |
-| Rich      | MIT          | https://github.com/Textualize/rich    |
-| dnspython | ISC          | https://github.com/rthalley/dnspython |
+| パッケージ   | ライセンス                 | リンク                               |
+|--------------|----------------------------|--------------------------------------|
+| httpx        | BSD-3-Clause               | https://github.com/encode/httpx      |
+| httpcore     | BSD-3-Clause               | https://github.com/encode/httpcore   |
+| Rich         | MIT                        | https://github.com/Textualize/rich   |
+| cryptography | Apache-2.0 OR BSD-3-Clause | https://github.com/pyca/cryptography |
 
 すべての依存関係は Apache 2.0 と互換性のある寛容なライセンスを使用しています。
 

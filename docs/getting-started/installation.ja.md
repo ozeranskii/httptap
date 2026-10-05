@@ -200,7 +200,7 @@ Homebrew は補完スクリプトを自動的に次の場所に配置します:
 
 ### Python パッケージでのインストール
 
-httptap を `pip`、`uv`、または `pipx` 経由でインストールした場合、オプションの `completion` エクストラをインストールする必要があります:
+httptap を `pip`、`uv`、`uv tool`、または `pipx` 経由でインストールした場合、オプションの `completion` エクストラをインストールする必要があります:
 
 === "uv を使う"
 
@@ -214,15 +214,29 @@ httptap を `pip`、`uv`、または `pipx` 経由でインストールした場
     pip install "httptap[completion]"
     ```
 
+=== "uv tool を使う"
+
+    ```bash
+    uv tool install --with-executables-from argcomplete "httptap[completion]"
+    ```
+
 === "pipx を使う"
 
     ```bash
-    pipx install "httptap[completion]"
+    pipx install --include-resources-from argcomplete "httptap[completion]"
     ```
+
+!!! note "分離インストール（`uv tool`、`pipx`）"
+    デフォルトでは、`uv tool install` と `pipx install` は `httptap` コマンドだけを `PATH` に追加し、
+    argcomplete の `activate-global-python-argcomplete` と `register-python-argcomplete`
+    ヘルパーは追加しません。上記の `--with-executables-from argcomplete` と
+    `--include-resources-from argcomplete` オプションを使うと、これらも公開されます。
+    `--include-resources-from` に対応していない古い pipx では、代わりに `--include-deps` を使えます
+    （すべての依存関係のコマンドが公開されます）。
 
 #### 有効化
 
-1. 仮想環境を有効化します（venv を使用している場合）:
+1. 仮想環境を有効化します（venv を使用している場合。`uv tool` や `pipx` では不要）:
 
     ```bash
     source .venv/bin/activate

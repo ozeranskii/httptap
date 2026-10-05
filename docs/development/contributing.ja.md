@@ -273,8 +273,7 @@ def test_analyzer_follows_redirects(mock_http_client):
 - [ ] リンターが通る（`uv run ruff check`）
 - [ ] 型チェックが通る（`uv run mypy httptap`）
 - [ ] ドキュメントが更新されている（必要な場合）
-- [ ] CHANGELOG.md が更新されている（重要な変更の場合）
-- [ ] コミットメッセージが conventional 形式に従っている
+- [ ] コミットメッセージが conventional 形式に従っている（`CHANGELOG.md` はリリース時に git-cliff がコミットメッセージから生成するため、手動で編集しないでください）
 
 ## ドキュメント
 

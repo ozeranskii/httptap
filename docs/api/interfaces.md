@@ -26,7 +26,8 @@ httptap dials the resolved IP address directly while keeping the original hostna
 `Host` header and TLS SNI. IPv6 addresses are bracketed automatically; implementations only
 need to return a valid `(ip, family, duration_ms)` tuple. `family` is `"IPv4"`, `"IPv6"`, or
 `"AF_<num>"` for other address families. The reported `dns_ms` is measured by httptap around
-the resolver call, so `duration_ms` is informational.
+the resolver call, so `duration_ms` is informational. Internationalized hostnames are passed
+in their IDNA 2008 A-label form (`xn--…`), the same name httptap sends in `Host` and SNI.
 
 Raise `DNSResolutionError` (exported from `httptap`) when a name cannot be resolved. httptap
 records it as a failed step with a network error (exit code `75`). Any other exception is
@@ -69,8 +70,11 @@ def resolve_all(self, host: str, port: int, timeout: float) -> tuple[list[tuple[
 It returns every usable address as `(ip, family)` pairs in the order to try, plus the
 resolution time in milliseconds. httptap connects to the addresses in that order and moves to
 the next one when a connection fails or times out; the connect timeout is split across the
-remaining addresses, and TLS errors are not retried. An empty list is reported as a DNS
-failure. `SystemDNSResolver` implements both methods.
+remaining addresses, and TLS errors are not retried. Through a local-DNS `socks5://` proxy,
+httptap moves on when the proxy reports that it cannot connect to an address; failures to
+reach or authenticate with the proxy itself are not retried. Time spent on addresses that
+failed is included in `connect_ms` and `total_ms`, as curl's `time_connect` does. An empty
+list is reported as a DNS failure. `SystemDNSResolver` implements both methods.
 
 `resolve_all()` is used only when the class that defines it is the class that defines
 `resolve()` or a subclass of it. A subclass that overrides only `resolve()` therefore keeps
@@ -99,6 +103,14 @@ class PinnedResolver(SystemDNSResolver):
 ## TLSInspector
 
 ::: httptap.interfaces.TLSInspector
+
+httptap reads TLS and certificate details from the live connection that served the response.
+A custom inspector is only a fallback: it is called for HTTPS requests when that connection
+exposes no TLS data and no proxy is in use, receives the hostname, port, and remaining
+timeout, and opens its own connection. Raise `TLSInspectionError` (exported from `httptap`)
+when inspection fails; the step is then reported without TLS details. The diagnostic probe
+that runs after a certificate verification failure always uses the built-in
+`SocketTLSInspector`, not a custom inspector.
 
 ### Example implementation
 

@@ -12,9 +12,13 @@ command, the JSON export (if any), and the relevant terminal output.
 
 ## TLS and certificates
 
-### `TLS handshake failed: CERTIFICATE_VERIFY_FAILED`
+### `[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed`
 
-The server presented a certificate your trust store doesn't recognize.
+The server presented a certificate your trust store doesn't recognize. The
+failed step reports an error such as
+`Request failed: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1077)`;
+the reason after the colon (self-signed, expired, unable to get local issuer
+certificate, hostname mismatch) and the `_ssl.c` line number vary.
 
 - **Self-signed or expired cert on a non-production host** — add `--ignore-ssl`
   (disables validation, use on trusted networks only).
@@ -57,15 +61,26 @@ The explicit `-x/--proxy` flag always wins over environment variables. Check:
 3. The target host isn't matched by `NO_PROXY`. Check the `proxy_source` field
    in the JSON export; if it says `NO_PROXY`, your host is excluded.
 
+### `Invalid proxy URL`
+
+A malformed `-x/--proxy` value (an unsupported scheme, a missing host, an invalid
+or out-of-range port, an unterminated IPv6 literal) is rejected with exit `64`
+before any request is made. The same problem in `HTTP_PROXY`, `HTTPS_PROXY` or
+`ALL_PROXY` fails the request with a network error (exit `75`) that names the
+variable. Both errors show the URL with its password masked. A value without a
+scheme, such as `proxy.local:3128`, is valid and treated as `http://`.
+
 ### `NO_PROXY` pattern reference
 
-- Exact host: `api.internal.example`
-- Domain suffix: `.internal.example` (matches `foo.internal.example`)
+- Host and its subdomains: `api.internal.example` (also matches
+  `v1.api.internal.example`)
+- Subdomains only: `.internal.example` (matches `foo.internal.example`, not
+  `internal.example`)
 - Wildcard: `*` (excludes everything)
-- Multiple entries: comma-separated, whitespace trimmed
+- Multiple entries: comma-separated, whitespace trimmed, case-insensitive
 
-IP/CIDR matching is **not** supported — this follows the widely-adopted curl
-behavior.
+IP addresses are compared as plain hostnames. CIDR ranges (supported by curl
+since 7.86.0) and port-specific entries are **not** supported.
 
 ## HTTP/2
 
@@ -103,6 +118,14 @@ To bypass caches, supply a custom resolver via the Python API or flush the
 local cache (e.g., `sudo dscacheutil -flushcache` on macOS, `resolvectl flush-caches`
 on systemd).
 
+### `connect_ms` is much higher than the round-trip time
+
+When a host resolves to several addresses, httptap tries them in order and moves
+to the next one when a connection fails. The time spent on the failed attempts
+is included in `connect_ms` and `total_ms`, as curl's `time_connect` does, while
+`ip` shows the address that answered. Use `--resolve` to measure a single
+address.
+
 ### Every redirect step shows full `connect_ms` and `tls_ms`
 
 httptap opens a new connection for every request, including each redirect
@@ -126,8 +149,10 @@ TTY detection:
 
 ### `--metrics-only` stopped showing a `proxy=` field
 
-It didn't — the field is always present. Old screenshots/examples may predate
-the change. Expected format:
+It didn't — the field is present on every step that received a response. Old
+screenshots/examples may predate the change. Failed steps are printed as
+`Step N: ERROR - <message>` and carry no metrics or `proxy=` field. Expected
+format for a successful step:
 
 ```
 Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
@@ -169,8 +194,9 @@ Check three things:
 2. SLO is evaluated on the **final successful step**, not intermediate
    redirects. If `--follow` bounced through several hops and the last
    step was fast, the overall chain total isn't compared. Use `total`
-   against the terminal request's budget, or aggregate manually from
-   `--json` if you need per-step guarantees.
+   against the last request's budget, or aggregate manually from
+   `--json` if you need per-step guarantees. When the redirect limit is
+   reached, the evaluated step is the last `3xx` response.
 3. If every step errored, SLO is skipped entirely — the exit code
    reflects the network failure (usually `75`). No `slo=` token
    appears in `--metrics-only` output in that case.

@@ -10,7 +10,7 @@ project believes its security properties hold, not just **what** those
 properties are. It is structured according to the OpenSSF Best Practices
 silver-level `assurance_case` criterion.
 
-**Last reviewed:** 2026-09-17 for httptap 0.6.2.
+**Last reviewed:** 2026-10-05.
 
 The assurance case is a living document; it is reviewed at every major
 release and whenever the threat landscape or feature set changes
@@ -106,10 +106,10 @@ server-side DoS) are explicitly excluded as non-goals.
 | **Tampering** | CI pipeline poisoned via compromised third-party action. | Every action is SHA-pinned (enforced by Scorecard Pinned-Dependencies 10/10 and zizmor pedantic); Dependabot raises PRs to update pins (SR-6, SR-7). |
 | **Repudiation** | — | Out of scope; httptap is not a multi-user system. |
 | **Information disclosure** | Credentials in `-H Authorization` leak to redirect target on a different host. | httptap follows redirects itself (`follow_redirects=False` in httpx) and drops `Authorization`, `Cookie` and `Proxy-Authorization` when a redirect changes scheme, host or port; `303`, and `301`/`302` after `POST`, switch to `GET` without a body (SR-3). |
-| **Information disclosure** | `--json` export includes auth headers or proxy credentials on disk. | `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie` and API-key headers are masked in output and export, and proxy URL credentials are redacted; users are still advised in SECURITY.md and docs/troubleshooting.md to review exports before sharing. |
+| **Information disclosure** | `--json` export includes auth headers or proxy credentials on disk. | `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie` and API-key headers are masked in output and export, and URL credentials are redacted in the target and proxy URLs, in `Location`/`Content-Location` headers and the redirect target, and in the `--otlp` endpoint shown in export warnings; users are still advised in SECURITY.md and docs/troubleshooting.md to review exports before sharing. |
 | **Information disclosure** | Telemetry exports reveal request details to whoever reads the textfile or runs the collector. | Prometheus labels are limited to hostname and step; OTLP spans omit the full URL and headers. OTLP export is opt-in and goes only to the endpoint named with `--otlp`; `https://` is recommended for remote collectors. |
-| **Information disclosure** | MITM on insecure proxy. | Proxy URL scheme is validated; `socks5h://` / `https://` recommended for sensitive targets; proxy source is reported in output and JSON for audit. |
-| **Denial of service** | Malicious server streams unbounded body. | Per-request timeout via `--timeout` (default 20s); transfer phase is bounded by the same deadline. |
+| **Information disclosure** | MITM on insecure proxy. | Proxy URLs are validated (scheme, host, port); `socks5h://` / `https://` recommended for sensitive targets; proxy source is reported in output and JSON for audit. |
+| **Denial of service** | Malicious server streams unbounded body. | `-m/--timeout` (default 20s) is a hard deadline for the whole chain: a watchdog shuts the connection down when it passes, so a server that stalls or trickles bytes cannot extend the run. |
 | **Denial of service** | Malicious server streams zip bomb or gigantic body. | httptap does not decode or persist bodies beyond counting bytes for the timing metric, so memory cost is linear and bounded by the timeout. |
 | **Elevation of privilege** | Malicious response body triggers parser RCE. | Bodies are never parsed for content — only length is read. No HTML, JS, or embedded-script interpretation (SR-4). |
 | **Elevation of privilege** | Malicious CLI argument triggers shell injection in downstream invocation. | Arguments are parsed by `argparse` (no shell), forwarded as `list[str]` to `httpx` (no shell); there is no shell invocation in the request path. |
@@ -130,9 +130,9 @@ Mapped to Saltzer & Schroeder (1975) plus modern additions.
 
 | Principle | Application in httptap |
 |-----------|-----------------------|
-| Economy of mechanism | Small codebase (~2 kLoC), one purpose, no plugin loader, no runtime config files. |
+| Economy of mechanism | Small codebase (~6 kLoC), one purpose, no plugin loader, no runtime config files. |
 | Fail-safe defaults | TLS verification on, sane default timeout, HTTP/2 preferred, no redirect following by default. |
-| Complete mediation | Every outbound request is routed through `HTTPClientRequestExecutor`; there is no secondary or legacy code path. |
+| Complete mediation | Every outbound HTTP request is routed through `HTTPClientRequestExecutor`; there is no legacy code path. The only secondary path is a TLS-only probe to the same host and port, without an HTTP request: a fallback probe when the live connection exposes no TLS data, and an unverified diagnostic probe that reports the certificate after a verification failure (the request still fails). Both are skipped when a proxy is in use and bounded by the request deadline. |
 | Open design | Entire codebase is Apache-2.0 on GitHub; no security-through-obscurity. |
 | Separation of privilege | Release pipeline is separate from development environment; PyPI publishing uses a GitHub Environment gated by OIDC. |
 | Least privilege | Every CI job declares explicit minimum `permissions:`; no workflow has `write-all`. Token-Permissions Scorecard check scores 10/10. |
@@ -151,20 +151,21 @@ upstream.
 
 | CWE | Weakness | Countermeasure |
 |-----|----------|----------------|
-| CWE-20 | Improper input validation | `argparse` enum/type coercion; URL/method/timeout/proxy explicitly checked. |
+| CWE-20 | Improper input validation | `argparse` enum/type coercion; URL/method/timeout/proxy explicitly checked (proxy scheme, host and port, with exit code `64`); `-H` names must be RFC 9110 tokens and values printable ASCII; redirect targets are validated before they are followed. |
 | CWE-22 | Path traversal (in `@file` data loader) | Path is taken verbatim from the user; no server-supplied path is ever used to open a file. |
 | CWE-78 | OS command injection | No `subprocess`/`os.system` call on user-controlled data in the request path. |
 | CWE-79 | XSS | No HTML rendering; server-controlled values (URL, `Server`, `Location`, certificate fields, error messages) are escaped with `rich.markup.escape` before Rich rendering, and single-line modes print without markup. |
 | CWE-89 | SQL injection | No database. |
 | CWE-94 | Code injection | `eval`/`exec` are not used; response bodies are never parsed. |
+| CWE-113 | HTTP request splitting (CRLF in headers) | `-H` values containing CR, LF or other control characters are rejected before any request is made. |
 | CWE-116 | Improper output encoding | Server-controlled strings are escaped before Rich markup rendering; JSON export uses `json.dumps` with strict escaping. |
-| CWE-200 | Sensitive information disclosure | Sensitive headers are masked and proxy URL credentials are redacted in output and JSON export; Prometheus and OTLP exports carry no URL paths, query strings, or headers; credential headers are not forwarded to other origins on redirects (SR-3); SECURITY.md and docs advise reviewing exports before sharing. |
+| CWE-200 | Sensitive information disclosure | Sensitive headers are masked and URL credentials (target, proxy, `Location`/`Content-Location`, `--otlp` endpoint) are redacted in output, warnings and JSON export; Prometheus and OTLP exports carry no URL paths, query strings, or headers; credential headers are not forwarded to other origins on redirects (SR-3); SECURITY.md and docs advise reviewing exports before sharing. |
 | CWE-295 | Improper certificate validation | TLS verification on by default; `--ignore-ssl` opt-in only, explicitly documented. |
 | CWE-319 | Cleartext transmission | HTTPS preferred; plain HTTP requires explicit `http://` URL; proxy source reported. |
 | CWE-327 | Broken crypto | Delegated to stdlib `ssl`; weak algorithms surface only when diagnosing remote servers. |
 | CWE-330 | Insufficient randomness | No RNG use beyond OpenSSL-provided CSPRNG for TLS. |
 | CWE-352 | CSRF | Not applicable — httptap is a client, not a server. |
-| CWE-400 | Uncontrolled resource consumption | Per-request timeout; bounded redirect chain (max 10). |
+| CWE-400 | Uncontrolled resource consumption | Total deadline for the whole chain, enforced even on stalled reads; bounded redirect chain (max 10). |
 | CWE-502 | Unsafe deserialization | `json.loads` only; no pickle, yaml.load, or marshal. |
 | CWE-601 | Open redirect (credential leak) | Redirects are followed by httptap with an explicit origin check: `Authorization`, `Cookie` and `Proxy-Authorization` are dropped on cross-origin hops. |
 | CWE-918 | SSRF | httptap is the client; it does not proxy requests on behalf of other systems. |
@@ -236,7 +237,7 @@ that are explicit rather than oversights.
 | 2026-04-12 | Initial assurance case for httptap 0.4.7 (silver submission). |
 | 2026-04-13 | OSS hardening for 0.5.0: gitsign-signed release commits/tags, TestPyPI pre-flight, signed GHCR container images with SLSA provenance, hadolint in CI, man-page artifact. |
 | 2026-09-17 | Security fixes in 0.6.2 ([GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)): SR-3 is enforced by an explicit origin check on redirects, server-controlled values are escaped before Rich rendering (CWE-79/116), proxy credentials are redacted (CWE-200); OpenVEX now records the advisory status. |
-| 2026-10-05 | Added the `--prometheus` textfile and `--otlp` trace outputs to the trust boundaries, threat model, and CWE-200 countermeasures. |
+| 2026-10-05 | Added the `--prometheus` textfile and `--otlp` trace outputs to the trust boundaries, threat model, and CWE-200 countermeasures; documented the TLS fallback and diagnostic probes under complete mediation; documented the input validation of `-x/--proxy` and `-H` (CWE-20, CWE-113), URL credential redaction in `Location` headers and the `--otlp` endpoint (CWE-200), and the hard total deadline (CWE-400). |
 
 ---
 

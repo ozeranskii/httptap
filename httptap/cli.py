@@ -325,7 +325,6 @@ Exit codes:
     request_group.add_argument(
         "--resolve",
         action="append",
-        default=[],
         metavar="HOST:PORT:ADDR",
         help="Connect HOST:PORT to ADDR while preserving the original Host header and TLS SNI.",
     )
@@ -740,7 +739,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:  # noqa: PLR0911
 
     try:
         args.resolve_entries = _parse_resolve_entries(
-            getattr(args, "resolve", []),
+            getattr(args, "resolve", None) or [],
             getattr(args, "address_family", None),
         )
     except ValueError as exc:

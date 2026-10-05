@@ -206,8 +206,11 @@ Sensitive headers are automatically masked in terminal output and JSON export
 - `Set-Cookie`
 - `Api-Key`, `X-API-Key`
 
-Credentials in proxy URLs are masked as well (`http://user:****@proxy:3128`),
-while the real credentials are still used for the connection.
+Credentials in URLs are masked as well (`http://user:****@proxy:3128`): in
+the target and proxy URLs, in the `Location` and `Content-Location` response
+headers and the redirect target shown, and in the `--otlp` endpoint when an
+export failure is reported. The real credentials are still used for the
+connection.
 
 ### 2. **Redirect Credential Scoping**
 
@@ -230,9 +233,12 @@ See [GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisor
 
 ### 5. **Input Validation**
 
-- URL validation prevents malformed requests
-- Header validation prevents injection attacks
-- Timeout controls prevent resource exhaustion
+- URL validation prevents malformed requests; proxy URLs (`-x/--proxy`) and
+  redirect targets are checked the same way before they are used
+- Header names must be RFC 9110 tokens and values printable ASCII, so CR/LF
+  and other control characters cannot inject headers (exit code `64`)
+- `-m/--max-time` is a hard deadline for the whole run: a server that stalls
+  or trickles bytes is cut off when it passes
 
 ## Known Security Considerations
 
@@ -249,19 +255,25 @@ httptap is a network diagnostic tool that makes HTTP(S) requests. Be aware:
 
 ### TLS Protocol Versions
 
-**Important**: httptap intentionally accepts all TLS versions (including TLSv1.0 and TLSv1.1) to enable diagnosis of legacy servers.
+**Default**: certificates and hostnames are verified with Python's default TLS context
+(`ssl.create_default_context()`), which requires TLS 1.2 or newer.
 
-**Why this is safe:**
+**With `-k` / `--insecure`**: httptap intentionally relaxes the TLS policy to enable diagnosis
+of legacy servers. Certificate and hostname verification are disabled, the minimum protocol
+version is lowered to the oldest one the local OpenSSL build supports (TLSv1.0 and TLSv1.1 where
+still available), and legacy cipher suites are allowed (`@SECLEVEL=0`).
+
+**Why this is acceptable:**
+- The relaxed policy is opt-in and only applies to requests made with `-k`
 - httptap is a **diagnostic tool**, not a production application
-- It does not transmit sensitive data (passwords, tokens, PII)
-- The purpose is to **inspect** TLS connections, not to secure them
-- Rejecting old TLS versions would make the tool useless for troubleshooting legacy systems
+- The purpose of `-k` is to **inspect** TLS connections, not to secure them
+- Without it, httptap could not troubleshoot legacy systems
 
 **Security implications:**
 - ✅ Safe: Diagnosing your own legacy APIs
 - ✅ Safe: Testing connectivity to third-party services
-- ⚠️ Caution: Do not use httptap to transmit sensitive authentication credentials to servers using TLSv1.0/1.1
-- ⚠️ Caution: The tool will connect to any server, regardless of TLS version
+- ⚠️ Caution: Do not send sensitive authentication credentials with `-k`, especially to servers using TLSv1.0/1.1
+- ⚠️ Caution: With `-k`, the tool connects to any server, regardless of certificate validity or TLS version
 
 **If you need to enforce minimum TLS version** for your own servers, httptap will help you identify which servers need upgrading.
 
@@ -276,7 +288,6 @@ We regularly monitor dependencies for security vulnerabilities:
 Current security-relevant dependencies:
 - `httpx[http2,socks]` - HTTP client, HTTP/2 and SOCKS proxy support (handles network requests)
 - `cryptography` - X.509 certificate parsing for TLS details
-- `dnspython` - DNS resolution
 - `rich` - Terminal output (display only)
 - `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http` - optional `otel` extra, only used with `--otlp`
 

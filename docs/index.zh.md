@@ -145,5 +145,5 @@ Apache License 2.0 © Sergei Ozeranskii
 
 - [httpx](https://www.python-httpx.org/) —— 现代 HTTP 客户端
 - [httpcore](https://github.com/encode/httpcore) —— 底层 HTTP 协议实现
-- [dnspython](https://www.dnspython.org/) —— Python 的 DNS 工具包
+- [cryptography](https://cryptography.io/) —— X.509 证书解析
 - [Rich](https://github.com/Textualize/rich) —— 精美的终端格式化

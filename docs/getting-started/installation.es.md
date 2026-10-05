@@ -200,7 +200,7 @@ Homebrew coloca automáticamente los scripts de autocompletado en:
 
 ### Instalación del paquete de Python
 
-Si instalaste httptap mediante `pip`, `uv` o `pipx`, necesitas instalar los extras opcionales de `completion`:
+Si instalaste httptap mediante `pip`, `uv`, `uv tool` o `pipx`, necesitas instalar los extras opcionales de `completion`:
 
 === "Con uv"
 
@@ -214,15 +214,29 @@ Si instalaste httptap mediante `pip`, `uv` o `pipx`, necesitas instalar los extr
     pip install "httptap[completion]"
     ```
 
+=== "Con uv tool"
+
+    ```bash
+    uv tool install --with-executables-from argcomplete "httptap[completion]"
+    ```
+
 === "Con pipx"
 
     ```bash
-    pipx install "httptap[completion]"
+    pipx install --include-resources-from argcomplete "httptap[completion]"
     ```
+
+!!! note "Instalaciones aisladas (`uv tool`, `pipx`)"
+    De forma predeterminada, `uv tool install` y `pipx install` solo añaden el comando `httptap` a tu
+    `PATH`, no los auxiliares `activate-global-python-argcomplete` y `register-python-argcomplete`
+    de argcomplete. Las opciones `--with-executables-from argcomplete` e
+    `--include-resources-from argcomplete` de arriba también los exponen. Las versiones antiguas de
+    pipx sin `--include-resources-from` pueden usar `--include-deps`, que expone los comandos de
+    todas las dependencias.
 
 #### Activación
 
-1. Activa tu entorno virtual (si usas venv):
+1. Activa tu entorno virtual (si usas venv; no es necesario con `uv tool` ni `pipx`):
 
     ```bash
     source .venv/bin/activate

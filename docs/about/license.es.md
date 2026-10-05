@@ -67,12 +67,12 @@ httptap depende de varios proyectos de código abierto:
 
 ### Dependencias directas
 
-| Paquete   | Licencia      | Enlace                                  |
-|-----------|--------------|---------------------------------------|
-| httpx     | BSD-3-Clause | https://github.com/encode/httpx       |
-| httpcore  | BSD-3-Clause | https://github.com/encode/httpcore    |
-| Rich      | MIT          | https://github.com/Textualize/rich    |
-| dnspython | ISC          | https://github.com/rthalley/dnspython |
+| Paquete      | Licencia                   | Enlace                               |
+|--------------|----------------------------|--------------------------------------|
+| httpx        | BSD-3-Clause               | https://github.com/encode/httpx      |
+| httpcore     | BSD-3-Clause               | https://github.com/encode/httpcore   |
+| Rich         | MIT                        | https://github.com/Textualize/rich   |
+| cryptography | Apache-2.0 OR BSD-3-Clause | https://github.com/pyca/cryptography |
 
 Todas las dependencias usan licencias permisivas compatibles con Apache 2.0.
 

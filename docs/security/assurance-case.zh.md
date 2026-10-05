@@ -7,7 +7,7 @@ description: httptap 的威胁模型、信任边界、所应用的安全设计�
 
 本文档是 httptap 的安全保障论证。它阐述项目**为何**相信其安全属性成立，而不仅仅是这些属性**是什么**。文档结构遵循 OpenSSF Best Practices 银级（silver-level）的 `assurance_case` 准则。
 
-**最近审阅：** 2026-09-17，针对 httptap 0.6.2。
+**最近审阅：** 2026-10-05。
 
 保障论证是一份持续演进的文档；它会在每个大版本发布时、以及威胁态势或功能集发生实质性变化时接受审阅。修订提案以针对本文件的 pull request 形式受理。
 
@@ -75,10 +75,10 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 | **Tampering（篡改）** | CI 流水线因第三方 action 被攻陷而遭投毒。 | 每个 action 都按 SHA 固定（由 Scorecard Pinned-Dependencies 10/10 和 zizmor pedantic 强制执行）；Dependabot 提交 PR 以更新固定项（SR-6、SR-7）。 |
 | **Repudiation（抵赖）** | — | 超出范围；httptap 不是多用户系统。 |
 | **Information disclosure（信息泄露）** | `-H Authorization` 中的凭证泄露给位于不同主机上的重定向目标。 | httptap 自行处理重定向（httpx 中 `follow_redirects=False`），当重定向改变协议、主机或端口时丢弃 `Authorization`、`Cookie` 和 `Proxy-Authorization`；`303`，以及 `POST` 之后的 `301`/`302`，会切换为不带请求体的 `GET`（SR-3）。 |
-| **Information disclosure（信息泄露）** | `--json` 导出将认证请求头或代理凭证写入磁盘。 | `Authorization`、`Proxy-Authorization`、`Cookie`、`Set-Cookie` 和 API 密钥请求头在输出和导出中会被遮蔽，代理 URL 中的凭证会被脱敏；SECURITY.md 和 docs/troubleshooting.md 仍建议用户在共享前检查导出内容。 |
+| **Information disclosure（信息泄露）** | `--json` 导出将认证请求头或代理凭证写入磁盘。 | `Authorization`、`Proxy-Authorization`、`Cookie`、`Set-Cookie` 和 API 密钥请求头在输出和导出中会被遮蔽，目标和代理 URL、`Location`/`Content-Location` 请求头和重定向目标，以及导出警告中显示的 `--otlp` 端点中的 URL 凭证都会被脱敏；SECURITY.md 和 docs/troubleshooting.md 仍建议用户在共享前检查导出内容。 |
 | **Information disclosure（信息泄露）** | 遥测导出会向读取 textfile 或运行 collector 的人泄露请求详情。 | Prometheus 标签仅限主机名和步骤；OTLP span 省略完整 URL 和请求头。OTLP 导出需显式启用，并且只会发送到通过 `--otlp` 指定的端点；对于远程 collector，推荐使用 `https://`。 |
-| **Information disclosure（信息泄露）** | 在不安全的代理上发生 MITM。 | 代理 URL 的协议方案会被校验；对敏感目标推荐使用 `socks5h://` / `https://`；代理来源会在输出和 JSON 中报告以供审计。 |
-| **Denial of service（拒绝服务）** | 恶意服务器流式发送无界的请求体。 | 通过 `--timeout` 设定每请求超时（默认 20 秒）；传输阶段受同一截止时限约束。 |
+| **Information disclosure（信息泄露）** | 在不安全的代理上发生 MITM。 | 代理 URL 会被校验（协议方案、主机、端口）；对敏感目标推荐使用 `socks5h://` / `https://`；代理来源会在输出和 JSON 中报告以供审计。 |
+| **Denial of service（拒绝服务）** | 恶意服务器流式发送无界的请求体。 | `-m/--timeout`（默认 20 秒）是整个请求链的硬性截止时间：到期时看门狗会关闭连接，因此停滞或缓慢发送字节的服务器无法延长运行时间。 |
 | **Denial of service（拒绝服务）** | 恶意服务器流式发送 zip 炸弹或巨大的请求体。 | httptap 除为计时指标统计字节数外，不会解码或持久化请求体，因此内存开销是线性的，并受超时约束。 |
 | **Elevation of privilege（权限提升）** | 恶意响应体触发解析器 RCE。 | 请求体从不按内容解析——只读取其长度。不进行任何 HTML、JS 或内嵌脚本的解释（SR-4）。 |
 | **Elevation of privilege（权限提升）** | 恶意 CLI 参数在下游调用中触发 shell 注入。 | 参数由 `argparse` 解析（无 shell），并作为 `list[str]` 转发给 `httpx`（无 shell）；请求路径中不存在任何 shell 调用。 |
@@ -96,9 +96,9 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 
 | 原则 | 在 httptap 中的应用 |
 |-----------|-----------------------|
-| 机制经济性（Economy of mechanism） | 代码库小（约 2 kLoC）、用途单一、无插件加载器、无运行时配置文件。 |
+| 机制经济性（Economy of mechanism） | 代码库小（约 6 kLoC）、用途单一、无插件加载器、无运行时配置文件。 |
 | 失败安全默认（Fail-safe defaults） | 默认启用 TLS 校验、合理的默认超时、优先使用 HTTP/2、默认不跟随重定向。 |
-| 完全仲裁（Complete mediation） | 每个出站请求都经由 `HTTPClientRequestExecutor` 路由；不存在次要或遗留代码路径。 |
+| 完全仲裁（Complete mediation） | 每个出站 HTTP 请求都经由 `HTTPClientRequestExecutor` 路由；不存在遗留代码路径。唯一的次要路径是对同一主机和端口的纯 TLS 探测，不发送 HTTP 请求：当实际连接未提供 TLS 数据时的回退探测，以及在证书验证失败后报告证书信息的不验证诊断探测（请求本身仍然失败）。两者在使用代理时都会跳过，并受请求截止时间约束。 |
 | 开放设计（Open design） | 整个代码库以 Apache-2.0 许可托管于 GitHub；不依赖隐晦性来保障安全。 |
 | 权限分离（Separation of privilege） | 发布流水线与开发环境相分离；PyPI 发布使用由 OIDC 把关的 GitHub Environment。 |
 | 最小权限（Least privilege） | 每个 CI 作业都声明显式的最小 `permissions:`；没有任何工作流使用 `write-all`。Token-Permissions 的 Scorecard 检查评分为 10/10。 |
@@ -114,20 +114,21 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 
 | CWE | 弱点 | 应对措施 |
 |-----|----------|----------------|
-| CWE-20 | 不当的输入校验 | `argparse` 的枚举/类型强制转换；对 URL/方法/超时/代理进行显式检查。 |
+| CWE-20 | 不当的输入校验 | `argparse` 的枚举/类型强制转换；对 URL/方法/超时/代理进行显式检查（代理的协议方案、主机和端口，不合法时退出码为 `64`）；`-H` 的名称必须是 RFC 9110 token，值必须是可打印 ASCII；重定向目标在跟随之前会被校验。 |
 | CWE-22 | 路径遍历（在 `@file` 数据加载器中） | 路径原样取自用户；从不使用服务器提供的路径来打开文件。 |
 | CWE-78 | 操作系统命令注入 | 请求路径中不对用户可控数据调用 `subprocess`/`os.system`。 |
 | CWE-79 | XSS | 不进行 HTML 渲染；服务器控制的值（URL、`Server`、`Location`、证书字段、错误信息）在 Rich 渲染前使用 `rich.markup.escape` 转义，单行模式不解析标记直接输出。 |
 | CWE-89 | SQL 注入 | 无数据库。 |
 | CWE-94 | 代码注入 | 不使用 `eval`/`exec`；从不解析响应体。 |
+| CWE-113 | HTTP 请求拆分（请求头中的 CRLF） | 含有 CR、LF 或其他控制字符的 `-H` 值会在发出任何请求之前被拒绝。 |
 | CWE-116 | 不当的输出编码 | 服务器控制的字符串在 Rich 标记渲染前进行转义；JSON 导出使用带严格转义的 `json.dumps`。 |
-| CWE-200 | 敏感信息泄露 | 敏感请求头在输出和 JSON 导出中会被遮蔽，代理 URL 凭证会被脱敏；Prometheus 和 OTLP 导出不携带 URL 路径、查询字符串或请求头；重定向时凭证请求头不会转发到其他源（SR-3）；SECURITY.md 与文档建议在共享前检查导出内容。 |
+| CWE-200 | 敏感信息泄露 | 敏感请求头在输出和 JSON 导出中会被遮蔽，URL 凭证（目标、代理、`Location`/`Content-Location`、`--otlp` 端点）在输出、警告和 JSON 导出中会被脱敏；Prometheus 和 OTLP 导出不携带 URL 路径、查询字符串或请求头；重定向时凭证请求头不会转发到其他源（SR-3）；SECURITY.md 与文档建议在共享前检查导出内容。 |
 | CWE-295 | 不当的证书校验 | 默认启用 TLS 校验；`--ignore-ssl` 仅在显式选择时启用，并有明确记载。 |
 | CWE-319 | 明文传输 | 优先使用 HTTPS；纯 HTTP 需显式的 `http://` URL；代理来源会被报告。 |
 | CWE-327 | 弱加密 | 委托给标准库 `ssl`；弱算法仅在诊断远程服务器时才浮现。 |
 | CWE-330 | 随机性不足 | 除 OpenSSL 为 TLS 提供的 CSPRNG 外不使用任何 RNG。 |
 | CWE-352 | CSRF | 不适用——httptap 是客户端，不是服务器。 |
-| CWE-400 | 不受控的资源消耗 | 每请求超时；有界的重定向链（最多 10 次）。 |
+| CWE-400 | 不受控的资源消耗 | 整个请求链的总截止时间，读取停滞时同样生效；有界的重定向链（最多 10 次）。 |
 | CWE-502 | 不安全的反序列化 | 仅使用 `json.loads`；不使用 pickle、yaml.load 或 marshal。 |
 | CWE-601 | 开放重定向（凭证泄露） | httptap 通过显式的源检查处理重定向：跨源跳转时丢弃 `Authorization`、`Cookie` 和 `Proxy-Authorization`。 |
 | CWE-918 | SSRF | httptap 是客户端；它不代表其他系统代理请求。 |
@@ -168,7 +169,7 @@ gh attestation verify dist/httptap-X.Y.Z-py3-none-any.whl \
 | 2026-04-12 | httptap 0.4.7 的首个保障论证（银级提交）。 |
 | 2026-04-13 | 面向 0.5.0 的开源加固：gitsign 签名的发布提交/标签、TestPyPI 预检、带 SLSA 来源证明的已签名 GHCR 容器镜像、CI 中的 hadolint、man-page 制品。 |
 | 2026-09-17 | 0.6.2 中的安全修复（[GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)）：通过重定向时的显式源检查落实 SR-3，服务器控制的值在 Rich 渲染前转义（CWE-79/116），代理凭证被脱敏（CWE-200）；OpenVEX 现已记录该公告的状态。 |
-| 2026-10-05 | 将 `--prometheus` textfile 和 `--otlp` trace 输出加入信任边界、威胁模型以及 CWE-200 应对措施。 |
+| 2026-10-05 | 将 `--prometheus` textfile 和 `--otlp` trace 输出加入信任边界、威胁模型以及 CWE-200 应对措施；在完全仲裁中记录了 TLS 回退探测和诊断探测。新增 `-x/--proxy` 与 `-H` 的输入校验（CWE-20、CWE-113）、`Location` 请求头和 `--otlp` 端点中 URL 凭证的脱敏（CWE-200），以及硬性总截止时间（CWE-400）。 |
 
 ---
 

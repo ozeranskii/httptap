@@ -143,5 +143,5 @@ Apache License 2.0 © Sergei Ozeranskii
 
 - [httpx](https://www.python-httpx.org/) - モダンな HTTP クライアント
 - [httpcore](https://github.com/encode/httpcore) - 低レベルの HTTP プロトコル実装
-- [dnspython](https://www.dnspython.org/) - Python 向けの DNS ツールキット
+- [cryptography](https://cryptography.io/) - X.509 証明書の解析
 - [Rich](https://github.com/Textualize/rich) - 美しいターミナル整形

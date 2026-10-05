@@ -51,6 +51,8 @@ httptap --data '{"name": "John", "email": "john@example.com"}' https://httpbin.i
 httptap --data @payload.json https://httpbin.io/post
 ```
 
+内联数据会按参数的原始字节发送，与 curl 相同；在 POSIX 系统上，这也包括不是有效 UTF-8 的参数。
+
 **自动检测：**
 - 自动检测 Content-Type（JSON、XML、纯文本）
 - 首先检查文件扩展名（.json、.xml、.txt）
@@ -86,6 +88,8 @@ httptap \
   https://httpbin.io/bearer
 ```
 
+请求头名称必须是 HTTP token（字母、数字以及 `` !#$%&'*+-.^_`|~ ``），值只能包含可打印 ASCII 字符、空格和制表符。违反这些规则的请求头，例如名称中含空格、值中含 CR、LF 或其他控制字符，或值中含非 ASCII 字符（httpx 以 ASCII 发送请求头的值），会在发出任何请求之前以退出码 `64` 被拒绝。错误信息会指出该请求头，但绝不会打印其值。
+
 #### `-L, --location, --follow`
 
 跟随 HTTP 重定向，并显示链中每一步的计时（最多 10 次重定向）。
@@ -105,9 +109,15 @@ httptap --follow https://httpbin.io/redirect/3
 - `Authorization`、`Cookie` 和 `Proxy-Authorization` 请求头只发送到原始源（协议、主机和端口）。一旦重定向指向不同的源，后续整个重定向链都不再发送这些请求头；同一主机在默认端口上从 `http` 升级到 `https`（80 → 443）时会保留。
 - `303 See Other`，以及 `POST` 之后的 `301`/`302`，会将下一个请求切换为不带请求体的 `GET`。`307` 和 `308` 保留原方法和请求体。
 
+如果重定向的 `Location` 无法请求（端口无效或超出范围、缺少主机、协议不是 `http`/`https`、IPv6 字面量格式错误），`3xx` 步骤会被保留，重定向链以针对该目标的失败步骤结束，错误为 `Invalid redirect target: …`，httptap 以代码 `75` 退出。不使用 `--follow` 时，无论 `Location` 是什么，`3xx` 响应都按收到的原样报告。
+
+`Location` URL 中的凭证（`https://user:password@host/`）在输出和 JSON 导出中会被遮蔽（`https://user:****@host/`），但跟随的仍是真实 URL。
+
 #### `-m, --max-time, --timeout SECONDS`
 
 如果总耗时超过指定的秒数，则中止请求链。
+
+该限制是整个请求链（包括重定向）的硬性截止时间：DNS 解析、连接、等待响应和读取响应体共享这一时间，停滞或持续缓慢发送字节的服务器会在截止时被切断。此时该步骤以 `Request timeout: total deadline exceeded` 失败，httptap 以代码 `75` 退出。
 
 *兼容 curl 的别名：* `-m`、`--max-time`。
 
@@ -149,6 +159,8 @@ httptap --resolve api.example.com:443:203.0.113.10 https://api.example.com/healt
 httptap --resolve api.example.com:443:[2001:db8::10] https://api.example.com/health
 ```
 
+国际化主机名可以用任一形式匹配：为 `bücher.example` 设置的条目同样适用于 `https://xn--bcher-kva.example/`，反之亦然。httptap 以 IDNA 2008 形式（`xn--…`）解析这类名称，与它在 `Host` 请求头和 TLS SNI 中发送的名称相同。
+
 `--resolve` 适用于直连和本地 DNS 解析的 SOCKS5 代理。HTTP、HTTPS 和 SOCKS5H 代理会在远端解析目标，因此将它们与 `--resolve` 组合使用会被拒绝，与 `-4`/`-6` 相同。
 
 #### `-k, --insecure, --ignore-ssl`
@@ -187,6 +199,8 @@ httptap --proxy "" https://httpbin.io/get
 `--proxy` 参数优先于环境变量（`HTTP_PROXY`、`HTTPS_PROXY`、`NO_PROXY`）。使用 `--proxy ""` 可忽略所有代理环境变量并直连。有关代理协议、DNS 解析和环境变量配置的详细信息，请参见 [高级功能](advanced.md#using-proxies)。
 
 代理 URL 中的凭证（`http://user:password@proxy:3128`，包括来自环境变量的代理）会用于建立连接，但在输出和 JSON 导出中会被遮蔽（`http://user:****@proxy:3128`）。
+
+未带协议的代理（`proxy.local:3128`）会被视为 `http://`，与 curl 相同。格式错误的代理 URL（不支持的协议、缺少主机、端口无效或超出范围、未闭合的 IPv6 字面量）会在发出任何请求之前以退出码 `64` 被拒绝；错误信息中显示的 URL 会遮蔽密码。
 
 #### `--cacert, --ca-bundle PATH`
 
@@ -358,12 +372,12 @@ httptap https://httpbin.io/status/200
 - 阶段名称和持续时间
 - 可视化进度条
 - 网络详情（IP、TLS 版本、证书信息）
-- 响应元数据（状态、大小、content-type）
+- 响应元数据（状态、大小、`Server` 头、重定向目标）
 
 ### 计时明细
 
 - **DNS (ms)** —— 将域名解析为 IP 地址的时间
-- **Connect (ms)** —— 建立 TCP 连接的时间；通过 HTTP CONNECT 代理时还包括 CONNECT 往返，因此隧道建立不会计入服务器等待
+- **Connect (ms)** —— 建立 TCP 连接的时间；通过 HTTP CONNECT 代理时还包括 CONNECT 往返，因此隧道建立不会计入服务器等待；当主机有多个地址且前面的地址连接失败时，花在这些地址上的时间也计入此处和 Total（与 curl 的 `time_connect` 相同）
 - **TLS (ms)** —— TLS 握手的时间（仅 HTTPS）
 - **TTFB (ms)** —— 首字节时间（包含服务器处理）
 - **Transfer (ms)** —— 下载响应体的时间

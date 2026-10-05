@@ -154,5 +154,5 @@ Built on the shoulders of fantastic libraries:
 
 - [httpx](https://www.python-httpx.org/) - Modern HTTP client
 - [httpcore](https://github.com/encode/httpcore) - Low-level HTTP protocol implementation
-- [dnspython](https://www.dnspython.org/) - DNS toolkit for Python
+- [cryptography](https://cryptography.io/) - X.509 certificate parsing
 - [Rich](https://github.com/Textualize/rich) - Beautiful terminal formatting

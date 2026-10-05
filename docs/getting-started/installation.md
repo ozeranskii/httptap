@@ -200,7 +200,7 @@ Homebrew automatically places completion scripts in:
 
 ### Python Package Installation
 
-If you installed httptap via `pip`, `uv`, or `pipx`, you need to install the optional `completion` extras:
+If you installed httptap via `pip`, `uv`, `uv tool`, or `pipx`, you need to install the optional `completion` extras:
 
 === "Using uv"
 
@@ -214,15 +214,28 @@ If you installed httptap via `pip`, `uv`, or `pipx`, you need to install the opt
     pip install "httptap[completion]"
     ```
 
+=== "Using uv tool"
+
+    ```bash
+    uv tool install --with-executables-from argcomplete "httptap[completion]"
+    ```
+
 === "Using pipx"
 
     ```bash
-    pipx install "httptap[completion]"
+    pipx install --include-resources-from argcomplete "httptap[completion]"
     ```
+
+!!! note "Isolated installs (`uv tool`, `pipx`)"
+    By default `uv tool install` and `pipx install` put only the `httptap` command on your `PATH`,
+    not argcomplete's `activate-global-python-argcomplete` and `register-python-argcomplete`
+    helpers. The `--with-executables-from argcomplete` and `--include-resources-from argcomplete`
+    options above expose them as well. Older pipx releases without `--include-resources-from`
+    can use `--include-deps` instead, which exposes the commands of every dependency.
 
 #### Activation
 
-1. Activate your virtual environment (if using venv):
+1. Activate your virtual environment (if using venv; not needed for `uv tool` or `pipx`):
 
     ```bash
     source .venv/bin/activate
