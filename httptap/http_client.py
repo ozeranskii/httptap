@@ -627,10 +627,14 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 
     try:
         remaining_timeout(request_deadline)
-        parsed_url = urlsplit(url)
-        source_url = httpx.URL(url)
-        host = parsed_url.hostname
-        port = parsed_url.port or (HTTPS_DEFAULT_PORT if parsed_url.scheme == "https" else HTTP_DEFAULT_PORT)
+        try:
+            parsed_url = urlsplit(url)
+            source_url = httpx.URL(url)
+            host = parsed_url.hostname
+            port = parsed_url.port or (HTTPS_DEFAULT_PORT if parsed_url.scheme == "https" else HTTP_DEFAULT_PORT)
+        except (ValueError, httpx.InvalidURL) as exc:
+            msg = f"Invalid URL: {exc}"
+            raise HTTPClientError(msg) from exc
         is_https = parsed_url.scheme == "https"
 
         if not host:

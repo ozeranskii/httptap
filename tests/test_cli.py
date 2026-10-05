@@ -1648,3 +1648,9 @@ def test_determine_exit_code_network_error_overrides_slo() -> None:
     violation = SLOViolation(key="total", threshold_ms=500.0, actual_ms=900.0)
     result = SLOResult(thresholds_ms={"total": 500.0}, violations=(violation,))
     assert determine_exit_code([step], slo_result=result) == EXIT_NETWORK_ERROR
+
+
+def test_main_rejects_out_of_range_port(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("sys.argv", ["httptap", "http://127.0.0.1:99999/"])
+
+    assert main() == EXIT_USAGE_ERROR

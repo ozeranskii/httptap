@@ -631,3 +631,17 @@ class TestReadRequestData:
         # even though content is not valid JSON
         assert content == b"not valid json"
         assert headers == {"Content-Type": "application/json"}
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("http://127.0.0.1:99999/", False),
+        ("http://example.test:abc/", False),
+        ("http://example.test:0/", False),
+        ("http://example.test:65535/", True),
+        ("http://example.test:1/", True),
+    ],
+)
+def test_validate_url_checks_port(url: str, *, expected: bool) -> None:
+    assert validate_url(url) is expected

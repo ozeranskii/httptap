@@ -363,6 +363,8 @@ def validate_url(url: str) -> bool:
         False
         >>> validate_url("https:///path")
         False
+        >>> validate_url("http://127.0.0.1:99999/")
+        False
 
     """
     if _WHITESPACE_RE.search(url):
@@ -374,4 +376,11 @@ def validate_url(url: str) -> bool:
         # Malformed authority, e.g. an unterminated IPv6 literal.
         return False
 
-    return parts.scheme in {"http", "https"} and bool(parts.hostname)
+    if parts.scheme not in {"http", "https"} or not parts.hostname:
+        return False
+
+    try:
+        # ``port`` is parsed lazily and raises for non-numeric or out-of-range values.
+        return parts.port != 0
+    except ValueError:
+        return False

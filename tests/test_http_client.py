@@ -501,6 +501,13 @@ class TestErrorsCarryNetworkInfo:
         assert exc_info.value.network_info.proxy_source is not None
 
 
+@pytest.mark.parametrize("url", ["http://example.test:99999/", "http://example.test:abc/"])
+def test_make_request_reports_invalid_url_as_client_error(url: str) -> None:
+    """A malformed redirect target fails like any other request error, not as an internal error."""
+    with pytest.raises(httptap.http_client.HTTPClientError, match="Invalid URL"):
+        make_request(url, dns_resolver=FakeDNSResolver())
+
+
 class TestBuildUserAgent:
     """Test suite for _build_user_agent function."""
 
