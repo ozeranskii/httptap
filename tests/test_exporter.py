@@ -155,6 +155,7 @@ def test_exporter_preserves_redirect_limit_response_data(tmp_path: PathType) -> 
     exporter = JSONExporter(Console(record=True))
     step = build_step("https://example.test/redirect", 302, 100.0)
     step.note = f"{REDIRECT_LIMIT_NOTE} (10)"
+    step.redirect_limit_reached = True
     output_path = tmp_path / "redirect-limit.json"
 
     exporter.export([step], "https://example.test", str(output_path))

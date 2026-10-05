@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from .constants import HTTP_REDIRECT_MAX, HTTP_REDIRECT_MIN, REDIRECT_LIMIT_NOTE
+from .constants import HTTP_REDIRECT_MAX, HTTP_REDIRECT_MIN
 
 
 @dataclass(slots=True)
@@ -251,6 +251,8 @@ class StepMetrics:
         request_method: HTTP method used (GET, POST, PUT, etc.).
         request_headers: Request headers (sanitized).
         request_body_bytes: Size of request body in bytes.
+        redirect_limit_reached: Whether redirect following stopped at the
+            configured limit on this step.
 
     """
 
@@ -266,6 +268,7 @@ class StepMetrics:
     request_method: str | None = None
     request_headers: dict[str, str] = field(default_factory=dict)
     request_body_bytes: int = 0
+    redirect_limit_reached: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Convert step metrics to dictionary for JSON export.
@@ -287,6 +290,7 @@ class StepMetrics:
             "response": self.response.to_dict(),
             "error": self.error,
             "note": self.note,
+            "redirect_limit_reached": self.redirect_limit_reached,
             "proxy": self.proxied_via,
         }
 
@@ -299,11 +303,6 @@ class StepMetrics:
 
         """
         return self.error is not None
-
-    @property
-    def redirect_limit_reached(self) -> bool:
-        """Check whether redirect following stopped at the configured limit."""
-        return (self.note or "").startswith(REDIRECT_LIMIT_NOTE)
 
     @property
     def is_redirect(self) -> bool:

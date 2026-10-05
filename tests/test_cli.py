@@ -706,13 +706,14 @@ def test_determine_exit_code_redirect_limit_exceeded() -> None:
         url="https://example.test/redirect",
         response=ResponseInfo(status=302),
         note=f"{REDIRECT_LIMIT_NOTE} (10)",
+        redirect_limit_reached=True,
     )
 
     assert determine_exit_code([step]) == EXIT_TOO_MANY_REDIRECTS
 
 
 def test_warn_redirect_limit(capsys: pytest.CaptureFixture[str]) -> None:
-    step = StepMetrics(note=f"{REDIRECT_LIMIT_NOTE} (10)")
+    step = StepMetrics(note=f"{REDIRECT_LIMIT_NOTE} (10)", redirect_limit_reached=True)
 
     _warn_redirect_limit([step])
 

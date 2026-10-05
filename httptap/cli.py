@@ -538,7 +538,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
     return True
 
 
-def determine_exit_code(
+def determine_exit_code(  # noqa: PLR0911 - one return per precedence level
     steps: list[StepMetrics],
     *,
     slo_result: SLOResult | None = None,

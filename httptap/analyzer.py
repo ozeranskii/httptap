@@ -213,7 +213,7 @@ class HTTPTapAnalyzer:
         current_url = url
         redirect_count = 0
 
-        while redirect_count <= self.max_redirects:
+        while True:
             step_number = len(steps) + 1
             step = self._analyze_single_request(
                 current_url,
@@ -238,6 +238,7 @@ class HTTPTapAnalyzer:
                 if next_url:
                     if redirect_count == self.max_redirects:
                         step.note = f"{REDIRECT_LIMIT_NOTE} ({self.max_redirects})"
+                        step.redirect_limit_reached = True
                         break
                     # Handle relative URLs
                     next_url = urljoin(current_url, next_url)
