@@ -27,7 +27,10 @@ per-phase timing and TLS information. It does **not**:
 - accept network input from untrusted peers (it is not a server);
 - manage user accounts, sessions, or long-lived credentials;
 - execute remote code or evaluate server-supplied scripts;
-- persist secrets or user data beyond the optional `--json` export.
+- persist secrets or user data beyond the optional `--json` report and
+  `--prometheus` textfile;
+- send measurements anywhere other than the OTLP collector the user names
+  with the optional `--otlp`.
 
 ## Security Requirements
 
@@ -53,10 +56,12 @@ is mapped to supporting arguments in the sections below.
    └──────────┬──────────┘
               │
               ▼
-   ┌─────────────────────┐
-   │ httptap process     │   trusted
-   │ (Python 3.11+)      │
-   └──────────┬──────────┘
+   ┌─────────────────────┐  --json, --prometheus  ┌─────────────────────┐
+   │ httptap process     │ ─────────────────────► │ Local files, stdout │  trusted
+   │ (Python 3.11+)      │                        └─────────────────────┘
+   │                     │  --otlp (OTLP/HTTP)    ┌─────────────────────┐
+   │                     │ ─────────────────────► │ OTLP collector      │  user-chosen
+   └──────────┬──────────┘                        └─────────────────────┘
               │  TLS/HTTP  ◄─── untrusted: network, proxy, remote host
               ▼
    ┌─────────────────────┐
@@ -70,6 +75,19 @@ is mapped to supporting arguments in the sections below.
 - **httptap → network → remote server** is untrusted. All data crossing
   this boundary is treated as attacker-controlled: response headers,
   status codes, `Location` values, TLS certificates, content bodies.
+- **httptap → local outputs** is trusted: `--json` writes the report to a
+  file or stdout, and `--prometheus` writes a node_exporter textfile
+  atomically (temporary file in the same directory, then rename). Prometheus
+  labels carry only the hostname and redirect step number, never paths or
+  query strings. Files land where the user points them and are readable by
+  whoever can read that location.
+- **httptap → OTLP collector** crosses the network to an endpoint the user
+  supplies with `--otlp` (optional `httptap[otel]` extra), over `http://` or
+  `https://` as given. Each request step becomes one span with child spans
+  per phase, carrying the method, status code, body size, hostname, peer IP,
+  HTTP and TLS versions, and the error message of a failed step. Spans never
+  include the full URL (path, query string, credentials) or any headers.
+  Delivery failures are reported as warnings and do not change the exit code.
 - **Build pipeline → PyPI / GitHub Releases** is a separate trust boundary
   secured by GitHub OIDC (no long-lived keys), Sigstore signing, and SHA-
   pinned actions.
@@ -89,6 +107,7 @@ server-side DoS) are explicitly excluded as non-goals.
 | **Repudiation** | — | Out of scope; httptap is not a multi-user system. |
 | **Information disclosure** | Credentials in `-H Authorization` leak to redirect target on a different host. | httptap follows redirects itself (`follow_redirects=False` in httpx) and drops `Authorization`, `Cookie` and `Proxy-Authorization` when a redirect changes scheme, host or port; `303`, and `301`/`302` after `POST`, switch to `GET` without a body (SR-3). |
 | **Information disclosure** | `--json` export includes auth headers or proxy credentials on disk. | `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie` and API-key headers are masked in output and export, and proxy URL credentials are redacted; users are still advised in SECURITY.md and docs/troubleshooting.md to review exports before sharing. |
+| **Information disclosure** | Telemetry exports reveal request details to whoever reads the textfile or runs the collector. | Prometheus labels are limited to hostname and step; OTLP spans omit the full URL and headers. OTLP export is opt-in and goes only to the endpoint named with `--otlp`; `https://` is recommended for remote collectors. |
 | **Information disclosure** | MITM on insecure proxy. | Proxy URL scheme is validated; `socks5h://` / `https://` recommended for sensitive targets; proxy source is reported in output and JSON for audit. |
 | **Denial of service** | Malicious server streams unbounded body. | Per-request timeout via `--timeout` (default 20s); transfer phase is bounded by the same deadline. |
 | **Denial of service** | Malicious server streams zip bomb or gigantic body. | httptap does not decode or persist bodies beyond counting bytes for the timing metric, so memory cost is linear and bounded by the timeout. |
@@ -139,7 +158,7 @@ upstream.
 | CWE-89 | SQL injection | No database. |
 | CWE-94 | Code injection | `eval`/`exec` are not used; response bodies are never parsed. |
 | CWE-116 | Improper output encoding | Server-controlled strings are escaped before Rich markup rendering; JSON export uses `json.dumps` with strict escaping. |
-| CWE-200 | Sensitive information disclosure | Sensitive headers are masked and proxy URL credentials are redacted in output and JSON export; credential headers are not forwarded to other origins on redirects (SR-3); SECURITY.md and docs advise reviewing exports before sharing. |
+| CWE-200 | Sensitive information disclosure | Sensitive headers are masked and proxy URL credentials are redacted in output and JSON export; Prometheus and OTLP exports carry no URL paths, query strings, or headers; credential headers are not forwarded to other origins on redirects (SR-3); SECURITY.md and docs advise reviewing exports before sharing. |
 | CWE-295 | Improper certificate validation | TLS verification on by default; `--ignore-ssl` opt-in only, explicitly documented. |
 | CWE-319 | Cleartext transmission | HTTPS preferred; plain HTTP requires explicit `http://` URL; proxy source reported. |
 | CWE-327 | Broken crypto | Delegated to stdlib `ssl`; weak algorithms surface only when diagnosing remote servers. |
@@ -217,6 +236,7 @@ that are explicit rather than oversights.
 | 2026-04-12 | Initial assurance case for httptap 0.4.7 (silver submission). |
 | 2026-04-13 | OSS hardening for 0.5.0: gitsign-signed release commits/tags, TestPyPI pre-flight, signed GHCR container images with SLSA provenance, hadolint in CI, man-page artifact. |
 | 2026-09-17 | Security fixes in 0.6.2 ([GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)): SR-3 is enforced by an explicit origin check on redirects, server-controlled values are escaped before Rich rendering (CWE-79/116), proxy credentials are redacted (CWE-200); OpenVEX now records the advisory status. |
+| 2026-10-05 | Added the `--prometheus` textfile and `--otlp` trace outputs to the trust boundaries, threat model, and CWE-200 countermeasures. |
 
 ---
 

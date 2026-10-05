@@ -324,13 +324,17 @@ assistance with.
 
 ### Ideas for Contributions
 
-- **HTTP/3 support** - Extend to the newest protocol version
-- **More export formats** - CSV, XML, Prometheus metrics
-- **Additional visualizations** - Flamegraphs, charts
-- **Performance optimizations** - Faster DNS, connection pooling
+These follow the in-scope themes of the
+[roadmap](https://github.com/ozeranskii/httptap/blob/main/ROADMAP.md), which also lists the non-goals
+(load testing, non-HTTP protocols such as WebSocket or gRPC, a GUI/TUI, a plugin loader):
+
+- **Timing accuracy** - Refinements to trace hooks and the fallback estimates
+- **More export formats** - Further machine-readable exporters driven by a concrete need (Prometheus and
+  OpenTelemetry export already ship)
+- **SLO extensions** - Relative budgets against a baseline, soft vs hard SLOs
 - **More TLS details** - OCSP, certificate chain analysis
-- **Custom reporters** - Slack, webhook notifications
-- **Additional protocols** - WebSocket, gRPC timing
+- **HTTP/3 support** - Once stable Python support lands upstream
+- **Documentation** - Worked examples, troubleshooting recipes, integration cookbooks
 
 ## Getting Help
 

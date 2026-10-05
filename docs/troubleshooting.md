@@ -31,11 +31,11 @@ probes are skipped when a proxy is active so httptap does not bypass it.
 
 `cert_days_left` is parsed from the leaf certificate's `notAfter` field. A
 `null` value means the certificate could not be fetched/parsed — usually TLS
-aborted before a cert was received, or `--ignore-ssl` was used (with
-verification disabled the peer certificate is not surfaced as a parsed
-dictionary, so `cert_cn`/`cert_days_left` and the other `cert_*` fields stay
-`null` while `tls_version`/`tls_cipher` are still reported). A **negative**
-value means the certificate is already expired.
+aborted before a cert was received, the target is plain `http://`, or the
+request failed before the TLS handshake. `--ignore-ssl` does not clear it: with
+verification disabled httptap parses the peer certificate from its DER form,
+so `cert_cn`, `cert_days_left`, and the other `cert_*` fields are still
+reported. A **negative** value means the certificate is already expired.
 
 ### `--ignore-ssl` still fails with `DH_KEY_TOO_SMALL` / `WRONG_VERSION_NUMBER`
 
@@ -89,9 +89,10 @@ negotiation entirely.
 ### `timing.is_estimated: true` — what does it mean?
 
 httptap normally gets phase timings from `httpcore` trace hooks. When those
-hooks are unavailable (e.g., a custom `RequestExecutor` that bypasses them,
-or certain HTTP/2 connection-reuse paths), httptap falls back to splitting the
-total elapsed time using heuristics. The breakdown is still directionally
+hooks report no connect/TLS events for a request (e.g., a transport that does
+not emit `httpcore` trace events), httptap falls back to splitting the time
+between DNS and the first response byte using heuristics (30% connect, 70% TLS
+for HTTPS). The breakdown is still directionally
 correct but less precise than the default path.
 
 ### Why do two consecutive runs show wildly different `dns_ms`?
@@ -102,13 +103,14 @@ To bypass caches, supply a custom resolver via the Python API or flush the
 local cache (e.g., `sudo dscacheutil -flushcache` on macOS, `resolvectl flush-caches`
 on systemd).
 
-### `ttfb_ms` is zero or lower than `connect_ms`
+### Every redirect step shows full `connect_ms` and `tls_ms`
 
-On connection reuse (keep-alive for subsequent redirect steps, HTTP/2 stream
-multiplexing) there's no new TCP connect for that step — `connect_ms` will be
-`0` or very small. `ttfb_ms` measures time until the first response byte on
-that specific request; comparing it to `connect_ms` across steps is expected
-to look odd.
+httptap opens a new connection for every request, including each redirect
+step, so connections are never reused and every step pays its own TCP connect
+and TLS handshake. `ttfb_ms` is counted from the start of DNS resolution, so
+it already includes `dns_ms`, `connect_ms`, and `tls_ms`; the server's own
+processing time is `wait_ms`. A step whose timings are all `0` failed before a
+response arrived — check its `error` field.
 
 ## Output
 
@@ -131,9 +133,17 @@ the change. Expected format:
 Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
 ```
 
-Sources for `proxy`: `direct` (optionally with `proxy_from=no_scheme_match`),
-`none` (NO_PROXY hit, `proxy_from=env:no_proxy`), `disabled` (`--proxy ""`,
-`proxy_from=arg`), or `<url>` with `proxy_from=arg` or `proxy_from=env:<VAR>`.
+Possible values:
+
+- `proxy=<url> proxy_from=arg` — proxy set with `-x/--proxy`.
+- `proxy=<url> proxy_from=env:<VAR>` — proxy taken from an environment
+  variable such as `https_proxy` or `HTTPS_PROXY`.
+- `proxy=none proxy_from=env:no_proxy` — the host matched `NO_PROXY`.
+- `proxy=disabled proxy_from=arg` — proxies disabled with `--proxy ""`.
+- `proxy=direct proxy_from=no_scheme_match` — proxy variables are set, but
+  none applies to the URL scheme.
+- `proxy=direct` — no proxy configured.
+
 Values are percent-encoded where they would otherwise break `key=value`
 tokenization.
 
@@ -143,8 +153,11 @@ tokenization.
 
 See the [Exit Codes](https://github.com/ozeranskii/httptap#exit-codes) section
 in the README. Typical CI pattern: treat `75` (network / TLS, transient) as
-retryable, fail hard on `64` (usage), `70` (bug), and `4` (SLO violation if
-you supplied `--slo`).
+retryable, fail hard on `64` (usage), `70` (bug), `47` (redirect limit
+reached with `--follow`), `73` (`--json` file not written), `22` (HTTP
+4xx/5xx with `--fail`), and `4` (SLO violation if you supplied `--slo`).
+When several apply, the highest-priority code wins; see the
+[precedence table](usage/slo.md#exit-codes).
 
 ### My `--slo` budget is never triggered even though the request is slow.
 

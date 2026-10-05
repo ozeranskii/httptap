@@ -25,7 +25,12 @@ implementation you can adapt.
 httptap dials the resolved IP address directly while keeping the original hostname for the
 `Host` header and TLS SNI. IPv6 addresses are bracketed automatically; implementations only
 need to return a valid `(ip, family, duration_ms)` tuple. `family` is `"IPv4"`, `"IPv6"`, or
-`"AF_<num>"` for other address families.
+`"AF_<num>"` for other address families. The reported `dns_ms` is measured by httptap around
+the resolver call, so `duration_ms` is informational.
+
+Raise `DNSResolutionError` (exported from `httptap`) when a name cannot be resolved. httptap
+records it as a failed step with a network error (exit code `75`). Any other exception is
+treated as an internal error (exit code `70`).
 
 ### Example implementation
 
@@ -33,23 +38,62 @@ need to return a valid `(ip, family, duration_ms)` tuple. `family` is `"IPv4"`, 
 import socket
 import time
 
+from httptap import DNSResolutionError, HTTPTapAnalyzer
+
 
 class CustomDNSResolver:
     def resolve(self, host: str, port: int, timeout: float) -> tuple[str, str, float]:
         start = time.perf_counter()
         try:
             addr_info = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
-            ip_address = addr_info[0][4][0]
-            family = "IPv6" if ":" in ip_address else "IPv4"
-            duration_ms = (time.perf_counter() - start) * 1000
-            return ip_address, family, duration_ms
         except socket.gaierror as e:
-            raise Exception(f"DNS resolution failed: {e}")
+            raise DNSResolutionError(f"DNS resolution failed for {host}: {e}") from e
+        ip_address = addr_info[0][4][0]
+        family = "IPv6" if ":" in ip_address else "IPv4"
+        duration_ms = (time.perf_counter() - start) * 1000
+        return ip_address, family, duration_ms
 
-
-from httptap import HTTPTapAnalyzer
 
 analyzer = HTTPTapAnalyzer(dns_resolver=CustomDNSResolver())
+```
+
+### Address fallback with `resolve_all()`
+
+A resolver may also implement the optional `resolve_all()` method. It is not part of the
+`DNSResolver` protocol, but httptap uses it when it is available:
+
+```python
+def resolve_all(self, host: str, port: int, timeout: float) -> tuple[list[tuple[str, str]], float]: ...
+```
+
+It returns every usable address as `(ip, family)` pairs in the order to try, plus the
+resolution time in milliseconds. httptap connects to the addresses in that order and moves to
+the next one when a connection fails or times out; the connect timeout is split across the
+remaining addresses, and TLS errors are not retried. An empty list is reported as a DNS
+failure. `SystemDNSResolver` implements both methods.
+
+`resolve_all()` is used only when the class that defines it is the class that defines
+`resolve()` or a subclass of it. A subclass that overrides only `resolve()` therefore keeps
+working as written: httptap calls the overridden `resolve()` and connects to that single
+address instead of using the inherited `resolve_all()`. Override `resolve_all()` as well to
+keep address fallback:
+
+```python
+from httptap import SystemDNSResolver
+
+PINNED = {"api.example.com": "203.0.113.10"}
+
+
+class PinnedResolver(SystemDNSResolver):
+    def resolve(self, host: str, port: int, timeout: float) -> tuple[str, str, float]:
+        if host in PINNED:
+            return PINNED[host], "IPv4", 0.0
+        return super().resolve(host, port, timeout)
+
+    def resolve_all(self, host: str, port: int, timeout: float) -> tuple[list[tuple[str, str]], float]:
+        if host in PINNED:
+            return [(PINNED[host], "IPv4")], 0.0
+        return super().resolve_all(host, port, timeout)
 ```
 
 ## TLSInspector

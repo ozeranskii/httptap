@@ -78,9 +78,11 @@ the file for matching keys.
 - Zero, negative, or non-finite value (`--slo total=0`, `total=nan`,
   `total=inf`).
 - Missing `=` (`--slo total500`).
+- A `--slo-file` that cannot be read, or that contains any of the above.
 
-The specific error is printed in a Rich-formatted panel for
-interactive use, and in plain text under `--metrics-only`.
+The specific error is printed to stderr in a Rich-formatted
+`SLO Error` panel, including under `--metrics-only`; nothing is
+written to stdout because no request is made.
 
 ## Evaluation Rules
 
@@ -222,22 +224,29 @@ shape is backward compatible with existing consumers.
       https://staging.example.com/
 ```
 
-The step fails only on exit `4` or `64`. Network errors (exit `75`)
-can be handled separately:
+This step fails on any non-zero exit code, including network errors
+(`75`). To fail the build on an SLO violation (or any other error) but
+only warn on network errors, record the exit code in `$GITHUB_OUTPUT`
+and act on it in a follow-up step:
 
 ```yaml
 - name: Smoke-test staging latency
   id: smoke
-  continue-on-error: true
-  run: httptap --slo total=2000 https://staging.example.com/
-- name: Fail CI only on SLO violation
-  if: steps.smoke.outcome == 'failure' && steps.smoke.conclusion != 'success'
   run: |
-    if [ "${{ steps.smoke.outputs.exit_code }}" = "4" ]; then
-      echo "SLO violation — failing build."
-      exit 1
+    set +e
+    httptap --slo total=2000 https://staging.example.com/
+    code=$?
+    echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+    if [ "${code}" -ne 0 ] && [ "${code}" -ne 75 ]; then
+      exit "${code}"
     fi
+- name: Warn on network errors
+  if: steps.smoke.outputs.exit_code == '75'
+  run: echo "::warning::httptap could not reach staging (exit 75)."
 ```
+
+`set +e` keeps the shell running after a non-zero exit so the code can
+be recorded. An SLO violation (`4`) fails the smoke step itself.
 
 ### Kubernetes readiness probe
 

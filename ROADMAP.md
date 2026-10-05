@@ -42,12 +42,12 @@ materialize when the maintainer or a contributor actually picks them up.
 - **Core timing accuracy** — refinements to httpcore trace hooks, better
   handling of HTTP/2 connection reuse, more precise fallbacks when direct
   timing is unavailable.
-- **Output formats** — additional machine-readable exporters (e.g.,
-  Prometheus text format, OpenTelemetry traces) when driven by a concrete
-  user need.
+- **Output formats** — additional machine-readable exporters when driven by
+  a concrete user need. Prometheus textfile export (`--prometheus`) and
+  OpenTelemetry traces (`--otlp`) already shipped.
 - **SLO extensions** — relative budgets (e.g., `total=+20%` against a
-  baseline), SLO-file loading (`--slo-file slo.yaml`), soft vs hard
-  SLO distinction. Core `--slo` key=ms checker already shipped.
+  baseline), soft vs hard SLO distinction. The core `--slo` key=ms checker
+  and newline-delimited threshold files (`--slo-file`) already shipped.
 - **Protocol support** — minor improvements to HTTP/1.1 and HTTP/2 behavior
   as upstream (`httpx`, `httpcore`) gains features; potential support for
   HTTP/3 if and when stable Python support lands.

@@ -44,10 +44,19 @@ performance baselines.
   data is unavailable)
 - **All HTTP methods** – GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS with request body support
 - **Request body support** – send JSON, XML, or any data inline or from file with automatic Content-Type detection
-- **IPv4/IPv6 aware** – the resolver and TLS inspector report both the address and its family
+- **IPv4/IPv6 aware** – the resolver and TLS inspector report both the address and its family; `-4`/`-6` restrict
+  resolution to one family, and `--resolve HOST:PORT:ADDR` pins a host to an address while keeping the original `Host`
+  header and TLS SNI
 - **TLS insights** – certificate CN, SANs, issuer, serial, validity window and expiry countdown, plus cipher suite and protocol version, are captured automatically from the live connection (no extra handshake)
 - **Multiple output modes** – rich waterfall view, compact single-line summaries, or `--metrics-only` for scripting
-- **JSON export** – persist full step data (including redirect chains) for later processing
+- **JSON export** – persist full step data (including redirect chains) for later processing, or stream it to stdout with
+  `--json -`
+- **Prometheus and OpenTelemetry export** – `--prometheus PATH` writes a node_exporter textfile; `--otlp ENDPOINT` sends
+  per-phase spans to an OTLP/HTTP collector (requires `httptap[otel]`)
+- **SLO threshold checking** – `--slo` and `--slo-file` gate CI jobs, cron probes, and readiness checks on per-phase
+  latency budgets
+- **Scriptable exit codes** – `-f/--fail` exits `22` on HTTP 4xx/5xx responses, and SLO violations, network errors, and
+  the redirect limit each have their own exit code
 - **Extensible** – clean Protocol interfaces for DNS, TLS, timing, visualization, and export so you can plug in custom
   behavior
 
@@ -76,7 +85,9 @@ View detailed timing breakdown for each phase of the HTTP request with a beautif
 - **Rich mode** (default): Beautiful waterfall table with colors and formatting
 - **Compact mode** (`--compact`): Single-line summaries suitable for logs
 - **Metrics mode** (`--metrics-only`): Raw metrics for scripting and automation
-- **JSON export** (`--json`): Full request data including redirect chains
+- **JSON export** (`--json`): Full request data including redirect chains, to a file or to stdout with `--json -`
+- **Prometheus textfile** (`--prometheus`): Per-phase gauges for the node_exporter textfile collector
+- **OpenTelemetry traces** (`--otlp`): One span per request with child spans per phase, sent to an OTLP/HTTP collector
 
 ### Advanced Network Insights
 

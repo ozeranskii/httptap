@@ -166,7 +166,7 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -185,6 +185,7 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     }
   ],
@@ -217,6 +218,10 @@ Timing values ending in `_ms` are milliseconds. Request and response body sizes
 are bytes. Response sizes (`bytes`, `final_bytes`) count the body as received on
 the wire, before `Content-Encoding` decoding, like curl's `size_download`. Certificate and response dates are ISO 8601/RFC 3339 timestamps when
 available. See the example above for the nested `steps` and `summary` structure.
+
+`network.tls_custom_ca` is `true` when `--cacert` was used and `false` otherwise. A step's
+`redirect_limit_reached` is `true` when `--follow` stopped at the 10-redirect
+limit on that step; such a step also counts toward `summary.errors`.
 
 ### Features
 

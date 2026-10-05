@@ -117,13 +117,21 @@ performance baselines.
   data is unavailable).
 - **All HTTP methods** – GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS with request body support.
 - **Request body support** – send JSON, XML, or any data inline or from file with automatic Content-Type detection.
-- **IPv4/IPv6 aware** – the resolver and TLS inspector report both the address and its family.
+- **IPv4/IPv6 aware** – the resolver and TLS inspector report both the address and its family; `-4`/`-6` restrict
+  resolution to one family, and `--resolve HOST:PORT:ADDR` pins a host to an address while keeping the original `Host`
+  header and TLS SNI.
 - **TLS insights** – certificate CN, SANs, issuer, serial, validity window and expiry countdown, plus cipher suite and
   protocol version, are captured automatically from the live connection (no extra handshake).
 - **Multiple output modes** – rich waterfall view, compact single-line summaries, or `--metrics-only` for scripting.
-- **JSON export** – persist full step data (including redirect chains) for later processing.
-- **SLO threshold checking** – `--slo total=500,ttfb=200` gates CI jobs, cron probes, and readiness checks on per-phase
-  latency budgets; non-zero exit on violation while still rendering the full report.
+- **JSON export** – persist full step data (including redirect chains) for later processing, or stream it to stdout with
+  `--json -`.
+- **Prometheus and OpenTelemetry export** – `--prometheus PATH` writes a node_exporter textfile; `--otlp ENDPOINT` sends
+  per-phase spans to an OTLP/HTTP collector (requires `httptap[otel]`).
+- **SLO threshold checking** – `--slo total=500,ttfb=200` (or thresholds read from a file with `--slo-file`) gates CI
+  jobs, cron probes, and readiness checks on per-phase latency budgets; non-zero exit on violation while still rendering
+  the full report.
+- **Scriptable exit codes** – `-f/--fail` exits `22` on HTTP 4xx/5xx responses, and SLO violations, network errors, and
+  the redirect limit each have their own [exit code](#exit-codes).
 - **Extensible** – clean Protocol interfaces for DNS, TLS, timing, visualization, and export so you can plug in custom
   behavior.
 
@@ -263,7 +271,7 @@ Once completions are installed, you can use `Tab` to autocomplete commands and o
 ```shell
 # Complete command options
 httptap --<TAB>
-# Shows: --method, --data, --follow, --timeout, --no-http2, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --prometheus, --otlp, --version, --help
+# Shows: --method, --data, --follow, --timeout, --no-http2, --fail, --ipv4, --ipv6, --resolve, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --prometheus, --otlp, --slo, --slo-file, --version, --help
 
 # Complete after typing partial option
 httptap --fol<TAB>
@@ -296,7 +304,7 @@ httptap https://httpbin.io/post --data '{"name": "John", "email": "john@example.
 
 **Note:** When `--data` is provided without `--method`, httptap automatically switches to POST (similar to curl).
 
-**Curl-compatible flags:** httptap accepts the most common curl syntax, so you can often replace `curl` with `httptap` directly. Aliases include `-X/--request` for `--method`, `-L/--location` for `--follow`, `-m/--max-time` for `--timeout`, `-k/--insecure` for `--ignore-ssl`, `-x` for `--proxy`, and `--http1.1` for `--no-http2`. (Not every curl option is supported—stick to these shared flags when swapping commands.)
+**Curl-compatible flags:** httptap accepts the most common curl syntax, so you can often replace `curl` with `httptap` directly. Aliases include `-X/--request` for `--method`, `-L/--location` for `--follow`, `-m/--max-time` for `--timeout`, `-k/--insecure` for `--ignore-ssl`, `-x` for `--proxy`, and `--http1.1` for `--no-http2`. `-f/--fail`, `-4/--ipv4`, `-6/--ipv6`, and `--resolve HOST:PORT:ADDR` use the same names as in curl. (Not every curl option is supported—stick to these shared flags when swapping commands.)
 
 Load data from file:
 
@@ -493,6 +501,12 @@ shell pipelines, CI jobs, and systemd services.
 | `75`  | `EX_TEMPFAIL`           | Network / TLS error (partial output may still be rendered). |
 | `128 + N` | Signal offset       | Killed by signal `N` (e.g., `130` for `SIGINT` / Ctrl-C).  |
 
+When several conditions apply, the highest-priority code wins:
+`70` > `47` > `75` > `73` > `22` > `4` > `0`. Invalid arguments (`64`) are
+reported before any request is made. See
+[SLO exit codes](https://docs.httptap.dev/usage/slo/#exit-codes) for the full
+precedence table.
+
 Example — fail a CI job only on usage errors, tolerating transient network
 issues:
 
@@ -509,26 +523,20 @@ fi
 
 ## Releasing
 
-### Prerequisites
+Releases are cut by the manually triggered **Release** workflow (GitHub Actions → **Release** → **Run workflow**) with
+either an exact version (e.g., `0.3.0`) or a `patch`/`minor`/`major` bump:
 
-- GitHub Environment `pypi` must be configured in repository settings
-- PyPI Trusted Publishing configured for `ozeranskii/httptap`
+1. **Prepare** – bumps the version with `uv version`, refreshes `uv.lock`, prepends the `git-cliff` changelog entry to
+   `CHANGELOG.md`, and creates a gitsign-signed release commit and tag locally. Nothing is pushed yet.
+2. **Build** – runs the full test suite on the unpushed tag, builds the wheel and sdist, generates the SBOMs (CycloneDX,
+   SPDX), OpenVEX document, and man page, and attests build provenance.
+3. **Push** – only after the build and attestation succeed, fast-forwards `main` to the release commit and pushes the
+   tag. If `main` moved during the release, the push fails and nothing is published.
+4. **Publish** – uploads to TestPyPI and then PyPI via Trusted Publishing (OIDC), pushes the signed multi-arch container
+   image to GHCR, and creates the GitHub Release with the wheel, sdist, SBOM, VEX, and man page.
 
-### Steps
-
-1. Trigger the **Release** workflow from GitHub Actions:
-   - Provide exact version (e.g., `0.3.0`), OR
-   - Select bump type: `patch`, `minor`, or `major`
-2. The workflow will:
-   - Update version in `pyproject.toml` using `uv version`
-   - Generate changelog with `git-cliff` and update `CHANGELOG.md`
-   - Commit changes and create a git tag
-   - Run full test suite on the tagged version
-   - Build wheel and source distribution
-   - Generate SBOM in CycloneDX and SPDX formats via Syft
-   - Attach the current OpenVEX document (`.vex/httptap.openvex.json`)
-   - Publish to PyPI via Trusted Publishing (OIDC)
-   - Create GitHub Release with wheel, sdist, SBOM, and VEX assets
+Prerequisites (GitHub environments, Trusted Publishing, deploy key) and job details are in the
+[release process documentation](https://docs.httptap.dev/development/release/).
 
 ---
 
@@ -583,7 +591,7 @@ The redirect summary includes a total row:
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -604,6 +612,7 @@ The redirect summary includes a total row:
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     },
     {
@@ -638,7 +647,7 @@ The redirect summary includes a total row:
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -659,6 +668,7 @@ The redirect summary includes a total row:
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     },
     {
@@ -693,7 +703,7 @@ The redirect summary includes a total row:
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -714,6 +724,7 @@ The redirect summary includes a total row:
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     }
   ],
@@ -757,6 +768,11 @@ class HardcodedDNS(SystemDNSResolver):
 analyzer = HTTPTapAnalyzer(dns_resolver=HardcodedDNS())
 steps = analyzer.analyze_url("https://httpbin.io")
 ```
+
+`HardcodedDNS` overrides only `resolve()`, so httptap calls it instead of the inherited `resolve_all()` and connects to
+that single address. Override `resolve_all()` as well to return several addresses for connection fallback, and raise
+`DNSResolutionError` when a name cannot be resolved; see
+[Protocol Interfaces](https://docs.httptap.dev/api/interfaces/#dnsresolver).
 
 ---
 
