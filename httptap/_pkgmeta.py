@@ -16,6 +16,8 @@ from typing import Protocol, cast
 class _MetadataMapping(Protocol):
     def get(self, key: str, default: object = ...) -> object: ...
 
+    def get_all(self, name: str, failobj: object = ...) -> list[str] | None: ...
+
 
 PACKAGE_NAME = "httptap"
 
@@ -79,8 +81,10 @@ def get_package_info() -> PackageInfo:
         return fallback
 
     author = _normalize(meta.get("Author"), defaults.author)
-    homepage = _normalize(meta.get("Home-page"), defaults.homepage)
-    license_val = _normalize(meta.get("License"), defaults.license)
+    # Core metadata 2.4 (uv_build) moved these to License-Expression and
+    # Project-URL; the legacy fields remain a fallback for older builds.
+    homepage = _project_url(meta, "homepage") or _normalize(meta.get("Home-page"), defaults.homepage)
+    license_val = _normalize(meta.get("License-Expression") or meta.get("License"), defaults.license)
 
     return PackageInfo(
         version=version,
@@ -88,3 +92,12 @@ def get_package_info() -> PackageInfo:
         homepage=homepage,
         license=license_val,
     )
+
+
+def _project_url(meta: _MetadataMapping, label: str) -> str | None:
+    """Return the ``Project-URL`` entry with ``label`` (case-insensitive)."""
+    for entry in meta.get_all("Project-URL") or []:
+        name, _, url = entry.partition(",")
+        if name.strip().lower() == label:
+            return url.strip()
+    return None
