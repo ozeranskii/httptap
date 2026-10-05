@@ -29,6 +29,7 @@ class WaterfallVisualizer(Visualizer):
     __slots__ = ("console", "max_bar_width")
 
     BAR_CHAR = "⠿"
+    _PHASE_LINE_PADDING = 3
 
     def __init__(self, console: Console, max_bar_width: int = 80) -> None:
         """Configure the visualizer with a console and maximum bar width.
@@ -54,7 +55,8 @@ class WaterfallVisualizer(Visualizer):
 
         phases = self._get_phases(step)
         durations = [duration for _, duration, _ in phases]
-        bar_widths = self._compute_phase_widths(durations)
+        timeline_width = self._timeline_width(phases)
+        bar_widths = self._compute_phase_widths(durations, max_width=timeline_width)
         used_width = sum(bar_widths) or 1
         scale = step.timing.total_ms / used_width
 
@@ -68,6 +70,7 @@ class WaterfallVisualizer(Visualizer):
                 color,
                 current_position_chars,
                 bar_width,
+                max_width=timeline_width,
             )
 
         self._render_total(step.timing.total_ms, scale)
@@ -84,15 +87,23 @@ class WaterfallVisualizer(Visualizer):
         filtered = [phase for phase in phases if phase[1] > 0.0]
         return filtered or phases[:1]
 
-    def _render_phase(
+    def _timeline_width(self, phases: list[tuple[str, float, str]]) -> int:
+        """Return the available timeline width after reserving the phase label."""
+        label_width = max(len(f"{label}: {duration:.1f} ms") for label, duration, _color in phases)
+        available_width = self.console.width - self._PHASE_LINE_PADDING - label_width
+        return max(0, min(self.max_bar_width, available_width))
+
+    def _render_phase(  # noqa: PLR0913
         self,
         label: str,
         duration: float,
         color: str,
         start_chars: int,
         bar_chars: int,
+        *,
+        max_width: int | None = None,
     ) -> int:
-        max_width = self.max_bar_width
+        max_width = self.max_bar_width if max_width is None else max_width
         start_chars = min(start_chars, max_width)
         bar_chars = max(bar_chars, 0)
         if start_chars >= max_width:
@@ -111,12 +122,23 @@ class WaterfallVisualizer(Visualizer):
 
         return end_chars
 
-    def _compute_phase_widths(self, durations: list[float]) -> list[int]:  # noqa: C901, PLR0912
+    def _compute_phase_widths(  # noqa: C901, PLR0912
+        self,
+        durations: list[float],
+        *,
+        max_width: int | None = None,
+    ) -> list[int]:
         positives = [i for i, d in enumerate(durations) if d > 0]
-        if not positives:
+        width = self.max_bar_width if max_width is None else max_width
+        if not positives or width <= 0:
             return [0] * len(durations)
 
-        width = max(self.max_bar_width, len(positives))
+        if width < len(positives):
+            counts = [0] * len(durations)
+            for index in sorted(positives, key=durations.__getitem__, reverse=True)[:width]:
+                counts[index] = 1
+            return counts
+
         total = sum(durations[i] for i in positives)
         scale = total / width if total else 1.0
 
