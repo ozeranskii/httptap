@@ -2,6 +2,96 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-10-05
+
+### Bug Fixes
+
+- **utils:** Drop deprecated ssl APIs and fail tests on warnings ([d5e648f](https://github.com/ozeranskii/httptap/commit/d5e648f612c4a744ee34f3b5d4589c8574ab4f20))
+- **http_client:** Honor resolved proxy settings ([2daa146](https://github.com/ozeranskii/httptap/commit/2daa146980431fe38e6205a1a1b9dd2a2f5d3851))
+- **http_client:** Exclude client setup from timings ([e7f7c46](https://github.com/ozeranskii/httptap/commit/e7f7c46af332fefefafd175e8cb498d6b4709e0f))
+- **http_client:** Measure TLS through CONNECT proxy ([1307db2](https://github.com/ozeranskii/httptap/commit/1307db2db52f88f63215420ea20e10836c95fdab))
+- **cli:** Return tempfail for network errors ([f605ab4](https://github.com/ozeranskii/httptap/commit/f605ab4d7a5eaeb13f0c29cd3a0dbbea6430fffb))
+- **cli:** Handle non-utf8 output streams ([3036210](https://github.com/ozeranskii/httptap/commit/303621003facdb90f95aa89d28a0d480505ca7f4))
+- **http_client:** Report wire response bytes ([6f184d4](https://github.com/ozeranskii/httptap/commit/6f184d48470e7d058cf518f97d692a6f3953a759))
+- **analyzer:** Report redirect limit reached ([bd460f1](https://github.com/ozeranskii/httptap/commit/bd460f12fc352d7144bec60d840c90c806bf64a3))
+- **http_client:** Preserve user Host header ([c2d5458](https://github.com/ozeranskii/httptap/commit/c2d54589c6fc12f1b7c32c61528e79c5a06db1be))
+- **cli:** Validate CLI connection arguments ([e5b2487](https://github.com/ozeranskii/httptap/commit/e5b2487ec197569e7417ac67f54578ca27f8535f))
+- **cli:** Handle JSON export streams ([2951923](https://github.com/ozeranskii/httptap/commit/2951923b0ab4463ef5755f2c6cc01ca70a41f550))
+- **http_client:** Preserve URL params and userinfo ([5a46291](https://github.com/ozeranskii/httptap/commit/5a46291f5eb3ac94584ed677ef6c0fed2dcc45f4))
+- **tls_inspector:** Extract certificates when verification is disabled ([bde1a0a](https://github.com/ozeranskii/httptap/commit/bde1a0a1f311c9c382b1f356fc779e5d454f1539))
+- **http_client:** Retry next resolved address ([9ec4944](https://github.com/ozeranskii/httptap/commit/9ec49441ae2686bd97eea7642884ee584e787ea0))
+- **http_client:** Enforce total max-time deadline ([9eff747](https://github.com/ozeranskii/httptap/commit/9eff747edd0d2657f6c56b37ebbf6320e600a4ba))
+- **http_client:** Count CONNECT tunnel setup as connect time ([df199ae](https://github.com/ozeranskii/httptap/commit/df199aee1e6c6e20a7b90caf6e14098b571f1f3e))
+- **analyzer:** Redact URL credentials in step data and output ([d24d0a7](https://github.com/ozeranskii/httptap/commit/d24d0a76b91a3b1bc8174b1b7b5579828466c681))
+- **http_client:** Honour resolve() overrides and reject empty resolutions ([9cb084f](https://github.com/ozeranskii/httptap/commit/9cb084f0788c65ebbcd00cd4bac948edb648fdd7))
+- **http_client:** Send IDNA host in Host header and SNI ([f84352f](https://github.com/ozeranskii/httptap/commit/f84352f0fef0f68caf0691301445c05200a36817))
+- **http_client:** Keep partial network info on failed requests ([e3e51d7](https://github.com/ozeranskii/httptap/commit/e3e51d71cc20a91e0912581bfc4e8f6e427f4e25))
+- **cli:** Reject URLs with an invalid port instead of failing internally ([08a3d5b](https://github.com/ozeranskii/httptap/commit/08a3d5bc9dc5740138fedb3060521a514bc63872))
+- **cli:** Rank the --json export failure inside determine_exit_code ([93c8154](https://github.com/ozeranskii/httptap/commit/93c8154f87e09e56ff3264ebc962177502067487))
+- **formatters:** Keep --metrics-only lines key=value parseable ([ad26513](https://github.com/ozeranskii/httptap/commit/ad26513500bf794cd2a4d38d63643ed8e9c63248))
+- **http_client:** Probe TLS at the address the request used ([cd0d652](https://github.com/ozeranskii/httptap/commit/cd0d652cd0376ec5cda4a8096e19531b42c4d8fe))
+- **pkgmeta:** Read License-Expression and Project-URL metadata ([5435885](https://github.com/ozeranskii/httptap/commit/543588579b9e6adb04bc5f7401cd7651a0ebdc3a))
+- **cli:** Merge user headers case-insensitively and reject an empty --json path ([307f81c](https://github.com/ozeranskii/httptap/commit/307f81c6437aaf7b07f18727134a8f3f962d12c7))
+- **http_client:** Measure connect and TLS timing through SOCKS proxies ([5d6622d](https://github.com/ozeranskii/httptap/commit/5d6622dbf5de3505fd5b2d1da8bf2f915acfbe6d))
+- **otlp:** Export through the SDK span pipeline as one sequential trace ([a2cba39](https://github.com/ozeranskii/httptap/commit/a2cba39f543d0695ec31ff5ea29787c572a3c1ee))
+- **packaging:** Ship py.typed, drop dnspython and stabilize timing tests ([f3f053f](https://github.com/ozeranskii/httptap/commit/f3f053f829e0115b6f678495361eaf4f4c811976))
+- **cli:** Validate proxy/header input and redact credentials in redirects and OTLP errors ([0c92982](https://github.com/ozeranskii/httptap/commit/0c9298232235edbd0f8c671e082bfa440ffe7324))
+- **http_client:** Harden proxies, deadlines, address fallback and IDNA handling ([ceef230](https://github.com/ozeranskii/httptap/commit/ceef230b4bc49c2c99fe5d6bda5cb80f954d1b80))
+- **cli:** Encode undecodable URL bytes, keep IP SANs and hold back OTLP SDK warnings ([466de06](https://github.com/ozeranskii/httptap/commit/466de068cb10267abc184c8f1a41ce07fef61b99))
+- **http_client:** Bracket IPv6 literal targets in HTTP proxy request lines ([dbdb2c0](https://github.com/ozeranskii/httptap/commit/dbdb2c057cc7e7e4eaf5ef8f6b8adf3f4fd3aca5))
+- **http_client:** Keep the response received before a mid-body failure ([d3285f7](https://github.com/ozeranskii/httptap/commit/d3285f785c84f8369be80ebd6e7e2ddecc260988))
+- **dns:** Treat IPv4-mapped IPv6 addresses as IPv4 ([d44046f](https://github.com/ozeranskii/httptap/commit/d44046fb676158844e2a18088831a9eef1ce3b59))
+
+### Documentation
+
+- **release:** Update release and contributing documentation ([2228e91](https://github.com/ozeranskii/httptap/commit/2228e91074c1e0ff0bf45e6caae5b26ee400d2a6))
+- **i18n:** Sync es, ja and zh pages with recent CLI changes ([0448fa8](https://github.com/ozeranskii/httptap/commit/0448fa84f75abdc9ad4930dd8094d4d0bb26c49a))
+- **security:** Correct security, governance and contributor metadata ([b27a277](https://github.com/ozeranskii/httptap/commit/b27a2775600e29aba7a642540468badfa94ee36f))
+- **usage:** Bring user and API docs in line with the 0.7 features ([1438504](https://github.com/ozeranskii/httptap/commit/14385043b62459f54ed9b7bc0dec54bd7f313a3c))
+- **i18n:** Sync es, ja and zh pages and README translations with the 0.7 docs ([a0614aa](https://github.com/ozeranskii/httptap/commit/a0614aa628328d919542417bee52a8bb115690e9))
+- **usage:** Correct inaccurate statements and document the 0.7 hardening ([16a7e1b](https://github.com/ozeranskii/httptap/commit/16a7e1ba3bc15ed9483b591dc874e067915e3ceb))
+
+### Features
+
+- **exporter:** Add JSON export metadata ([b3aa64b](https://github.com/ozeranskii/httptap/commit/b3aa64b0a6e1b505a336c5b210e331463612577a))
+- **cli:** Fail on HTTP error responses ([de82077](https://github.com/ozeranskii/httptap/commit/de82077804ececcd805aec2f5734e7599abe64da))
+- **cli:** Polish help defaults, method case and waterfall width ([ea61e87](https://github.com/ozeranskii/httptap/commit/ea61e87cb5909198efb2a356ea83a219caab1a7b))
+- **slo:** Add file-based SLO thresholds ([f29fb77](https://github.com/ozeranskii/httptap/commit/f29fb77d5661826fdbecf186fc51f4723f4b3cb6))
+- **cli:** Add ip family and resolve flags ([2d1a0b8](https://github.com/ozeranskii/httptap/commit/2d1a0b8aa0c8e963fbad117fd66c9dad05aec056))
+- **cli:** Add prometheus and otlp exports ([2e10f83](https://github.com/ozeranskii/httptap/commit/2e10f837f73ca140f581acb8d28702f837051a6f))
+- **http_client:** Show cert details on TLS failures ([9e70294](https://github.com/ozeranskii/httptap/commit/9e70294dc43ec531665e0e3faae4806058f53708))
+
+### Miscellaneous Tasks
+
+- **infra:** Disable coverage and reports in CodSpeed runs ([cd301b3](https://github.com/ozeranskii/httptap/commit/cd301b32c597f7b4967883fe4683cdd4b6960f5c))
+- **infra:** Apply yamlfmt to codspeed workflow ([57b9fe6](https://github.com/ozeranskii/httptap/commit/57b9fe688085d500f59d39a0097c092cafcf5cd2))
+- **docs:** Trigger docs workflow on source and dependency changes ([32a1b10](https://github.com/ozeranskii/httptap/commit/32a1b101302bfaf877c5bc17b80ed7c79e0e654d))
+- **infra:** Run pre-commit hooks in CI ([71de726](https://github.com/ozeranskii/httptap/commit/71de726a6884fa864828d94a4c3a0080505cfd01))
+- **release:** Harden release artifact checks ([2d78b90](https://github.com/ozeranskii/httptap/commit/2d78b90d4fbc1f921cf7e46f4e81c54422084f6e))
+- **infra:** Speed up PR workflows ([647bfa7](https://github.com/ozeranskii/httptap/commit/647bfa77f5d4b750fa6a1c277a7e3f04089310b2))
+- **release:** Push the release commit and tag only after tests pass ([b978e4b](https://github.com/ozeranskii/httptap/commit/b978e4bf0d7fca0a72366cc9ecb248e8331160bf))
+- **infra:** Harden release, docs and CI workflows ([081cfc3](https://github.com/ozeranskii/httptap/commit/081cfc30e198c69032d2961d6566e2e7ade5e5eb))
+- **python:** Drop Python 3.10 and ship the otel extra in the image ([709762e](https://github.com/ozeranskii/httptap/commit/709762e42177cc850f07b0b0004e0a7a9463dcba))
+- **release:** Harden the release workflow, docs deploy and CI concurrency ([797df63](https://github.com/ozeranskii/httptap/commit/797df634c5e2983826c019af7f1d46899d5d6f05))
+
+### Refactor
+
+- **core:** Remove dead options and duplicated helpers ([2fe4164](https://github.com/ozeranskii/httptap/commit/2fe41641faa607b46e43462a280ba6dc9f9e8cb1))
+
+### Testing
+
+- **otlp:** Drop the redundant del in the collector's log_message ([f2cf756](https://github.com/ozeranskii/httptap/commit/f2cf7564aadcf8b0b3bac7febf3320ce71a6934b))
+- Resolve CodeQL code-quality alerts in the test suite ([0c23ecf](https://github.com/ozeranskii/httptap/commit/0c23ecf30f9be6e02f500ba5b1638df13faed805))
+- **e2e:** Add an end-to-end suite for the CLI and run it in CI, releases and a daily matrix ([b141b8d](https://github.com/ozeranskii/httptap/commit/b141b8d5582d61aab8bd64d5f46398d3e3c89019))
+
+
+### New Contributors
+
+- @0then0 made their first contribution in [#321](https://github.com/ozeranskii/httptap/pull/321)
+- @fclss made their first contribution in [#343](https://github.com/ozeranskii/httptap/pull/343)
+- @tanishpx made their first contribution in [#315](https://github.com/ozeranskii/httptap/pull/315)
+- @Aarav-cyber made their first contribution in [#314](https://github.com/ozeranskii/httptap/pull/314)
+
 ## [0.6.3] - 2026-09-17
 
 ### Bug Fixes
