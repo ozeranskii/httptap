@@ -51,7 +51,8 @@ import ssl
 import threading
 import time
 import warnings
-from contextlib import suppress
+from base64 import b64encode
+from contextlib import closing, suppress
 from typing import TYPE_CHECKING, Self
 from urllib.parse import urlsplit, urlunsplit
 
@@ -842,11 +843,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         ssl_context = create_ssl_context(verify_ssl=verify_ssl, ca_bundle_path=ca_bundle_path)
 
         try:
-            client = httpx.Client(
-                timeout=timeout,
-                http2=http2,
-                follow_redirects=False,
+            transport = httpx.HTTPTransport(
                 verify=ssl_context,
+                http2=http2,
                 # Proxy resolution is handled above against the original hostname.
                 # Do not let httpx reapply environment proxy settings after DNS.
                 proxy=proxy if proxy is not None and effective_proxy_url is not None else effective_proxy_url,
@@ -857,6 +856,11 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             # transport dependencies (socksio, h2) fail with an ImportError.
             msg = f"Cannot set up the HTTP client: {exc}"
             raise HTTPClientError(msg, network_info=network_info) from exc
+        # The client only builds requests (default headers, timeouts); they are
+        # sent on the transport directly. Client.send prepares the next redirect
+        # request even with follow_redirects=False and fails on a Location that
+        # httpx cannot parse, which would turn a received 3xx into an error.
+        client = httpx.Client(transport=transport, timeout=timeout, follow_redirects=False, trust_env=False)
 
         with client, watchdog:
             client.headers["User-Agent"] = USER_AGENT
@@ -870,9 +874,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                 client.headers["Host"] = host_header
 
             has_authorization_header = headers is not None and any(name.lower() == "authorization" for name in headers)
-            stream_kwargs: dict[str, object] = {}
             if parsed_url.username is not None and not has_authorization_header:
-                stream_kwargs["auth"] = (source_url.username, source_url.password)
+                credentials = f"{source_url.username}:{source_url.password}".encode()
+                client.headers["Authorization"] = f"Basic {b64encode(credentials).decode('ascii')}"
 
             # One request start for every attempt: time lost on addresses that
             # failed is part of the request, as with curl. The final attempt's
@@ -918,13 +922,15 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                 failed_attempts_ms = (time.perf_counter() - requests_started) * MS_IN_SECOND
                 try:
                     try:
-                        with client.stream(
+                        request = client.build_request(
                             method.value,
                             request_url,
                             content=content,
                             extensions={"trace": on_trace, "sni_hostname": wire_host},
-                            **stream_kwargs,  # type: ignore[arg-type]
-                        ) as response:
+                        )
+                        response = transport.handle_request(request)
+                        response.request = request
+                        with closing(response):
                             timing_collector.mark_ttfb()
                             _populate_response_metadata(response, response_info)
                             _populate_tls_from_stream(response, network_info)
