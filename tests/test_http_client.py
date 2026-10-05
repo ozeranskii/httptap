@@ -43,7 +43,7 @@ from httptap.http_client import (
     make_request,
     proxy_resolves_remotely,
 )
-from httptap.implementations.dns import DNSResolutionError, SystemDNSResolver
+from httptap.implementations.dns import DNSResolutionError, OverrideDNSResolver, SystemDNSResolver
 from httptap.models import NetworkInfo, TimingMetrics
 from httptap.tls_inspector import TLSInspectionError
 
@@ -418,6 +418,41 @@ class TestResolveAddresses:
 
         with pytest.raises(httptap.http_client.HTTPClientError, match="No usable address records"):
             make_request("http://example.test/", dns_resolver=Empty())
+
+
+@pytest.mark.parametrize(
+    ("url", "pinned", "expected"),
+    [
+        ("http://bücher.test:8080/", ("bücher.test", 8080), ("xn--bcher-kva.test:8080", "xn--bcher-kva.test")),
+        ("http://Example.TEST/", ("example.test", 80), ("example.test", "example.test")),
+        ("http://[2001:db8::1]:8080/", ("2001:db8::1", 8080), ("[2001:db8::1]:8080", "2001:db8::1")),
+    ],
+    ids=["idn", "ascii", "ipv6"],
+)
+def test_make_request_sends_wire_form_of_host(
+    httpx_mock: pytest_httpx.HTTPXMock,
+    url: str,
+    pinned: tuple[str, int],
+    expected: tuple[str, str],
+) -> None:
+    """Host and SNI use the IDNA A-label while --resolve keys keep the user's spelling."""
+    expected_host, expected_sni = expected
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["Host"] == expected_host
+        assert request.extensions["sni_hostname"] == expected_sni
+        return httpx.Response(200, request=request)
+
+    port_suffix = "" if pinned[1] == 80 else f":{pinned[1]}"
+    httpx_mock.add_callback(handler, url=f"http://127.0.0.1{port_suffix}/")
+
+    _timing, _network, response = make_request(
+        url,
+        dns_resolver=OverrideDNSResolver({pinned: "127.0.0.1"}),
+        timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+    )
+
+    assert response.status == 200
 
 
 class TestBuildUserAgent:
