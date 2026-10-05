@@ -790,6 +790,7 @@ version = "0.6.3"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },
+    { name = "httpcore" },
     { name = "httpx", extra = ["http2", "socks"] },
     { name = "rich" },
 ]
@@ -856,6 +857,7 @@ typing = [
 requires-dist = [
     { name = "argcomplete", marker = "extra == 'completion'", specifier = ">=3.7.2" },
     { name = "cryptography", specifier = ">=42.0.0" },
+    { name = "httpcore", specifier = ">=1.0.0" },
     { name = "httpx", extras = ["http2", "socks"], specifier = ">=0.28.1" },
     { name = "opentelemetry-api", marker = "extra == 'otel'", specifier = ">=1.30.0" },
     { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'otel'", specifier = ">=1.30.0" },
