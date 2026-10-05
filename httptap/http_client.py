@@ -636,6 +636,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         if not host:
             msg = "Invalid URL: missing hostname"
             raise HTTPClientError(msg)  # noqa: TRY301
+        # IDNA-2008 A-label form for everything sent on the wire (Host, SNI);
+        # DNS and --resolve keys keep the hostname as the user wrote it.
+        wire_host = source_url.raw_host.decode("ascii")
 
         # Determine effective proxy and DNS resolution strategy.
         #
@@ -692,7 +695,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             if headers:
                 client.headers.update(headers)
             if not headers or not any(name.lower() == "host" for name in headers):
-                host_header = f"[{host}]" if ":" in host else host
+                host_header = f"[{wire_host}]" if ":" in wire_host else wire_host
                 default_port = HTTPS_DEFAULT_PORT if parsed_url.scheme == "https" else HTTP_DEFAULT_PORT
                 if port != default_port:
                     host_header = f"{host_header}:{port}"
@@ -726,7 +729,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                         method.value,
                         request_url,
                         content=content,
-                        extensions={"trace": trace, "sni_hostname": host},
+                        extensions={"trace": trace, "sni_hostname": wire_host},
                         **stream_kwargs,  # type: ignore[arg-type]
                     ) as response:
                         timing_collector.mark_ttfb()
@@ -758,7 +761,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         # reach a different backend, so it must never run while a proxy is used.
         if is_https and network_info.tls_version is None and effective_proxy_url is None:
             try:
-                _merge_tls_info(network_info, tls_inspector.inspect(host, port, remaining_timeout(request_deadline)))
+                _merge_tls_info(
+                    network_info, tls_inspector.inspect(wire_host, port, remaining_timeout(request_deadline))
+                )
             except TLSInspectionError:
                 # TLS inspection is non-fatal, but it must not hide a spent budget.
                 remaining_timeout(request_deadline)
@@ -785,7 +790,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                     diagnostic_inspector = SocketTLSInspector(verify=False)
                     _merge_tls_info(
                         network_info,
-                        diagnostic_inspector.inspect(host, port, probe_timeout, connect_host=network_info.ip),
+                        diagnostic_inspector.inspect(wire_host, port, probe_timeout, connect_host=network_info.ip),
                     )
             raise HTTPClientError(msg, network_info=network_info) from exc
         raise HTTPClientError(msg) from exc
