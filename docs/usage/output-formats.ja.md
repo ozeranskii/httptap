@@ -76,6 +76,7 @@ Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=
 - ネットワークの詳細を含む**完全なメトリクス**
 - 抽出しやすい**一貫した構造**
 - **色や書式**文字を含まない
+- **値のエスケープ** — 必要に応じてパーセントエンコーディングを使用し、すべてのメトリクスが単一の `key=value` トークンに収まるようにします。
 
 ### 使いどころ
 
@@ -109,10 +110,19 @@ httptap --metrics-only https://httpbin.io/get | \
 httptap --json output.json https://httpbin.io
 ```
 
+パスに `-` を渡すと JSON が標準出力に書き出されます（通常のレポートは抑制されます）。ステータスメッセージは stderr に出力されます:
+
+```bash
+httptap --json - https://httpbin.io | jq '.steps[0].timing'
+```
+
 ### JSON の構造
 
 ```json
 {
+  "schema_version": 1,
+  "httptap_version": "0.6.3",
+  "timestamp": "2026-09-18T08:00:00Z",
   "initial_url": "https://httpbin.io",
   "total_steps": 1,
   "steps": [
@@ -180,6 +190,22 @@ httptap --json output.json https://httpbin.io
 }
 ```
 
+### フィールドリファレンス
+
+トップレベルのメタデータは、レポートの形式と生成日時を示します。利用者は `schema_version` を使って互換性のある解析ロジックを選択してください。
+
+| Field             | Type    | 説明                                                                             |
+| ----------------- | ------- | -------------------------------------------------------------------------------- |
+| `schema_version`  | integer | JSON レポート形式のバージョン。現在のバージョンは `1` です。                     |
+| `httptap_version` | string  | レポートを生成した httptap のバージョン。                                        |
+| `timestamp`       | string  | エクスポートの作成日時（RFC 3339 UTC 形式、例: `2026-09-18T08:00:00Z`）。        |
+| `initial_url`     | string  | リダイレクト前に httptap に渡された URL。                                        |
+| `total_steps`     | integer | `steps` のエントリ数。                                                           |
+| `steps`           | array   | 追跡した各リダイレクトを含む、リクエストごとの計測値。                           |
+| `summary`         | object  | エクスポート全体の集計値。                                                       |
+
+`_ms` で終わるタイミング値の単位はミリ秒です。リクエストおよびレスポンスのボディサイズの単位はバイトです。レスポンスサイズ（`bytes`、`final_bytes`）は、curl の `size_download` と同様に、`Content-Encoding` のデコード前にネットワーク上で受信したボディをカウントします。証明書とレスポンスの日付は、利用可能な場合 ISO 8601/RFC 3339 形式のタイムスタンプになります。ネストされた `steps` と `summary` の構造については上記の例を参照してください。
+
 ### 機能
 
 - 全フェーズの**完全なデータエクスポート**
@@ -213,6 +239,37 @@ jq '.steps[0].network.cert_days_left' output.json
 # 失敗したリクエストをフィルタリングする
 jq 'select(.summary.errors > 0)' output.json
 ```
+
+## Prometheus テキストファイルエクスポート { #prometheus-textfile-export }
+
+`--prometheus PATH` で node_exporter の textfile collector 用レポートを書き出します:
+
+```bash
+httptap --prometheus /var/lib/node_exporter/httptap.prom https://api.example.com/health
+```
+
+ファイルはアトミックに書き込まれます。すべてのサンプルには `host` ラベル（ホスト名のみ）とリダイレクトチェーンの `step` が付与されるため、複数のプローブで 1 つの textfile ディレクトリを共有できます。エクスポートされるゲージ:
+
+| Metric                                  | 追加ラベル   | 意味                                            |
+| --------------------------------------- | ------------ | ----------------------------------------------- |
+| `httptap_request_success`               |              | ステップが完了した場合は `1`、ネットワーク／TLS エラーの場合は `0` |
+| `httptap_request_duration_seconds`      | `phase`      | `dns`、`connect`、`tls`、`ttfb`、`wait`、`xfer`、`total` |
+| `httptap_response_status_code`          |              | ステップの HTTP ステータス                      |
+| `httptap_response_body_size_bytes`      |              | ネットワーク上のレスポンスボディサイズ          |
+| `httptap_last_run_timestamp_seconds`    |              | ファイルが書き込まれた Unix 時刻（`host` のみ） |
+
+失敗したステップは `httptap_request_success 0` のみをエクスポートするため、障害が高速なレスポンスのように見えることはありません。パスやクエリ文字列がラベルとして使用されることはありません。
+
+## OpenTelemetry エクスポート { #opentelemetry-export }
+
+`--otlp ENDPOINT` は OTLP/HTTP のトレースを送信します。事前にオプションの extra をインストールしてください:
+
+```bash
+pip install 'httptap[otel]'
+httptap --otlp http://localhost:4318/v1/traces https://api.example.com/health
+```
+
+各リクエストステップは `http.request` スパンを作成します。その子スパンは DNS、接続、TLS、サーバー待機、転送の各フェーズを表します。クエリパラメータがコレクターに送信されないよう、エクスポートには完全なリクエスト URL は含まれません。
 
 ## リダイレクトチェーン
 

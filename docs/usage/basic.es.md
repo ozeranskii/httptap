@@ -24,6 +24,8 @@ httptap [OPTIONS] URL
 
 Especifica el método HTTP que se usará. Métodos admitidos: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS.
 
+Los valores del método no distinguen entre mayúsculas y minúsculas.
+
 *Alias compatibles con curl:* `-X`, `--request`.
 
 ```bash
@@ -125,6 +127,34 @@ Por defecto, HTTP/2 está activado si el servidor lo admite.
 
 *Alias compatible con curl:* `--http1.1`.
 
+#### `-4, --ipv4` y `-6, --ipv6`
+
+Restringe la resolución DNS y la conexión a IPv4 o IPv6. Las opciones son mutuamente excluyentes.
+
+```bash
+httptap -4 https://example.com
+httptap --ipv6 https://example.com
+```
+
+No pueden usarse con proxies HTTP, HTTPS o SOCKS5H, porque esos proxies
+resuelven ellos mismos el nombre de host de destino.
+
+#### `--resolve HOST:PORT:ADDR`
+
+Conecta un nombre de host y un puerto a una dirección IPv4 o IPv6 concreta conservando
+la cabecera `Host` original y el SNI de TLS. Resulta útil para probar un backend
+antes de un cambio de DNS o para evitar un registro DNS round-robin. La opción puede
+repetirse para distintos pares de host y puerto.
+
+```bash
+httptap --resolve api.example.com:443:203.0.113.10 https://api.example.com/health
+httptap --resolve api.example.com:443:[2001:db8::10] https://api.example.com/health
+```
+
+`--resolve` se aplica a las conexiones directas y a los proxies SOCKS5 con DNS local. Los proxies
+HTTP, HTTPS y SOCKS5H resuelven el destino de forma remota, por lo que combinarlos con
+`--resolve` se rechaza, igual que con `-4`/`-6`.
+
 #### `-k, --insecure, --ignore-ssl`
 
 Desactiva la verificación del certificado TLS. Útil para depurar hosts autofirmados o certificados caducados.
@@ -210,11 +240,15 @@ Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=
 
 #### `--json PATH`
 
-Exporta todos los datos de la solicitud a un archivo JSON.
+Exporta todos los datos de la solicitud a un archivo JSON. Usa `-` para escribir el JSON en stdout
+en su lugar; en ese caso se suprime el informe habitual para que la salida pueda canalizarse.
 
 ```bash
 httptap --json report.json https://httpbin.io
+httptap --json - https://httpbin.io | jq '.summary'
 ```
+
+Si no se puede escribir el archivo, httptap sale con el código `73`.
 
 El archivo JSON contiene:
 
@@ -224,7 +258,28 @@ El archivo JSON contiene:
 - Cadena completa de redirecciones (al usar `--follow`)
 - Evaluación de SLO (cuando se proporciona `--slo`)
 
-#### `--slo KEY=MS[,KEY=MS...]`
+#### `--prometheus PATH`
+
+Escribe los tiempos por fase en el formato del textfile collector de Prometheus. Las duraciones
+se exportan como gauges `httptap_request_duration_seconds` con las etiquetas `host`, `step` y
+`phase`, junto a `httptap_request_success` y
+`httptap_last_run_timestamp_seconds`; las rutas y las query strings nunca se usan como etiquetas.
+
+```bash
+httptap --prometheus /var/lib/node_exporter/httptap.prom https://httpbin.io/get
+```
+
+#### `--otlp ENDPOINT`
+
+Exporta un span de OpenTelemetry por solicitud y spans hijos para las fases de DNS, conexión,
+TLS, espera del servidor y transferencia. Instala primero la dependencia opcional:
+
+```bash
+pip install 'httptap[otel]'
+httptap --otlp http://localhost:4318/v1/traces https://httpbin.io/get
+```
+
+#### `--slo KEY=MS[,KEY=MS...]`, `--slo-file PATH`
 
 Comprueba el paso final correcto frente a presupuestos de latencia por fase. Ante una
 violación, `httptap` sigue renderizando el inform completo pero sale con el código
@@ -233,11 +288,24 @@ de disponibilidad (readiness) de Kubernetes.
 
 ```bash
 httptap --slo total=500,ttfb=200 https://httpbin.io/get
+
+# Un umbral por línea; los valores en línea anulan los del archivo.
+httptap --slo-file slo.txt --slo total=1000 https://httpbin.io/get
 ```
 
 Claves admitidas: `dns`, `connect`, `tls`, `ttfb`, `wait`, `xfer`,
 `total`. Consulta la página dedicada [Comprobación de umbrales SLO](slo.md) para
 la especificación completa, la precedencia de códigos de salida y recetas de CI/cron.
+
+#### `-f`, `--fail`
+
+Sale con el código `22` cuando cualquier solicitud completada devuelve HTTP `4xx` o `5xx`,
+sin dejar de renderizar el informe de tiempos completo ni de escribir la salida de `--json`.
+Los fallos de red y TLS conservan sus códigos de salida existentes, de mayor prioridad.
+
+```bash
+httptap --fail https://httpbin.io/status/500
+```
 
 #### `--version`
 

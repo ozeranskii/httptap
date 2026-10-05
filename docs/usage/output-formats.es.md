@@ -82,6 +82,8 @@ Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=
 - **Métricas completas** incluyendo detalles de red
 - **Estructura consistente** para una extracción sencilla
 - **Sin colores ni characters de formato**
+- **Valores escapados** con codificación porcentual cuando es necesario, de modo que cada métrica
+  siga siendo un único token `key=value`.
 
 ### Cuándo usarlo
 
@@ -115,10 +117,20 @@ Todos los datos de la solicitud exportados como JSON estructurado para un análi
 httptap --json output.json https://httpbin.io
 ```
 
+Pasa `-` como ruta para escribir el JSON en stdout (se suprime el informe
+habitual); los mensajes de estado van a stderr:
+
+```bash
+httptap --json - https://httpbin.io | jq '.steps[0].timing'
+```
+
 ### Estructura JSON
 
 ```json
 {
+  "schema_version": 1,
+  "httptap_version": "0.6.3",
+  "timestamp": "2026-09-18T08:00:00Z",
   "initial_url": "https://httpbin.io",
   "total_steps": 1,
   "steps": [
@@ -186,6 +198,27 @@ httptap --json output.json https://httpbin.io
 }
 ```
 
+### Referencia de campos
+
+Los metadatos de nivel superior identifican el formato del informe y cuándo se generó.
+Los consumidores deben usar `schema_version` para seleccionar una lógica de análisis compatible.
+
+| Campo             | Tipo    | Descripción                                                                                    |
+| ----------------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `schema_version`  | integer | Versión del formato del informe JSON. La versión actual es `1`.                                |
+| `httptap_version` | string  | Versión de httptap que generó el informe.                                                      |
+| `timestamp`       | string  | Hora de creación de la exportación en formato RFC 3339 UTC, por ejemplo `2026-09-18T08:00:00Z`. |
+| `initial_url`     | string  | URL pasada a httptap antes de las redirecciones.                                               |
+| `total_steps`     | integer | Número de entradas en `steps`.                                                                 |
+| `steps`           | array   | Mediciones por solicitud, incluida cada redirección seguida.                                   |
+| `summary`         | object  | Valores agregados de la exportación.                                                           |
+
+Los valores de temporización que terminan en `_ms` están en milisegundos. Los tamaños de los cuerpos
+de solicitud y respuesta están en bytes. Los tamaños de respuesta (`bytes`, `final_bytes`) cuentan el
+cuerpo tal como se recibe por la red, antes de decodificar `Content-Encoding`, como `size_download` de
+curl. Las fechas del certificado y de la respuesta son marcas de tiempo ISO 8601/RFC 3339 cuando
+están disponibles. Consulta el ejemplo anterior para ver la estructura anidada de `steps` y `summary`.
+
 ### Características
 
 - **Exportación completa de datos** de todas las fases
@@ -219,6 +252,42 @@ jq '.steps[0].network.cert_days_left' output.json
 # Filtrar las solicitudes fallidas
 jq 'select(.summary.errors > 0)' output.json
 ```
+
+## Exportación textfile de Prometheus { #prometheus-textfile-export }
+
+Escribe un informe para el textfile collector de node_exporter con `--prometheus PATH`:
+
+```bash
+httptap --prometheus /var/lib/node_exporter/httptap.prom https://api.example.com/health
+```
+
+El archivo se escribe de forma atómica. Cada muestra lleva una etiqueta `host` (solo el nombre
+de host) y el `step` de la cadena de redirecciones, de modo que varias sondas pueden compartir un
+mismo directorio de textfiles. Gauges exportados:
+
+| Métrica                                 | Etiquetas extra | Significado                                                |
+| --------------------------------------- | --------------- | ---------------------------------------------------------- |
+| `httptap_request_success`               |                 | `1` si el paso se completó, `0` ante un error de red/TLS   |
+| `httptap_request_duration_seconds`      | `phase`         | `dns`, `connect`, `tls`, `ttfb`, `wait`, `xfer`, `total`   |
+| `httptap_response_status_code`          |                 | Estado HTTP del paso                                       |
+| `httptap_response_body_size_bytes`      |                 | Tamaño del cuerpo de la respuesta en la red                |
+| `httptap_last_run_timestamp_seconds`    |                 | Hora Unix en que se escribió el archivo (solo `host`)      |
+
+Los pasos fallidos exportan solo `httptap_request_success 0`, de modo que una caída nunca parece
+una respuesta rápida. Las rutas y las query strings nunca se usan como etiquetas.
+
+## Exportación de OpenTelemetry { #opentelemetry-export }
+
+`--otlp ENDPOINT` envía trazas OTLP/HTTP. Instala primero el extra opcional:
+
+```bash
+pip install 'httptap[otel]'
+httptap --otlp http://localhost:4318/v1/traces https://api.example.com/health
+```
+
+Cada paso de solicitud crea un span `http.request`. Sus spans hijos representan
+las fases de DNS, conexión, TLS, espera del servidor y transferencia. La exportación omite la
+URL completa de la solicitud para que los parámetros de consulta no se envíen al collector.
 
 ## Cadenas de redirecciones
 

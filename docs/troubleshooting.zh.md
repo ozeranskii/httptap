@@ -21,8 +21,9 @@ description: 运行 httptap 时的常见问题、错误信息与诊断。
 - **系统信任库已过时** —— 在 Linux 上更新 `ca-certificates`，或
   刷新你 Python 环境中的 `certifi`（`uv pip install --upgrade certifi`）。
 
-JSON 导出会显示 `network.tls_verified: false`，且在使用 `--cacert` 时会显示
-`network.tls_custom_ca: true`。
+httptap 仅会在不校验证书的情况下重试一次诊断性 TLS 握手，并在失败步骤中报告
+所出示证书的 CN、SAN、颁发者、有效期以及到期时间。请求本身仍会校验失败。当启用代理时，
+会跳过直连的诊断探测，以免 httptap 绕过代理。
 
 ### 证书显示 `cert_days_left: null` 或负值
 
@@ -156,9 +157,8 @@ Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
 
 ### httptap 能输出 Prometheus 指标吗？
 
-开箱即用尚不支持。请使用 `--metrics-only` 并用 `awk`/`jq` 做后处理，或
-解析 `--json` 导出。专用的 exporter 已在路线图中——关注
-[issue 跟踪器](https://github.com/ozeranskii/httptap/issues) 获取更新。
+可以。使用 `--prometheus PATH` 写出 node_exporter textfile collector 文件。
+指标名称和标签参见[输出格式](usage/output-formats.md#prometheus-textfile-export)。
 
 ## Python API
 
@@ -173,10 +173,9 @@ from httptap.constants import HTTPMethod
 
 ### 我的自定义解析器没有被调用
 
-`HTTPTapAnalyzer` 仅将注入的解析器用于诊断性的 DNS 查询
-计时。实际的连接解析仍由 `httpx`/`httpcore` 执行。
-若要让真实连接经过你的解析器，还需实现自定义的
-`RequestExecutor`。
+`HTTPTapAnalyzer` 会在直连和本地 DNS 解析的 SOCKS5 代理中使用注入的解析器。
+HTTP、HTTPS 和 SOCKS5H 代理会在远端解析目标主机；
+如需改变这一行为，请使用自定义的 `RequestExecutor`。
 
 ---
 

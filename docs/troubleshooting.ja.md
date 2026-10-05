@@ -17,7 +17,7 @@ description: httptap の実行時によくある問題、エラーメッセー�
 - **内部 CA** — `--cacert`（別名 `--ca-bundle`）を自分の PEM バンドルに向けます。
 - **システムのトラストストアが古い** — Linux では `ca-certificates` を更新するか、Python 環境の `certifi` を更新します（`uv pip install --upgrade certifi`）。
 
-JSON エクスポートには `network.tls_verified: false` が表示され、`--cacert` を使用した場合は `network.tls_custom_ca: true` も表示されます。
+httptap は検証なしの診断用 TLS ハンドシェイクのみを再試行し、提示された証明書の CN、SAN、発行者、有効期間、有効期限を失敗したステップに表示します。リクエスト自体は検証に失敗したままです。プロキシが有効な場合、httptap がプロキシをバイパスしないように、直接の診断プローブはスキップされます。
 
 ### 証明書に `cert_days_left: null` または負の値が表示される
 
@@ -111,7 +111,7 @@ README の [Exit Codes](https://github.com/ozeranskii/httptap#exit-codes) セク
 
 ### httptap は Prometheus メトリクスを出力できる？
 
-そのままでは出力できません。`--metrics-only` を使って `awk`/`jq` で後処理するか、`--json` エクスポートを解析してください。専用のエクスポーターはロードマップにあります — 最新情報は[イシュートラッカー](https://github.com/ozeranskii/httptap/issues)を追ってください。
+はい。`--prometheus PATH` を使うと、node_exporter の textfile collector 用ファイルを書き出せます。メトリクス名とラベルについては [出力形式](usage/output-formats.md#prometheus-textfile-export) を参照してください。
 
 ## Python API
 
@@ -126,7 +126,7 @@ from httptap.constants import HTTPMethod
 
 ### カスタムリゾルバが呼び出されない
 
-`HTTPTapAnalyzer` は、注入されたリゾルバを診断用の DNS ルックアップのタイミング計測にのみ使用します。実際の接続の名前解決は、依然として `httpx`/`httpcore` によって行われます。実際の接続を自分のリゾルバ経由でルーティングするには、カスタム `RequestExecutor` も実装してください。
+`HTTPTapAnalyzer` は、注入されたリゾルバを直接接続とローカル DNS の SOCKS5 プロキシに対して使用します。HTTP、HTTPS、SOCKS5H プロキシはターゲットをリモートで名前解決します。この挙動を変更する必要がある場合は、カスタム `RequestExecutor` を使用してください。
 
 ---
 
