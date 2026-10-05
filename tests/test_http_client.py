@@ -38,11 +38,12 @@ from httptap.http_client import (
     _normalize_http_version,
     _populate_response_metadata,
     _populate_tls_from_stream,
+    _resolve_addresses,
     _resolve_effective_proxy,
     make_request,
     proxy_resolves_remotely,
 )
-from httptap.implementations.dns import SystemDNSResolver
+from httptap.implementations.dns import DNSResolutionError, SystemDNSResolver
 from httptap.models import NetworkInfo, TimingMetrics
 from httptap.tls_inspector import TLSInspectionError
 
@@ -368,6 +369,55 @@ def test_certificate_verification_error_detection_handles_cyclic_chains() -> Non
     inner.__context__ = outer
 
     assert httptap.http_client._is_certificate_verification_error(outer) is False
+
+
+class TestResolveAddresses:
+    """Choosing between resolve() and the optional resolve_all()."""
+
+    def test_subclass_overriding_only_resolve_is_honoured(self, mocker: pytest_mock.MockerFixture) -> None:
+        getaddrinfo = mocker.patch("socket.getaddrinfo")
+
+        class Pinned(SystemDNSResolver):
+            def resolve(self, _host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+                return "127.0.0.1", "IPv4", 0.0
+
+        assert _resolve_addresses(Pinned(), "example.invalid", 80, 5.0) == [("127.0.0.1", "IPv4")]
+        getaddrinfo.assert_not_called()
+
+    def test_subclass_overriding_resolve_all_gets_fallback(self) -> None:
+        class Pinned(SystemDNSResolver):
+            def resolve(self, _host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+                return "127.0.0.1", "IPv4", 0.0
+
+            def resolve_all(self, _host: str, _port: int, _timeout: float) -> tuple[list[tuple[str, str]], float]:
+                return [("::1", "IPv6"), ("127.0.0.1", "IPv4")], 0.0
+
+        assert _resolve_addresses(Pinned(), "example.invalid", 80, 5.0) == [("::1", "IPv6"), ("127.0.0.1", "IPv4")]
+
+    def test_resolver_without_resolve_all_uses_resolve(self) -> None:
+        assert _resolve_addresses(FakeDNSResolver(), "example.test", 80, 5.0) == [("203.0.113.10", "IPv4")]
+
+    def test_empty_resolve_all_result_is_an_error(self) -> None:
+        class Empty:
+            def resolve(self, _host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+                raise AssertionError
+
+            def resolve_all(self, _host: str, _port: int, _timeout: float) -> tuple[list[tuple[str, str]], float]:
+                return [], 0.0
+
+        with pytest.raises(DNSResolutionError, match="No usable address records"):
+            _resolve_addresses(Empty(), "example.test", 80, 5.0)
+
+    def test_make_request_reports_empty_resolution_as_network_error(self) -> None:
+        class Empty:
+            def resolve(self, _host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+                raise AssertionError
+
+            def resolve_all(self, _host: str, _port: int, _timeout: float) -> tuple[list[tuple[str, str]], float]:
+                return [], 0.0
+
+        with pytest.raises(httptap.http_client.HTTPClientError, match="No usable address records"):
+            make_request("http://example.test/", dns_resolver=Empty())
 
 
 class TestBuildUserAgent:
@@ -1211,7 +1261,6 @@ class TestMakeRequest:
 
     def test_make_request_handles_dns_error(self) -> None:
         """Test error handling for DNS resolution failure."""
-        from httptap.implementations.dns import DNSResolutionError
 
         class FailingDNSResolver:
             def resolve(self, _h: str, _p: int, _t: float) -> tuple[str, str, float]:

@@ -290,6 +290,44 @@ class TraceCollector:
         return proxy_tls_ms if proxy_tls_ms is not None else self._duration_ms(self.TLS_EVENT)
 
 
+def _defining_class(cls: type, name: str) -> type | None:
+    """Return the class in ``cls``'s MRO that defines attribute ``name``."""
+    return next((klass for klass in cls.__mro__ if name in vars(klass)), None)
+
+
+def _resolve_addresses(
+    dns_resolver: DNSResolver,
+    host: str,
+    port: int,
+    timeout: float,
+) -> list[tuple[str, str]]:
+    """Resolve ``host`` to the addresses to try, in order.
+
+    ``resolve_all()`` is an optional extension of the ``DNSResolver`` protocol
+    that enables address fallback. It is only used when it is at least as
+    specific as ``resolve()``: a subclass that overrides just ``resolve()``
+    (for example to pin an address) must not be bypassed by an inherited
+    ``resolve_all()``.
+
+    Raises:
+        DNSResolutionError: If the resolver returns no usable address.
+
+    """
+    resolver_type = type(dns_resolver)
+    resolve_all = getattr(dns_resolver, "resolve_all", None)
+    all_owner = _defining_class(resolver_type, "resolve_all")
+    one_owner = _defining_class(resolver_type, "resolve")
+    if callable(resolve_all) and (one_owner is None or all_owner is None or issubclass(all_owner, one_owner)):
+        addresses, _dns_ms = resolve_all(host, port, timeout)
+    else:
+        ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, timeout)
+        addresses = [(ip, ip_family)]
+    if not addresses:
+        msg = f"No usable address records for {host}"
+        raise DNSResolutionError(msg)
+    return list(addresses)
+
+
 def _has_tls_error(error: BaseException) -> bool:
     """Return whether an HTTP client error was caused by TLS negotiation."""
     cause: BaseException | None = error
@@ -630,14 +668,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             # Local DNS: resolve hostname before connecting
             timing_collector.mark_dns_start()
             try:
-                # Resolvers may expose every address for fallback; the DNSResolver
-                # protocol only requires resolve(), so custom resolvers keep working.
-                resolve_all = getattr(dns_resolver, "resolve_all", None)
-                if callable(resolve_all):
-                    addresses, _dns_ms = resolve_all(host, port, remaining_timeout(request_deadline))
-                else:
-                    ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, remaining_timeout(request_deadline))
-                    addresses = [(ip, ip_family)]
+                addresses = _resolve_addresses(dns_resolver, host, port, remaining_timeout(request_deadline))
             except DNSResolutionError as e:
                 raise HTTPClientError(str(e)) from e
             finally:
