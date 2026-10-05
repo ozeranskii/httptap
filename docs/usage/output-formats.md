@@ -205,7 +205,8 @@ Consumers should use `schema_version` to select compatible parsing logic.
 | `summary`         | object  | Aggregate values for the export.                                                 |
 
 Timing values ending in `_ms` are milliseconds. Request and response body sizes
-are bytes. Certificate and response dates are ISO 8601/RFC 3339 timestamps when
+are bytes. Response sizes (`bytes`, `final_bytes`) count the body as received on
+the wire, before `Content-Encoding` decoding, like curl's `size_download`. Certificate and response dates are ISO 8601/RFC 3339 timestamps when
 available. See the example above for the nested `steps` and `summary` structure.
 
 ### Features

@@ -192,14 +192,8 @@ def _populate_response_metadata(
 def _consume_response_body(response: httpx.Response) -> int:
     """Read the encoded response body to completion and return its wire size."""
     if response.is_stream_consumed:
-        if response.num_bytes_downloaded:
-            return response.num_bytes_downloaded
-        content_length = response.headers.get("content-length")
-        if content_length is not None:
-            try:
-                return max(0, int(content_length))
-            except ValueError:
-                pass
+        # In-memory responses (e.g. mock transports) arrive already read; the
+        # raw stream is gone, so the decoded content is the only size left.
         return len(response.content)
 
     total_bytes = 0
