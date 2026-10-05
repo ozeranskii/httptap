@@ -207,7 +207,7 @@ Exit codes:
   {EXIT_TOO_MANY_REDIRECTS:>3}              : Maximum redirects followed
   {EXIT_USAGE_ERROR:>3} (EX_USAGE)    : Invalid arguments
   {EXIT_FATAL_ERROR:>3} (EX_SOFTWARE) : Internal error
-  {EXIT_EXPORT_ERROR:>3} (EX_CANTCREAT): Export file could not be written
+  {EXIT_EXPORT_ERROR:>3} (EX_CANTCREAT): --json output could not be written
   {EXIT_NETWORK_ERROR:>3} (EX_TEMPFAIL) : Network/TLS error (partial output available)
         """,
     )
@@ -491,12 +491,12 @@ def _complete_analysis(
     """Render, export, and return the final exit code."""
     _render_results(renderer, steps, args, slo_result=slo_result)
     _warn_redirect_limit(steps)
-    if not _export_results(renderer, steps, args, slo_result=slo_result):
-        return EXIT_EXPORT_ERROR
+    exported = _export_results(renderer, steps, args, slo_result=slo_result)
     return determine_exit_code(
         steps,
         slo_result=slo_result,
         fail_on_http_error=args.fail_on_http_error,
+        export_failed=not exported,
     )
 
 
@@ -820,18 +820,22 @@ def determine_exit_code(  # noqa: PLR0911 - one return per precedence level
     *,
     slo_result: SLOResult | None = None,
     fail_on_http_error: bool = False,
+    export_failed: bool = False,
 ) -> int:
     """Determine appropriate exit code based on analysis results.
 
     Precedence (highest-severity first):
 
-    1. No steps or an internal error → ``EXIT_FATAL_ERROR``.
-    2. Redirect limit exceeded → ``EXIT_TOO_MANY_REDIRECTS``.
-    3. Network / TLS error → ``EXIT_NETWORK_ERROR``.
-    4. HTTP 4xx/5xx response with ``--fail`` → ``EXIT_HTTP_FAILURE``.
-    5. SLO violation on the final successful step →
-       ``EXIT_SLO_VIOLATION``.
-    6. Otherwise → ``EXIT_SUCCESS``.
+    1. No steps or an internal error → ``EXIT_FATAL_ERROR`` (70).
+    2. Redirect limit exceeded → ``EXIT_TOO_MANY_REDIRECTS`` (47).
+    3. Network / TLS error → ``EXIT_NETWORK_ERROR`` (75).
+    4. ``--json`` report could not be written → ``EXIT_EXPORT_ERROR`` (73).
+    5. HTTP 4xx/5xx response with ``--fail`` → ``EXIT_HTTP_FAILURE`` (22).
+    6. SLO violation on the final successful step →
+       ``EXIT_SLO_VIOLATION`` (4).
+    7. Otherwise → ``EXIT_SUCCESS`` (0).
+
+    Invalid arguments (64) are reported before any request is made.
 
     Args:
         steps: List of step metrics from analysis.
@@ -839,6 +843,7 @@ def determine_exit_code(  # noqa: PLR0911 - one return per precedence level
             successful step.
         fail_on_http_error: Whether HTTP 4xx/5xx responses should fail the
             command after results have been rendered.
+        export_failed: Whether the ``--json`` report could not be written.
 
     Returns:
         Appropriate exit code.
@@ -855,6 +860,9 @@ def determine_exit_code(  # noqa: PLR0911 - one return per precedence level
 
     if any(step.has_error for step in steps):
         return EXIT_NETWORK_ERROR
+
+    if export_failed:
+        return EXIT_EXPORT_ERROR
 
     if fail_on_http_error and any(
         step.response.status is not None and step.response.status >= HTTP_FAILURE_MIN for step in steps
@@ -880,8 +888,10 @@ def main() -> int:  # noqa: C901
 
     Returns:
         Exit code: ``0`` on success, ``4`` on SLO threshold violation,
-        ``22`` on HTTP failure with ``--fail``, ``64`` on invalid arguments, ``70`` on internal error, and
-        ``75`` on network or TLS failure.
+        ``22`` on HTTP failure with ``--fail``, ``47`` when the redirect limit
+        is reached, ``64`` on invalid arguments, ``70`` on internal error,
+        ``73`` when the ``--json`` report cannot be written, and ``75`` on
+        network or TLS failure. See :func:`determine_exit_code` for precedence.
 
     """
     _configure_output_encoding()
