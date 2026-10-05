@@ -455,6 +455,52 @@ def test_make_request_sends_wire_form_of_host(
     assert response.status == 200
 
 
+class TestErrorsCarryNetworkInfo:
+    """Network failures keep the partial network data gathered before the error."""
+
+    def test_connect_error_keeps_ip_and_proxy(self, httpx_mock: pytest_httpx.HTTPXMock) -> None:
+        httpx_mock.add_exception(httpx.ConnectError("Connection refused"))
+
+        with pytest.raises(httptap.http_client.HTTPClientError) as exc_info:
+            make_request(
+                "http://example.test/",
+                dns_resolver=FakeDNSResolver(),
+                proxy="socks5://proxy.test:1080",
+                timing_collector=FakeTimingCollector(TimingMetrics()),
+            )
+
+        network = exc_info.value.network_info
+        assert network is not None
+        assert network.ip == "203.0.113.10"
+        assert network.proxy_url == "socks5://proxy.test:1080"
+
+    def test_timeout_keeps_network_info(self, httpx_mock: pytest_httpx.HTTPXMock) -> None:
+        httpx_mock.add_exception(httpx.ReadTimeout("read timed out"))
+
+        with pytest.raises(httptap.http_client.HTTPClientError, match="Request timeout") as exc_info:
+            make_request(
+                "http://example.test/",
+                timeout=5.0,
+                dns_resolver=FakeDNSResolver(),
+                timing_collector=FakeTimingCollector(TimingMetrics()),
+            )
+
+        assert exc_info.value.network_info is not None
+        assert exc_info.value.network_info.ip == "203.0.113.10"
+
+    def test_dns_failure_keeps_proxy_decision(self) -> None:
+        class Failing:
+            def resolve(self, host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+                message = f"DNS resolution failed for {host}"
+                raise DNSResolutionError(message)
+
+        with pytest.raises(httptap.http_client.HTTPClientError, match="DNS resolution failed") as exc_info:
+            make_request("http://example.test/", dns_resolver=Failing(), noproxy=True)
+
+        assert exc_info.value.network_info is not None
+        assert exc_info.value.network_info.proxy_source is not None
+
+
 class TestBuildUserAgent:
     """Test suite for _build_user_agent function."""
 
