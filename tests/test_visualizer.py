@@ -101,6 +101,13 @@ class TestWaterfallVisualizer:
         assert phase_lines
         assert all(len(line) <= console.width for line in phase_lines)
 
+    def test_compute_phase_widths_narrower_than_phase_count(self) -> None:
+        visualizer = WaterfallVisualizer(Console(file=StringIO(), width=80), max_bar_width=80)
+
+        widths = visualizer._compute_phase_widths([5.0, 40.0, 0.0, 10.0, 30.0], max_width=2)
+
+        assert widths == [0, 1, 0, 0, 1]
+
     def test_render_outputs_all_phases(self) -> None:
         """Test that render outputs all timing phases."""
         output = StringIO()
