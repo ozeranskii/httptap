@@ -9,6 +9,7 @@ from io import BytesIO, StringIO, TextIOWrapper
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
+import certifi
 import pytest
 
 if sys.version_info >= (3, 11):
@@ -343,7 +344,7 @@ def test_validate_arguments_invalid_timeout(
 def test_validate_arguments_cacert_valid_path(tmp_path: Path) -> None:
     """Test that an existing CA bundle path is normalized to an absolute path."""
     ca_bundle = tmp_path / "ca-bundle.pem"
-    ca_bundle.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n")
+    ca_bundle.write_text(Path(certifi.where()).read_text(encoding="ascii"), encoding="ascii")
 
     args = Namespace(
         url="https://example.test",
@@ -382,7 +383,7 @@ def test_validate_arguments_cacert_empty_string(
 def test_validate_arguments_cacert_relative_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that a relative CA bundle path is normalized to an absolute path."""
     ca_bundle = tmp_path / "ca-bundle.pem"
-    ca_bundle.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n")
+    ca_bundle.write_text(Path(certifi.where()).read_text(encoding="ascii"), encoding="ascii")
     monkeypatch.chdir(tmp_path)
     args = Namespace(
         url="https://example.test",
@@ -416,7 +417,52 @@ def test_validate_arguments_rejects_missing_cacert(capsys: pytest.CaptureFixture
     assert "CA bundle file does not exist" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("proxy", ["foo://bar", "proxy.example.com:8080"])
+def test_validate_arguments_rejects_invalid_cacert_contents(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    ca_bundle = tmp_path / "ca-bundle.pem"
+    ca_bundle.write_text("not a certificate\n", encoding="ascii")
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        json=None,
+        ignore_ssl=False,
+        ca_bundle=str(ca_bundle),
+        proxy=None,
+        slo=None,
+    )
+
+    assert validate_arguments(args) is False
+    assert "Failed to load CA bundle" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("proxy", "expected"),
+    [
+        ("proxy.example.com:8080", "http://proxy.example.com:8080"),
+        ("user:pw@127.0.0.1:3128", "http://user:pw@127.0.0.1:3128"),
+        ("socks5h://gateway:1080", "socks5h://gateway:1080"),
+    ],
+)
+def test_validate_arguments_defaults_scheme_less_proxy_to_http(proxy: str, expected: str) -> None:
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        json=None,
+        ignore_ssl=False,
+        ca_bundle=None,
+        proxy=proxy,
+        slo=None,
+    )
+
+    assert validate_arguments(args) is True
+    assert args.proxy == expected
+
+
+@pytest.mark.parametrize("proxy", ["foo://bar", "ftp://proxy.example.com:21"])
 def test_validate_arguments_rejects_invalid_proxy_scheme(
     proxy: str,
     capsys: pytest.CaptureFixture[str],
@@ -462,7 +508,7 @@ def test_parser_insecure_and_cacert_mutually_exclusive(
 ) -> None:
     """Test that --insecure and --cacert cannot be used together (enforced by argparse)."""
     ca_bundle = tmp_path / "ca-bundle.pem"
-    ca_bundle.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n")
+    ca_bundle.write_text(Path(certifi.where()).read_text(encoding="ascii"), encoding="ascii")
 
     parser = create_parser()
 

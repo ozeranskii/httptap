@@ -52,7 +52,7 @@ from .slo import (
     parse_slo_spec,
     select_step_for_evaluation,
 )
-from .utils import read_request_data, validate_url
+from .utils import create_ssl_context, read_request_data, validate_url
 
 # Exit codes (aligned with sysexits.h conventions where possible)
 # Fall back to canonical numeric equivalents when running on platforms
@@ -554,9 +554,25 @@ def _validate_connection_arguments(args: argparse.Namespace) -> bool:
                 )
             )
             return False
+        try:
+            create_ssl_context(verify_ssl=True, ca_bundle_path=str(ca_bundle_path))
+        except ValueError as exc:
+            console.print(
+                Panel(
+                    f"[red]{escape(str(exc))}[/red]",
+                    title="[bold red]❌ Validation Error[/bold red]",
+                    border_style="red",
+                    padding=(1, 2),
+                )
+            )
+            return False
         args.ca_bundle = str(ca_bundle_path)
 
-    if args.proxy not in (None, "") and urlparse(args.proxy).scheme.lower() not in {
+    if args.proxy and "://" not in args.proxy:
+        # curl treats a scheme-less proxy as plain HTTP.
+        args.proxy = f"http://{args.proxy}"
+
+    if args.proxy and urlparse(args.proxy).scheme.lower() not in {
         "http",
         "https",
         "socks5",
