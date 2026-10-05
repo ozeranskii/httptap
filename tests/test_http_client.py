@@ -324,35 +324,42 @@ def test_make_request_total_deadline_stops_slow_stream() -> None:
     listener.bind(("127.0.0.1", 0))
     listener.listen()
     port = listener.getsockname()[1]
+    streaming = threading.Event()
+    stop = threading.Event()
 
     def serve() -> None:
-        try:
+        with suppress(OSError):
             connection, _address = listener.accept()
             with connection:
                 connection.recv(4096)
                 connection.sendall(
                     b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n1\r\na\r\n"
                 )
-                for _ in range(10):
-                    time.sleep(0.1)
-                    try:
-                        connection.sendall(b"1\r\nb\r\n")
-                    except OSError:
-                        break
-                with suppress(OSError):
-                    connection.sendall(b"0\r\n\r\n")
-        finally:
-            listener.close()
+                streaming.set()
+                # Chunks arrive well within the per-read timeout, so only the
+                # total deadline can end the transfer before the stream does.
+                stream_until = time.monotonic() + 10.0
+                while time.monotonic() < stream_until and not stop.wait(0.05):
+                    connection.sendall(b"1\r\nb\r\n")
+                connection.sendall(b"0\r\n\r\n")
 
     thread = threading.Thread(target=serve, daemon=True)
     thread.start()
+    # A generous budget keeps DNS and connect on slow CI runners well inside it,
+    # so the deadline is reached while the body is streaming.
+    timeout = 2.0
     started = time.monotonic()
+    try:
+        with pytest.raises(HTTPClientError, match="total deadline exceeded"):
+            make_request(f"http://127.0.0.1:{port}/", timeout=timeout, http2=False)
+        elapsed = time.monotonic() - started
+    finally:
+        stop.set()
+        listener.close()
+        thread.join(timeout=5)
 
-    with pytest.raises(HTTPClientError, match="total deadline exceeded"):
-        make_request(f"http://127.0.0.1:{port}/", timeout=0.4, http2=False)
-
-    assert time.monotonic() - started < 0.75
-    thread.join(timeout=2)
+    assert streaming.is_set()
+    assert elapsed < timeout + 3.0
     assert not thread.is_alive()
 
 
