@@ -119,6 +119,20 @@ uv run pytest tests/test_benchmarks.py
 
 使用 `--codspeed-mode=walltime` 可在本地检查某项优化而无需等待 CI；每个基准大约耗时两秒。墙钟数值在共享硬件上本质上是有噪声的，因此 CI 转而依赖 `simulation`——请将本地的墙钟结果视为方向性信号，而非 CI 将报告的数值。
 
+### 运行端到端测试
+
+`tests/e2e` 中的测试套件以子进程方式运行 `httptap` CLI，并针对本地的 HTTP、TLS、代理、SOCKS5 和 OTLP 服务器进行测试。普通的 `uv run pytest` 不会收集它；请显式传入该目录：
+
+```bash
+# 针对源码检出运行（OTLP 测试需要 otel extra）
+uv run --extra otel pytest tests/e2e --no-cov -n auto
+
+# 针对其他构建运行，例如已安装的 wheel
+uv run pytest tests/e2e --no-cov -n auto --httptap /path/to/venv/bin/httptap
+```
+
+CI 会针对构建出的 wheel 和容器镜像运行它，每日运行的 **E2E matrix** 工作流还会在 Linux、macOS 和 Windows 上使用 Python 3.11、3.13、3.14 和 3.14t 重复运行。关于针对 Docker 镜像运行以及全部选项，请参阅 [tests/e2e/README.md](https://github.com/ozeranskii/httptap/blob/main/tests/e2e/README.md)。
+
 ### 在本地运行
 
 测试你的更改：

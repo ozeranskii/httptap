@@ -38,6 +38,7 @@ Fixes # (issue number, if applicable)
 **Tests performed:**
 
 - [ ] Ran existing test suite: `uv run pytest`
+- [ ] Ran the end-to-end tests for CLI/network behaviour changes: `uv run --extra otel pytest tests/e2e --no-cov -n auto`
 - [ ] Added new tests for new functionality
 - [ ] Manually tested with: `httptap <command>`
 - [ ] Tested on multiple OS (if applicable): Linux / macOS / Windows

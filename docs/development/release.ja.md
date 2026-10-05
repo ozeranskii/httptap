@@ -74,8 +74,14 @@ description: httptap の自動化された GitHub Actions リリースプロセ�
    uv sync --locked --no-dev --group test
    uv run --no-sync pytest  # Full test suite
    uv build  # Create wheel and sdist
+   uv venv "$RUNNER_TEMP/httptap-wheel"
+   uv pip install --python "$RUNNER_TEMP/httptap-wheel" "$(echo dist/httptap-*.whl)[otel]"
+   uv sync --locked --no-dev --no-install-project --group test --group e2e
+   uv run --no-sync pytest tests/e2e --no-cov -n auto --httptap "$RUNNER_TEMP/httptap-wheel/bin/httptap"
    ```
-   バンドルから取得した、まだプッシュされていないリリースタグ上で実行される。
+   バンドルから取得した、まだプッシュされていないリリースタグ上で実行される。続いて、`otel` extra 付きでインストールした
+   ビルド済み wheel の CLI に対してエンドツーエンドテストを実行するため、パッケージングの誤りは、何かが証明・アップロード
+   される前にリリースを失敗させる。
 
 6. **コミットとタグのプッシュ**
    ```bash
@@ -122,6 +128,7 @@ description: httptap の自動化された GitHub Actions リリースプロセ�
 - バンドルから、まだプッシュされていないリリースタグをチェックアウトする
 - 完全なテストスイートを実行する
 - wheel と sdist をビルドする
+- ビルドした wheel（`otel` extra 付き）に対してエンドツーエンドテスト（`tests/e2e`）を実行する
 - [Syft](https://github.com/anchore/syft) を介して CycloneDX および SPDX JSON 形式の SBOM を生成する
 - `.vex/httptap.openvex.json` の `fixed` ステートメントにリリースが含まれていなければ失敗し、その後文書を `sbom/` ディレクトリに `httptap-X.Y.Z.openvex.json` としてコピーする
 - [argparse-manpage](https://github.com/praiskup/argparse-manpage) を介して gzip 圧縮された `man(1)` ページを生成する

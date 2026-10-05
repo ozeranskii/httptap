@@ -83,8 +83,14 @@ El proceso de publicación se activa manualmente mediante GitHub Actions.
    uv sync --locked --no-dev --group test
    uv run --no-sync pytest  # Full test suite
    uv build  # Create wheel and sdist
+   uv venv "$RUNNER_TEMP/httptap-wheel"
+   uv pip install --python "$RUNNER_TEMP/httptap-wheel" "$(echo dist/httptap-*.whl)[otel]"
+   uv sync --locked --no-dev --no-install-project --group test --group e2e
+   uv run --no-sync pytest tests/e2e --no-cov -n auto --httptap "$RUNNER_TEMP/httptap-wheel/bin/httptap"
    ```
-   Se ejecuta sobre la etiqueta de publicación no enviada procedente del bundle.
+   Se ejecuta sobre la etiqueta de publicación no enviada procedente del bundle. Después, la suite de
+   extremo a extremo ejecuta la CLI del wheel compilado, instalado con el extra `otel`, de modo que un
+   error de empaquetado hace fallar la publicación antes de atestar o subir nada.
 
 6. **Envío del commit y la etiqueta**
    ```bash
@@ -136,6 +142,7 @@ El flujo de trabajo de publicación está definido en `.github/workflows/release
 - Extrae la etiqueta de publicación no enviada desde el bundle
 - Ejecuta el conjunto de pruebas completo
 - Compila el wheel y el sdist
+- Ejecuta la suite de extremo a extremo (`tests/e2e`) contra el wheel compilado con el extra `otel`
 - Genera el SBOM en formatos JSON CycloneDX y SPDX mediante [Syft](https://github.com/anchore/syft)
 - Falla si alguna declaración `fixed` de `.vex/httptap.openvex.json` no incluye la publicación y luego copia el documento al directorio `sbom/` como `httptap-X.Y.Z.openvex.json`
 - Genera una página `man(1)` comprimida con gzip usando [argparse-manpage](https://github.com/praiskup/argparse-manpage)

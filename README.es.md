@@ -828,6 +828,12 @@ uv run ruff format .
 
 La suite de pruebas no necesita acceso de red saliente: las llamadas HTTP se simulan con `pytest-httpx`, y las pruebas de TLS y proxy usan servidores locales.
 
+Las pruebas de extremo a extremo de `tests/e2e` ejecutan la CLI `httptap` como subproceso contra servidores HTTP, TLS, proxy y OTLP locales, así que tampoco necesitan acceso de red saliente. Un `uv run pytest` normal no las incluye; ejecútalas con:
+
+```shell
+uv run --extra otel pytest tests/e2e --no-cov -n auto
+```
+
 ---
 
 ## Contribuir

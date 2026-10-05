@@ -157,6 +157,20 @@ Benchmarks cover pure-computation functions across models, formatters, utils, an
 
 Use `--codspeed-mode=walltime` to check an optimization locally without waiting for CI; it takes roughly two seconds per benchmark. Wall-clock numbers are inherently noisy on shared hardware, so CI relies on `simulation` instead — treat local walltime results as a directional signal, not as the value CI will report.
 
+### Running the End-to-End Tests
+
+The suite in `tests/e2e` runs the `httptap` CLI as a subprocess against local HTTP, TLS, proxy, SOCKS5 and OTLP servers. A plain `uv run pytest` does not collect it; pass the directory explicitly:
+
+```bash
+# Against the source checkout (the otel extra is needed for the OTLP tests)
+uv run --extra otel pytest tests/e2e --no-cov -n auto
+
+# Against another build, such as an installed wheel
+uv run pytest tests/e2e --no-cov -n auto --httptap /path/to/venv/bin/httptap
+```
+
+CI runs it against the built wheel and the container image, and the daily **E2E matrix** workflow repeats it on Linux, macOS and Windows with Python 3.11, 3.13, 3.14 and 3.14t. See [tests/e2e/README.md](tests/e2e/README.md) for running it against a Docker image and for all options.
+
 ### Writing Tests
 
 - Place tests in `tests/` directory
@@ -296,6 +310,7 @@ httptap/
 │   ├── utils.py           # Utility functions
 │   └── constants.py       # Configuration constants
 ├── tests/                  # Test suite
+│   └── e2e/               # End-to-end tests of the CLI against local servers
 ├── .github/               # GitHub configuration
 │   ├── workflows/         # CI/CD workflows
 │   └── ISSUE_TEMPLATE/    # Issue templates

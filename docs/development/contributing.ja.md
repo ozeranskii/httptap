@@ -119,6 +119,20 @@ uv run pytest tests/test_benchmarks.py
 
 CI を待たずにローカルで最適化を確認するには `--codspeed-mode=walltime` を使用してください; ベンチマークごとにおよそ 2 秒かかります。実測時間の数値は共有ハードウェア上では本質的にノイズが多いため、CI は代わりに `simulation` に依存します — ローカルの walltime 結果は、CI が報告する値としてではなく、方向性を示すシグナルとして扱ってください。
 
+### エンドツーエンドテストの実行
+
+`tests/e2e` のスイートは `httptap` CLI をサブプロセスとして実行し、ローカルの HTTP、TLS、プロキシ、SOCKS5、OTLP サーバーに対してテストします。通常の `uv run pytest` では収集されないため、ディレクトリを明示的に指定してください:
+
+```bash
+# ソースチェックアウトに対して実行する（OTLP テストには otel extra が必要）
+uv run --extra otel pytest tests/e2e --no-cov -n auto
+
+# インストール済みの wheel など、別のビルドに対して実行する
+uv run pytest tests/e2e --no-cov -n auto --httptap /path/to/venv/bin/httptap
+```
+
+CI はビルドされた wheel とコンテナイメージに対して実行し、毎日実行される **E2E matrix** ワークフローが Linux、macOS、Windows 上の Python 3.11、3.13、3.14、3.14t で繰り返します。Docker イメージに対する実行方法とすべてのオプションについては [tests/e2e/README.md](https://github.com/ozeranskii/httptap/blob/main/tests/e2e/README.md) を参照してください。
+
 ### ローカルでの実行
 
 変更をテストする:
