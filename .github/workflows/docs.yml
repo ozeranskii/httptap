@@ -63,7 +63,7 @@ jobs:
 
   deploy:
     name: Deploy Documentation
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10

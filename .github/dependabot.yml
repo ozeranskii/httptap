@@ -91,6 +91,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      # opentelemetry-sdk pins opentelemetry-api to the same version, so these
+      # must move together.
+      opentelemetry:
+        patterns:
+          - "opentelemetry*"
 
   - package-ecosystem: "pre-commit"
     directory: "/"

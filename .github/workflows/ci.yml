@@ -98,9 +98,14 @@ jobs:
             echo "code=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          # A rewritten history (force-push) may drop the base commit; treat it as a code change.
+          if ! changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA"); then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           echo "$changed"
-          if echo "$changed" | grep -qvE '^(docs/|mkdocs\.yml$)|\.md$'; then
+          # README.md feeds the package long description, which the build job validates.
+          if echo "$changed" | grep -qx 'README.md' || echo "$changed" | grep -qvE '^(docs/|mkdocs\.yml$)|\.md$'; then
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"

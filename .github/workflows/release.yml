@@ -36,6 +36,8 @@ jobs:
     name: Prepare Release
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # push-release fast-forwards the dispatching branch; releases are cut from main only.
+    if: github.ref == 'refs/heads/main'
     permissions:
       contents: read # Required for repository checkout
       id-token: write # Required for gitsign keyless Sigstore OIDC signing
@@ -43,6 +45,7 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
       notes: ${{ steps.notes.outputs.text }}
+      sha: ${{ steps.commit.outputs.sha }}
 
     steps:
       - name: Checkout
@@ -106,7 +109,7 @@ jobs:
           yq -i ".version = \"${VERSION}\" | .\"date-released\" = \"${DATE}\"" CITATION.cff
 
       - name: Ensure changelog exists
-        run: touch ${CHANGELOG_FILE}
+        run: touch "${CHANGELOG_FILE}"
 
       - name: Install git-cliff
         uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
@@ -119,7 +122,7 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
           # Generate full changelog and prepend to CHANGELOG.md
-          git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --prepend ${CHANGELOG_FILE}
+          git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --prepend "${CHANGELOG_FILE}"
           # Extract release notes for the new version.
           # We cannot use --latest here because the tag does not exist in git
           # yet (it is created in a later step); --latest would fall back to
@@ -132,11 +135,13 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Commit release changes
+        id: commit
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          git add pyproject.toml uv.lock CITATION.cff ${CHANGELOG_FILE}
+          git add pyproject.toml uv.lock CITATION.cff "${CHANGELOG_FILE}"
           git commit -S -m "chore: release v${VERSION}"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Create signed tag
         env:
@@ -193,7 +198,7 @@ jobs:
           enable-cache: false
 
       - name: Sync dependencies
-        run: uv sync --locked --group test
+        run: uv sync --locked --no-dev --group test
 
       - name: Run tests
         run: uv run pytest
@@ -216,13 +221,19 @@ jobs:
           compression-level: 6
           if-no-files-found: error
 
-      - name: Prepare SBOM directory
-        run: mkdir -p sbom
+      - name: Prepare SBOM inputs
+        # The SBOM describes what users install (the wheel and its runtime
+        # dependencies), not the build environment with test tooling.
+        run: |
+          mkdir -p sbom
+          uv venv "${RUNNER_TEMP}/sbom-env"
+          uv pip install --python "${RUNNER_TEMP}/sbom-env" dist/*.whl
 
       - name: Generate SBOM (CycloneDX)
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
           artifact-name: ${{ env.PACKAGE_NAME }}-${{ needs.prepare.outputs.version }}.cdx.json
+          path: ${{ runner.temp }}/sbom-env
           format: cyclonedx-json
           output-file: sbom/${{ env.PACKAGE_NAME }}-${{ needs.prepare.outputs.version }}.cdx.json
           upload-artifact: false
@@ -232,6 +243,7 @@ jobs:
         uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
           artifact-name: ${{ env.PACKAGE_NAME }}-${{ needs.prepare.outputs.version }}.spdx.json
+          path: ${{ runner.temp }}/sbom-env
           format: spdx-json
           output-file: sbom/${{ env.PACKAGE_NAME }}-${{ needs.prepare.outputs.version }}.spdx.json
           upload-artifact: false
@@ -439,7 +451,7 @@ jobs:
             type=semver,pattern={{major}},value=${{ needs.prepare.outputs.tag }}
             type=raw,value=latest,enable={{is_default_branch}}
           labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ needs.prepare.outputs.sha }}
             org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
 
       - name: Build and push image
