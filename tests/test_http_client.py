@@ -25,6 +25,7 @@ from httptap.http_client import (
     _build_timing_metrics,
     _build_user_agent,
     _consume_response_body,
+    _DeadlineWatchdog,
     _extract_ssl_object,
     _host_matches_no_proxy,
     _is_certificate_verification_error,
@@ -361,6 +362,116 @@ def test_make_request_total_deadline_stops_slow_stream() -> None:
     assert streaming.is_set()
     assert elapsed < timeout + 3.0
     assert not thread.is_alive()
+
+
+def _serve_stalling_response(header_chunks: list[bytes], delay: float) -> tuple[int, threading.Thread]:
+    """Send ``header_chunks`` ``delay`` seconds apart, then stall until the client goes away."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+
+    def serve() -> None:
+        with listener:
+            connection, _address = listener.accept()
+            with connection:
+                connection.recv(4096)
+                with suppress(OSError):
+                    for chunk in header_chunks:
+                        time.sleep(delay)
+                        connection.sendall(chunk)
+                    connection.settimeout(5)
+                    connection.recv(1)  # returns once the client closes the connection
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    return listener.getsockname()[1], thread
+
+
+@pytest.mark.parametrize(
+    ("header_chunks", "delay"),
+    [
+        ([b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nx"], 0.6),
+        ([bytes([byte]) for byte in b"HTTP/1.1 200 OK\r\n"], 0.1),
+    ],
+    ids=["late-headers-then-body-stall", "trickling-headers"],
+)
+def test_make_request_total_deadline_is_independent_of_read_timing(header_chunks: list[bytes], delay: float) -> None:
+    """Each read staying under the read timeout must not stretch the total deadline."""
+    port, thread = _serve_stalling_response(header_chunks, delay)
+    threads_before = threading.active_count()
+    started = time.monotonic()
+
+    with pytest.raises(HTTPClientError, match="total deadline exceeded") as exc_info:
+        make_request(f"http://127.0.0.1:{port}/", timeout=1.0, http2=False)
+
+    assert time.monotonic() - started < 1.4
+    assert exc_info.value.network_info is not None
+    assert exc_info.value.network_info.ip == "127.0.0.1"
+    thread.join(timeout=5)
+    assert not thread.is_alive()
+    assert threading.active_count() == threads_before - 1
+
+
+def _stream_event(sock: object) -> dict[str, object]:
+    return {"return_value": SimpleNamespace(get_extra_info=lambda name: sock if name == "socket" else None)}
+
+
+class TestDeadlineWatchdog:
+    """The watchdog shuts down only the live connection, and only after the deadline."""
+
+    def test_shuts_down_observed_socket_at_deadline(self) -> None:
+        local, remote = socket.socketpair()
+        with local, remote, _DeadlineWatchdog(time.monotonic() + 0.05) as watchdog:
+            watchdog.observe("connection.connect_tcp.complete", _stream_event(local))
+            local.settimeout(5)
+            assert local.recv(1) == b""  # woken by the shutdown, not by the timeout
+            assert watchdog.expired is True
+
+    def test_socket_reported_after_expiry_is_shut_down_at_once(self) -> None:
+        local, remote = socket.socketpair()
+        with local, remote, _DeadlineWatchdog(time.monotonic()) as watchdog:
+            deadline = time.monotonic() + 5
+            while not watchdog.expired and time.monotonic() < deadline:
+                time.sleep(0.01)
+            watchdog.observe("connection.start_tls.complete", _stream_event(local))
+            local.settimeout(5)
+            assert local.recv(1) == b""
+
+    @pytest.mark.parametrize(
+        ("name", "info"),
+        [
+            ("connection.connect_tcp.started", _stream_event(None)),
+            ("connection.connect_tcp.complete", {"return_value": None}),
+            ("connection.connect_tcp.complete", _stream_event(object())),
+        ],
+    )
+    def test_ignores_events_without_a_socket(self, name: str, info: dict[str, object]) -> None:
+        with _DeadlineWatchdog(time.monotonic() + 60) as watchdog:
+            watchdog.observe(name, info)
+            assert watchdog._socket is None
+
+    def test_does_nothing_once_disarmed(self) -> None:
+        local, remote = socket.socketpair()
+        with local, remote:
+            watchdog = _DeadlineWatchdog(time.monotonic() + 60)
+            with watchdog:
+                watchdog.observe("connection.connect_tcp.complete", _stream_event(local))
+            watchdog._expire()  # a timer that fired while being cancelled
+
+            assert watchdog.expired is False
+            remote.sendall(b"x")
+            assert local.recv(1) == b"x"
+
+    def test_expiry_tolerates_missing_and_closed_sockets(self) -> None:
+        watchdog = _DeadlineWatchdog(time.monotonic() + 60)
+        with watchdog:
+            watchdog._expire()
+            local, remote = socket.socketpair()
+            local.close()
+            remote.close()
+            watchdog.observe("connection.connect_tcp.complete", _stream_event(local))
+
+        assert watchdog.expired is True
 
 
 def test_certificate_verification_error_detection_handles_cyclic_chains() -> None:
@@ -869,7 +980,7 @@ class TestConsumeResponseBody:
         response = httpx.Response(200, stream=httpx.ByteStream(b"body"))
         monkeypatch.setattr("httptap.http_client.time.monotonic", lambda: 2.0)
 
-        with pytest.raises(HTTPClientError, match="total deadline exceeded"):
+        with pytest.raises(httpx.ReadTimeout, match="total deadline exceeded"):
             _consume_response_body(response, deadline=1.0)
 
 
@@ -1645,7 +1756,7 @@ class TestMakeRequest:
         mocker: pytest_mock.MockerFixture,
     ) -> None:
         """The verification error is still reported when no time is left for diagnostics."""
-        clock = iter([0.0, 0.0, 0.0, 0.0])
+        clock = iter([0.0, 0.0, 0.0, 0.0, 0.0])
         mocker.patch("httptap.http_client.time.monotonic", side_effect=lambda: next(clock, 10.0))
         httpx_mock.add_exception(
             httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] certificate has expired"),
@@ -1802,7 +1913,7 @@ class TestMakeRequest:
         httpx_mock: pytest_httpx.HTTPXMock,
         mocker: pytest_mock.MockerFixture,
     ) -> None:
-        readings = iter([0.0, 0.0, 0.0, 0.0])
+        readings = iter([0.0, 0.0, 0.0, 0.0, 0.0])
         mocker.patch("httptap.http_client.time.monotonic", side_effect=lambda: next(readings, 10.0))
         inspector = mocker.Mock()
         httpx_mock.add_response(method="GET", url="https://203.0.113.10", status_code=200)
@@ -1849,7 +1960,7 @@ class TestMakeRequest:
             return_value=([("::1", "IPv6"), ("127.0.0.1", "IPv4")], 1.0),
         )
         # deadline = 0 + 5; DNS and the first attempt run at 0, the second attempt would start at 10.
-        readings = iter([0.0, 0.0, 0.0, 0.0])
+        readings = iter([0.0, 0.0, 0.0, 0.0, 0.0])
         mocker.patch("httptap.http_client.time.monotonic", side_effect=lambda: next(readings, 10.0))
         httpx_mock.add_exception(httpx.ConnectTimeout("Connection timed out"), method="GET", url="http://[::1]/")
 
@@ -1924,7 +2035,7 @@ class TestMakeRequest:
             return_value=([("::1", "IPv6"), ("127.0.0.1", "IPv4")], 1.0),
         )
         # deadline, pre-DNS check, DNS budget and the first attempt read 100; the second attempt reads 105.
-        clock_values = iter([100.0, 100.0, 100.0, 100.0, 105.0])
+        clock_values = iter([100.0, 100.0, 100.0, 100.0, 100.0, 105.0])
         mocker.patch("httptap.http_client.time.monotonic", side_effect=lambda: next(clock_values, 105.0))
         connect_timeouts: list[float] = []
 

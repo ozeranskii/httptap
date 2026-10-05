@@ -46,11 +46,13 @@ Examples:
 from __future__ import annotations
 
 import os
+import socket
 import ssl
+import threading
 import time
 import warnings
 from contextlib import suppress
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -216,6 +218,10 @@ def _consume_response_body(response: httpx.Response, deadline: float | None = No
 
     With ``deadline`` set, every received chunk is checked against it, so a
     body that keeps trickling in cannot outlive the total request budget.
+
+    Raises:
+        httpx.ReadTimeout: If a chunk arrives after ``deadline``.
+
     """
     if response.is_stream_consumed:
         # In-memory responses (e.g. mock transports) arrive already read; the
@@ -225,9 +231,81 @@ def _consume_response_body(response: httpx.Response, deadline: float | None = No
     total_bytes = 0
     for chunk in response.iter_raw():
         total_bytes += len(chunk)
-        if deadline is not None:
-            remaining_timeout(deadline)
+        if deadline is not None and time.monotonic() >= deadline:
+            raise httpx.ReadTimeout(_DEADLINE_EXCEEDED)
     return total_bytes
+
+
+class _DeadlineWatchdog:
+    """Shut the request's connection down once the total deadline passes.
+
+    httpx timeouts bound each network operation, not the request: a server
+    that answers every read just before the read timeout (late headers, a
+    stalled body, trickling bytes) can keep a request alive far past the
+    deadline. Recomputing per-read timeouts is not possible from outside
+    httpcore, which fixes the read timeout when a response starts, so a timer
+    thread shuts the socket down at the deadline instead. That wakes a
+    blocked read at once without polling, and the request then fails with a
+    transport error that ``make_request`` reports as the deadline.
+
+    The socket is taken from the httpcore trace events that hand over a new
+    stream (TCP connect, TLS handshake). A TLS handshake in progress cannot be
+    interrupted this way, since the TLS socket only exists once it completes;
+    it stays bounded by the connect timeout and is shut down right after if
+    the deadline passed meanwhile.
+    """
+
+    _STREAM_EVENTS = (".connect_tcp.complete", ".start_tls.complete")
+
+    def __init__(self, deadline: float) -> None:
+        """Prepare a watchdog for ``deadline``; it is armed by entering the context."""
+        self._lock = threading.Lock()
+        self._socket: socket.socket | None = None
+        self._active = True
+        self.expired = False
+        self._timer = threading.Timer(max(0.0, deadline - time.monotonic()), self._expire)
+        self._timer.daemon = True
+
+    def __enter__(self) -> Self:
+        """Start the deadline timer."""
+        self._timer.start()
+        return self
+
+    def __exit__(self, *_exc_info: object) -> None:
+        """Disarm the watchdog and wait for its timer thread to finish."""
+        with self._lock:
+            self._active = False
+            self._socket = None
+        self._timer.cancel()
+        self._timer.join()
+
+    def observe(self, name: str, info: Mapping[str, object]) -> None:
+        """Track the socket of the latest stream reported by an httpcore trace event."""
+        if not name.endswith(self._STREAM_EVENTS):
+            return
+        get_extra_info = getattr(info.get("return_value"), "get_extra_info", None)
+        sock = get_extra_info("socket") if callable(get_extra_info) else None
+        if not isinstance(sock, socket.socket):
+            return
+        with self._lock:
+            self._socket = sock
+            if self.expired:
+                self._shutdown()
+
+    def _expire(self) -> None:
+        with self._lock:
+            if not self._active:
+                return
+            self.expired = True
+            self._shutdown()
+
+    def _shutdown(self) -> None:
+        if self._socket is None:
+            return
+        # socket.socket.shutdown also for TLS sockets: SSLSocket.shutdown
+        # drops the SSL object under the thread blocked reading from it.
+        with suppress(OSError):
+            socket.socket.shutdown(self._socket, socket.SHUT_RDWR)
 
 
 class TraceCollector:
@@ -670,6 +748,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     network_info.tls_custom_ca = bool(ca_bundle_path) if verify_ssl else False
     response_info = ResponseInfo()
     request_deadline = deadline if deadline is not None else time.monotonic() + timeout
+    watchdog = _DeadlineWatchdog(request_deadline)
 
     try:
         remaining_timeout(request_deadline)
@@ -753,7 +832,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             msg = f"Cannot set up the HTTP client: {exc}"
             raise HTTPClientError(msg, network_info=network_info) from exc
 
-        with client:
+        with client, watchdog:
             client.headers["User-Agent"] = USER_AGENT
             if headers:
                 client.headers.update(headers)
@@ -788,13 +867,18 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                 network_info.ip = None if skip_local_dns else ip
                 network_info.ip_family = None if skip_local_dns else ip_family
                 trace = TraceCollector()
+
+                def on_trace(name: str, info: dict[str, object], trace: TraceCollector = trace) -> None:
+                    trace(name, info)
+                    watchdog.observe(name, info)
+
                 try:
                     timing_collector.mark_request_start()
                     with client.stream(
                         method.value,
                         request_url,
                         content=content,
-                        extensions={"trace": trace, "sni_hostname": wire_host},
+                        extensions={"trace": on_trace, "sni_hostname": wire_host},
                         **stream_kwargs,  # type: ignore[arg-type]
                     ) as response:
                         timing_collector.mark_ttfb()
@@ -806,7 +890,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                         response_info.bytes = _consume_response_body(response, request_deadline)
                         break
                 except httpx.ConnectError as exc:
-                    if _has_tls_error(exc) or index == len(addresses) - 1:
+                    if watchdog.expired or _has_tls_error(exc) or index == len(addresses) - 1:
                         raise
                 except httpx.ConnectTimeout:
                     if index == len(addresses) - 1:
@@ -841,6 +925,10 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         msg = f"Request timeout: {exc}"
         raise HTTPClientError(msg, network_info=network_info) from exc
     except httpx.RequestError as exc:
+        if watchdog.expired:
+            # The watchdog shut the connection down; the transport error it
+            # caused is only a symptom of the deadline.
+            raise HTTPClientError(_DEADLINE_EXCEEDED, network_info=network_info) from exc
         msg = f"Request failed: {exc}"
         if (
             is_https
