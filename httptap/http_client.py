@@ -367,6 +367,19 @@ class _BracketedProxyTargets:
         self._pool.__exit__(exc_type, exc_value, traceback)
 
 
+class _HTTPTransport(httpx.HTTPTransport):
+    """``httpx.HTTPTransport`` that sends IPv6 literal targets to HTTP proxies in bracketed form.
+
+    httpx offers no hook between converting the request and handing it to its
+    httpcore pool, so the pool it creates is wrapped instead.
+    """
+
+    def __init__(self, *, verify: ssl.SSLContext, http2: bool, proxy: ProxyTypes | None, trust_env: bool) -> None:
+        super().__init__(verify=verify, http2=http2, proxy=proxy, trust_env=trust_env)
+        if isinstance(self._pool, httpcore.HTTPProxy):
+            self._pool = _BracketedProxyTargets(self._pool)  # type: ignore[assignment]
+
+
 class TraceCollector:
     """Collect low-level httpcore trace events for precise timing."""
 
@@ -933,7 +946,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         )
 
         try:
-            transport = httpx.HTTPTransport(
+            transport = _HTTPTransport(
                 verify=ssl_context,
                 http2=http2,
                 # Proxy resolution is handled above against the original hostname.
@@ -946,11 +959,6 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             # transport dependencies (socksio, h2) fail with an ImportError.
             msg = f"Cannot set up the HTTP client: {exc}"
             raise HTTPClientError(msg, network_info=network_info) from exc
-        # httpx keeps its httpcore pool on ``_pool``; there is no public hook
-        # between the request conversion and the proxy pool.
-        pool = getattr(transport, "_pool", None)
-        if bracket_proxy_target and isinstance(pool, httpcore.HTTPProxy):
-            transport._pool = _BracketedProxyTargets(pool)  # type: ignore[assignment]  # noqa: SLF001
         # The client only builds requests (default headers, timeouts); they are
         # sent on the transport directly. Client.send prepares the next redirect
         # request even with follow_redirects=False and fails on a Location that

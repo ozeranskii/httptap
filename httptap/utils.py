@@ -281,7 +281,7 @@ def _unbracket(server_hostname: str | bytes | None) -> str | bytes | None:
 
 @cache
 def _default_client_settings() -> tuple[ssl.Options, ssl.VerifyFlags]:
-    """Options and verification flags of the stdlib default client context; they vary by Python version."""
+    """Options and verification flags of ``ssl.create_default_context()``; they vary by Python version."""
     template = ssl.create_default_context()
     return template.options, template.verify_flags
 

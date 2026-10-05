@@ -126,7 +126,7 @@ def patch_transport(
         created.append(transport)
         return transport
 
-    mocker.patch("httptap.http_client.httpx.HTTPTransport", side_effect=build)
+    mocker.patch("httptap.http_client._HTTPTransport", side_effect=build)
     return created
 
 
@@ -1116,7 +1116,7 @@ class TestProxyURLValidation:
 
     def test_client_construction_failure_is_a_client_error(self, mocker: pytest_mock.MockerFixture) -> None:
         mocker.patch(
-            "httptap.http_client.httpx.HTTPTransport",
+            "httptap.http_client._HTTPTransport",
             side_effect=ImportError("Using SOCKS proxy, but the 'socksio' package is not installed."),
         )
 
