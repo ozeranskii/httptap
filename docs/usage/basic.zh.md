@@ -342,7 +342,7 @@ httptap https://httpbin.io/status/200
 每次 httptap 请求都会经历以下阶段：
 
 1. **DNS 解析** —— 域名查找
-2. **TCP 连接** —— 建立 TCP 连接
+2. **TCP 连接** —— 建立 TCP 连接（通过 HTTP CONNECT 代理时：连接到代理并建立隧道）
 3. **TLS 握手** —— 协商安全连接（仅 HTTPS）
 4. **服务器等待** —— 从请求发出到收到第一个响应字节之间的时间
 5. **响应体传输** —— 下载响应体
@@ -361,7 +361,7 @@ httptap https://httpbin.io/status/200
 ### 计时明细
 
 - **DNS (ms)** —— 将域名解析为 IP 地址的时间
-- **Connect (ms)** —— 建立 TCP 连接的时间
+- **Connect (ms)** —— 建立 TCP 连接的时间；通过 HTTP CONNECT 代理时还包括 CONNECT 往返，因此隧道建立不会计入服务器等待
 - **TLS (ms)** —— TLS 握手的时间（仅 HTTPS）
 - **TTFB (ms)** —— 首字节时间（包含服务器处理）
 - **Transfer (ms)** —— 下载响应体的时间

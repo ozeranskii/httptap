@@ -248,7 +248,9 @@ class TraceCollector:
         if not prefix:
             return
         event = self._events.setdefault(prefix, {})
-        event[stage] = timestamp
+        # Keep the first occurrence: through a CONNECT proxy the tunnel request
+        # reuses the same event names as the request sent through the tunnel.
+        event.setdefault(stage, timestamp)
 
     def _duration_ms(self, event_name: str) -> float | None:
         """Convert stored start/complete timestamps into milliseconds."""
@@ -263,7 +265,18 @@ class TraceCollector:
 
     @property
     def connect_ms(self) -> float | None:
-        """Return measured TCP connect duration in milliseconds."""
+        """Return the time to establish the connection to the origin, in milliseconds.
+
+        For a direct connection this is the TCP connect. Through an HTTP
+        CONNECT proxy the origin is reachable only once the tunnel is up, so
+        the span runs from the TCP connect to the proxy until the origin TLS
+        handshake starts: TCP to the proxy, the proxy TLS handshake for an
+        ``https://`` proxy, and the CONNECT round-trip.
+        """
+        tunnel_ready = self._events.get(self.PROXY_TLS_EVENT, {}).get("started")
+        connect_started = self._events.get(self.CONNECT_EVENT, {}).get("started")
+        if tunnel_ready is not None and connect_started is not None and tunnel_ready >= connect_started:
+            return (tunnel_ready - connect_started) * MS_IN_SECOND
         return self._duration_ms(self.CONNECT_EVENT)
 
     @property

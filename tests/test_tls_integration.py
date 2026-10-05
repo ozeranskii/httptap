@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import socket
 import ssl
 import threading
+import time
+from contextlib import suppress
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import TYPE_CHECKING
@@ -93,3 +96,62 @@ def test_insecure_request_reports_peer_certificate(self_signed_server: int) -> N
     assert network.cert_serial == "C0FFEE"
     assert network.cert_days_left is not None
     assert network.cert_days_left > 0
+
+
+_TUNNEL_DELAY_SECONDS = 0.2
+
+
+def _relay(source: socket.socket, target: socket.socket) -> None:
+    with suppress(OSError):
+        while data := source.recv(65536):
+            target.sendall(data)
+    with suppress(OSError):
+        target.shutdown(socket.SHUT_WR)
+
+
+def _serve_connect_tunnel(listener: socket.socket) -> None:
+    client, _address = listener.accept()
+    with client:
+        request = b""
+        while b"\r\n\r\n" not in request:
+            request += client.recv(4096)
+        authority = request.split(b" ", 2)[1].decode()
+        host, _, port = authority.rpartition(":")
+        with socket.create_connection((host, int(port))) as upstream:
+            time.sleep(_TUNNEL_DELAY_SECONDS)  # proxy-side latency before the tunnel is up
+            client.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
+            to_upstream = threading.Thread(target=_relay, args=(client, upstream), daemon=True)
+            to_upstream.start()
+            _relay(upstream, client)
+            to_upstream.join(timeout=2)
+
+
+@pytest.fixture
+def connect_proxy() -> Iterator[int]:
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    thread = threading.Thread(target=_serve_connect_tunnel, args=(listener,), daemon=True)
+    thread.start()
+    try:
+        yield listener.getsockname()[1]
+    finally:
+        listener.close()
+        thread.join(timeout=2)
+
+
+def test_connect_tunnel_setup_counts_as_connect_time(self_signed_server: int, connect_proxy: int) -> None:
+    """The CONNECT round-trip belongs to connection setup, not to server wait time."""
+    timing, network, response = make_request(
+        f"https://127.0.0.1:{self_signed_server}/",
+        timeout=5.0,
+        verify_ssl=False,
+        http2=False,
+        proxy=f"http://127.0.0.1:{connect_proxy}",
+    )
+
+    assert response.status == 200
+    assert network.proxy_url == f"http://127.0.0.1:{connect_proxy}"
+    assert timing.is_estimated is False
+    assert timing.connect_ms >= _TUNNEL_DELAY_SECONDS * 1000
+    assert timing.wait_ms < _TUNNEL_DELAY_SECONDS * 1000

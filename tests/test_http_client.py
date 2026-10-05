@@ -904,6 +904,35 @@ class TestTraceCollector:
 
         assert trace.tls_ms == pytest.approx(25.0)
 
+    def test_trace_collector_counts_connect_tunnel_as_connect_time(self, mocker: pytest_mock.MockerFixture) -> None:
+        """Through a CONNECT proxy, connect spans TCP to the proxy plus the tunnel round-trip."""
+        events = [
+            ("connection.connect_tcp.started", 1.000),
+            ("connection.connect_tcp.complete", 1.002),
+            ("http11.send_request_headers.started", 1.002),  # CONNECT request
+            ("http11.receive_response_headers.complete", 1.122),  # proxy: 200 Connection established
+            ("proxy.start_tls.started", 1.122),
+            ("proxy.start_tls.complete", 1.500),
+            ("http11.send_request_headers.started", 1.500),  # request through the tunnel
+            ("http11.receive_response_headers.complete", 1.640),
+        ]
+        mocker.patch("httptap.http_client.time.perf_counter", side_effect=[timestamp for _, timestamp in events])
+        trace = TraceCollector()
+        for name, _timestamp in events:
+            trace(name, {})
+
+        assert trace.connect_ms == pytest.approx(122.0)
+        assert trace.tls_ms == pytest.approx(378.0)
+        # The tunnel request must not overwrite the first occurrence of shared event names.
+        assert trace._events["http11.send_request_headers"]["started"] == pytest.approx(1.002)
+
+    def test_trace_collector_ignores_tunnel_without_tcp_connect(self) -> None:
+        """Without a recorded TCP connect, the tunnel span cannot be measured."""
+        trace = TraceCollector()
+        trace._events[trace.PROXY_TLS_EVENT] = {"started": 2.0, "complete": 2.025}
+
+        assert trace.connect_ms is None
+
     def test_trace_collector_returns_none_for_missing_events(self) -> None:
         """Test that TraceCollector returns None for incomplete events."""
         trace = TraceCollector()
