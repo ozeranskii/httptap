@@ -63,16 +63,16 @@ The release process is triggered manually via GitHub Actions.
    ```
    Generates changelog from conventional commits
 
-4. **Signed Commit and Tag**
+4. **Signed Commit and Tag (local only)**
    ```bash
    git commit -S -m "chore: release v0.2.0"
    git tag -s v0.2.0 -m "Release v0.2.0"
-   git push origin HEAD
-   git push origin v0.2.0
+   git bundle create release.bundle "^$GITHUB_SHA" HEAD refs/tags/v0.2.0
    ```
    Keyless Sigstore signing via [gitsign](https://github.com/sigstore/gitsign):
    a short-lived Fulcio certificate is issued through the workflow's OIDC
-   identity, so no long-lived GPG keys are required.
+   identity, so no long-lived GPG keys are required. Nothing is pushed yet:
+   the commit and tag travel to the next jobs as a git bundle artifact.
 
 5. **Build**
    ```bash
@@ -80,23 +80,33 @@ The release process is triggered manually via GitHub Actions.
    uv run pytest  # Full test suite
    uv build  # Create wheel and sdist
    ```
+   Runs on the unpushed release tag from the bundle.
 
-6. **Publish to TestPyPI**
+6. **Push Commit and Tag**
+   ```bash
+   git push origin "v0.2.0^{commit}:refs/heads/main"
+   git push origin v0.2.0
+   ```
+   Only after the build and attestation succeed. The push is fast-forward
+   only, so if `main` moved during the release the workflow stops here,
+   before anything is published.
+
+7. **Publish to TestPyPI**
     - Uploads to TestPyPI first via OIDC Trusted Publishing, with PEP 740
       attestations, as a smoke test before the production push.
 
-7. **Publish to PyPI**
+8. **Publish to PyPI**
     - Uses OIDC Trusted Publishing (no tokens required)
     - Uploads wheel and source distribution with PEP 740 attestations
 
-8. **Publish container image to GHCR**
+9. **Publish container image to GHCR**
     - Builds multi-arch (linux/amd64, linux/arm64) image
     - Pushes to `ghcr.io/ozeranskii/httptap` with `{version}`, `{major}.{minor}`,
       `{major}`, and `latest` tags
     - Signs the image with cosign (keyless Sigstore)
     - Attaches SLSA build provenance via `actions/attest-build-provenance`
 
-9. **GitHub Release**
+10. **GitHub Release**
     - Creates release with generated notes
     - Attaches build artifacts, SBOMs, VEX, and the man page
 
@@ -108,16 +118,16 @@ The release workflow is defined in `.github/workflows/release.yml`:
 
 #### 1. Prepare Release
 
-- Checks out code with deploy key
+- Checks out code (read-only, no deploy key)
 - Configures Python and uv
 - Updates version in pyproject.toml
 - Generates changelog
-- Commits and pushes changes
-- Creates and pushes git tag
+- Creates the signed release commit and tag locally
+- Uploads them as a `release-bundle` artifact; nothing is pushed
 
 #### 2. Build Package
 
-- Checks out the tagged version
+- Checks out the unpushed release tag from the bundle
 - Runs full test suite
 - Builds wheel and sdist
 - Generates SBOM in CycloneDX and SPDX JSON formats via [Syft](https://github.com/anchore/syft)
@@ -125,23 +135,31 @@ The release workflow is defined in `.github/workflows/release.yml`:
 - Generates a gzipped `man(1)` page with [argparse-manpage](https://github.com/praiskup/argparse-manpage)
 - Uploads `dist/`, `sbom/`, and `man/` artifacts separately
 
-#### 3. Publish to TestPyPI
+#### 3. Push Release Commit and Tag
+
+- Runs only after the build and provenance attestation succeed
+- The only job with `contents: write` and the deploy key (`release` environment)
+- Fast-forwards `main` to the release commit and pushes the tag; fails without
+  publishing anything if `main` moved during the release
+
+#### 4. Publish to TestPyPI
 
 - Downloads `dist/` artifacts
 - Publishes via TestPyPI OIDC Trusted Publishing with PEP 740 attestations
 
-#### 4. Publish to PyPI
+#### 5. Publish to PyPI
 
 - Runs only after TestPyPI succeeds
 - Publishes using Trusted Publishing with PEP 740 attestations
 
-#### 5. Publish container image to GHCR
+#### 6. Publish container image to GHCR
 
+- Runs only after the release commit and tag are pushed
 - Builds multi-arch image with Buildx + QEMU
 - Signs with cosign (keyless Sigstore OIDC)
 - Attaches SLSA build provenance
 
-#### 6. Create GitHub Release
+#### 7. Create GitHub Release
 
 - Downloads `dist/`, `sbom/`, and `man/` artifacts
 - Creates GitHub release with changelog notes

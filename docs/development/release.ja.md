@@ -61,14 +61,13 @@ description: httptap の自動化された GitHub Actions リリースプロセ�
    ```
    conventional commits から変更履歴を生成する
 
-4. **署名済みのコミットとタグ**
+4. **署名済みのコミットとタグ（ローカルのみ）**
    ```bash
    git commit -S -m "chore: release v0.2.0"
    git tag -s v0.2.0 -m "Release v0.2.0"
-   git push origin HEAD
-   git push origin v0.2.0
+   git bundle create release.bundle "^$GITHUB_SHA" HEAD refs/tags/v0.2.0
    ```
-   [gitsign](https://github.com/sigstore/gitsign) を介した鍵なしの Sigstore 署名: 短命の Fulcio 証明書がワークフローの OIDC アイデンティティを通じて発行されるため、長期間有効な GPG 鍵は不要である。
+   [gitsign](https://github.com/sigstore/gitsign) を介した鍵なしの Sigstore 署名: 短命の Fulcio 証明書がワークフローの OIDC アイデンティティを通じて発行されるため、長期間有効な GPG 鍵は不要である。この時点ではまだ何もプッシュされない: コミットとタグは git バンドルの成果物として後続のジョブに渡される。
 
 5. **ビルド**
    ```bash
@@ -76,21 +75,29 @@ description: httptap の自動化された GitHub Actions リリースプロセ�
    uv run pytest  # Full test suite
    uv build  # Create wheel and sdist
    ```
+   バンドルから取得した、まだプッシュされていないリリースタグ上で実行される。
 
-6. **TestPyPI への公開**
+6. **コミットとタグのプッシュ**
+   ```bash
+   git push origin "v0.2.0^{commit}:refs/heads/main"
+   git push origin v0.2.0
+   ```
+   ビルドと証明が成功した後にのみ行われる。プッシュは fast-forward のみであるため、リリース中に `main` が進んでいた場合、ワークフローは何かが公開される前にここで停止する。
+
+7. **TestPyPI への公開**
     - 本番プッシュの前のスモークテストとして、PEP 740 の証明書とともに OIDC Trusted Publishing を介してまず TestPyPI にアップロードする。
 
-7. **PyPI への公開**
+8. **PyPI への公開**
     - OIDC Trusted Publishing を使用する（トークン不要）
     - PEP 740 の証明書とともに wheel とソース配布物をアップロードする
 
-8. **コンテナイメージの GHCR への公開**
+9. **コンテナイメージの GHCR への公開**
     - マルチアーキテクチャ（linux/amd64、linux/arm64）イメージをビルドする
     - `{version}`、`{major}.{minor}`、`{major}`、および `latest` タグとともに `ghcr.io/ozeranskii/httptap` にプッシュする
     - cosign（鍵なし Sigstore）でイメージに署名する
     - `actions/attest-build-provenance` を介して SLSA ビルドプロベナンスを添付する
 
-9. **GitHub Release**
+10. **GitHub Release**
     - 生成されたノートとともにリリースを作成する
     - ビルド成果物、SBOM、VEX、および man ページを添付する
 
@@ -102,16 +109,16 @@ description: httptap の自動化された GitHub Actions リリースプロセ�
 
 #### 1. Prepare Release
 
-- デプロイキーでコードをチェックアウトする
+- コードをチェックアウトする（読み取り専用、デプロイキーなし）
 - Python と uv を設定する
 - pyproject.toml のバージョンを更新する
 - 変更履歴を生成する
-- 変更をコミットしてプッシュする
-- git タグを作成してプッシュする
+- 署名済みのリリースコミットとタグをローカルで作成する
+- それらを `release-bundle` 成果物としてアップロードする。何もプッシュしない
 
 #### 2. Build Package
 
-- タグ付けされたバージョンをチェックアウトする
+- バンドルから、まだプッシュされていないリリースタグをチェックアウトする
 - 完全なテストスイートを実行する
 - wheel と sdist をビルドする
 - [Syft](https://github.com/anchore/syft) を介して CycloneDX および SPDX JSON 形式の SBOM を生成する
@@ -119,23 +126,30 @@ description: httptap の自動化された GitHub Actions リリースプロセ�
 - [argparse-manpage](https://github.com/praiskup/argparse-manpage) を介して gzip 圧縮された `man(1)` ページを生成する
 - `dist/`、`sbom/`、および `man/` の成果物を個別にアップロードする
 
-#### 3. Publish to TestPyPI
+#### 3. Push Release Commit and Tag
+
+- ビルドとプロベナンスの証明が成功した後にのみ実行される
+- `contents: write` とデプロイキー（`release` 環境）を持つ唯一のジョブである
+- `main` をリリースコミットまで fast-forward し、タグをプッシュする。リリース中に `main` が進んでいた場合は、何も公開せずに失敗する
+
+#### 4. Publish to TestPyPI
 
 - `dist/` の成果物をダウンロードする
 - PEP 740 の証明書とともに TestPyPI OIDC Trusted Publishing を介して公開する
 
-#### 4. Publish to PyPI
+#### 5. Publish to PyPI
 
 - TestPyPI が成功した後にのみ実行される
 - PEP 740 の証明書とともに Trusted Publishing を使用して公開する
 
-#### 5. Publish container image to GHCR
+#### 6. Publish container image to GHCR
 
+- リリースコミットとタグがプッシュされた後にのみ実行される
 - Buildx + QEMU でマルチアーキテクチャイメージをビルドする
 - cosign（鍵なし Sigstore OIDC）で署名する
 - SLSA ビルドプロベナンスを添付する
 
-#### 6. Create GitHub Release
+#### 7. Create GitHub Release
 
 - `dist/`、`sbom/`、および `man/` の成果物をダウンロードする
 - 変更履歴のノートとともに GitHub リリースを作成する
