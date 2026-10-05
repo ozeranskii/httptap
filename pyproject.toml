@@ -56,6 +56,7 @@ classifiers = [
 
 dependencies = [
     "httpx[http2,socks]>=0.28.1",
+    "httpcore>=1.0.0",
     "rich>=14.3.2",
     "cryptography>=42.0.0",
 ]
