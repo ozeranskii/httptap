@@ -44,6 +44,7 @@ from httptap.http_client import (
     proxy_resolves_remotely,
 )
 from httptap.implementations.dns import DNSResolutionError, OverrideDNSResolver, SystemDNSResolver
+from httptap.implementations.tls import SocketTLSInspector
 from httptap.models import NetworkInfo, TimingMetrics
 from httptap.tls_inspector import TLSInspectionError
 
@@ -1572,12 +1573,12 @@ class TestMakeRequest:
                 timing_collector=FakeTimingCollector(TimingMetrics()),
             )
 
-    def test_make_request_rejects_deadline_expired_during_tls_probe(
+    def test_make_request_keeps_response_when_tls_probe_runs_out_of_budget(
         self,
         httpx_mock: pytest_httpx.HTTPXMock,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """A non-fatal TLS probe error cannot hide an expired deadline."""
+        """An optional probe that hits the deadline does not fail a completed response."""
         clock = [0.0]
 
         class ExpiringTLSInspector:
@@ -1589,14 +1590,56 @@ class TestMakeRequest:
         monkeypatch.setattr("httptap.http_client.time.monotonic", lambda: clock[0])
         httpx_mock.add_response(method="GET", url="https://203.0.113.10", status_code=200)
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
-            make_request(
-                "https://example.test",
-                timeout=1.0,
-                dns_resolver=FakeDNSResolver(),
-                tls_inspector=ExpiringTLSInspector(),
-                timing_collector=FakeTimingCollector(TimingMetrics()),
-            )
+        _timing, network, response = make_request(
+            "https://example.test",
+            timeout=1.0,
+            dns_resolver=FakeDNSResolver(),
+            tls_inspector=ExpiringTLSInspector(),
+            timing_collector=FakeTimingCollector(TimingMetrics()),
+        )
+
+        assert response.status == 200
+        assert network.tls_version is None
+
+    def test_make_request_skips_tls_probe_without_budget(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        readings = iter([0.0, 0.0, 0.0, 0.0])
+        mocker.patch("httptap.http_client.time.monotonic", side_effect=lambda: next(readings, 10.0))
+        inspector = mocker.Mock()
+        httpx_mock.add_response(method="GET", url="https://203.0.113.10", status_code=200)
+
+        _timing, _network, response = make_request(
+            "https://example.test",
+            timeout=5.0,
+            dns_resolver=FakeDNSResolver(),
+            tls_inspector=inspector,
+            timing_collector=FakeTimingCollector(TimingMetrics()),
+        )
+
+        assert response.status == 200
+        inspector.inspect.assert_not_called()
+
+    def test_builtin_tls_probe_dials_the_address_the_request_used(
+        self,
+        httpx_mock: pytest_httpx.HTTPXMock,
+        mocker: pytest_mock.MockerFixture,
+    ) -> None:
+        inspect = mocker.patch.object(SocketTLSInspector, "inspect", return_value=NetworkInfo(tls_version="TLSv1.3"))
+        httpx_mock.add_response(method="GET", url="https://203.0.113.10", status_code=200)
+
+        _timing, network, _response = make_request(
+            "https://example.test",
+            timeout=5.0,
+            dns_resolver=FakeDNSResolver(),
+            timing_collector=FakeTimingCollector(TimingMetrics()),
+        )
+
+        assert network.tls_version == "TLSv1.3"
+        (probe_host, probe_port, _probe_timeout), probe_kwargs = inspect.call_args
+        assert (probe_host, probe_port, probe_kwargs) == ("example.test", 443, {"connect_host": "203.0.113.10"})
 
     def test_make_request_stops_falling_back_when_deadline_is_spent(
         self,
