@@ -155,3 +155,57 @@ def test_connect_tunnel_setup_counts_as_connect_time(self_signed_server: int, co
     assert timing.is_estimated is False
     assert timing.connect_ms >= _TUNNEL_DELAY_SECONDS * 1000
     assert timing.wait_ms < _TUNNEL_DELAY_SECONDS * 1000
+
+
+def _serve_socks5(listener: socket.socket) -> None:
+    client, _address = listener.accept()
+    with client:
+        client.recv(262)  # greeting: version, method count, methods
+        client.sendall(b"\x05\x00")  # no authentication
+        request = client.recv(262)
+        address_type = request[3]
+        if address_type == 1:  # IPv4
+            host = socket.inet_ntoa(request[4:8])
+            port = int.from_bytes(request[8:10], "big")
+        else:  # domain name
+            length = request[4]
+            host = request[5 : 5 + length].decode()
+            port = int.from_bytes(request[5 + length : 7 + length], "big")
+        with socket.create_connection((host, port)) as upstream:
+            time.sleep(_TUNNEL_DELAY_SECONDS)  # proxy-side latency before the tunnel is up
+            client.sendall(b"\x05\x00\x00\x01" + socket.inet_aton("127.0.0.1") + port.to_bytes(2, "big"))
+            to_upstream = threading.Thread(target=_relay, args=(client, upstream), daemon=True)
+            to_upstream.start()
+            _relay(upstream, client)
+            to_upstream.join(timeout=2)
+
+
+@pytest.fixture
+def socks5_proxy() -> Iterator[int]:
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    thread = threading.Thread(target=_serve_socks5, args=(listener,), daemon=True)
+    thread.start()
+    try:
+        yield listener.getsockname()[1]
+    finally:
+        listener.close()
+        thread.join(timeout=2)
+
+
+def test_socks_handshake_counts_as_connect_time(self_signed_server: int, socks5_proxy: int) -> None:
+    """SOCKS timings are measured, and the SOCKS handshake belongs to connect, not wait."""
+    timing, _network, response = make_request(
+        f"https://127.0.0.1:{self_signed_server}/",
+        timeout=5.0,
+        verify_ssl=False,
+        http2=False,
+        proxy=f"socks5://127.0.0.1:{socks5_proxy}",
+    )
+
+    assert response.status == 200
+    assert timing.is_estimated is False
+    assert timing.connect_ms >= _TUNNEL_DELAY_SECONDS * 1000
+    assert timing.tls_ms > 0
+    assert timing.wait_ms < _TUNNEL_DELAY_SECONDS * 1000
