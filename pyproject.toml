@@ -234,6 +234,11 @@ exclude_lines = [
     "class .+Protocol",
 ]
 
+[tool.typos.default]
+# git-cliff writes short commit hashes into CHANGELOG.md links; hex fragments
+# such as "2daa146" must not be "corrected".
+extend-ignore-re = ["\\[[0-9a-f]{7,40}\\]\\(https://github\\.com/[^)]+/commit/[0-9a-f]{40}\\)"]
+
 [tool.typos.default.extend-words]
 certifi = "certifi"
 wrk = "wrk"
