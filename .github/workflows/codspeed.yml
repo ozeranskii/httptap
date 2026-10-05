@@ -4,9 +4,17 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - docs/**
+      - '**/*.md'
+      - mkdocs.yml
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - docs/**
+      - '**/*.md'
+      - mkdocs.yml
   # `workflow_dispatch` allows CodSpeed to trigger backtest
   # performance analysis in order to generate initial data.
   workflow_dispatch:
