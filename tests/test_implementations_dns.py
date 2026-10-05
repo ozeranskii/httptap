@@ -403,6 +403,24 @@ class TestOverrideDNSResolver:
         assert (ip, family, elapsed_ms) == ("2001:db8::10", "IPv6", 0.0)
         mock_getaddrinfo.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("pinned_host", "lookup_host"),
+        [
+            ("bücher.example", "xn--bcher-kva.example"),
+            ("xn--bcher-kva.example", "Bücher.Example"),
+            ("faß.de", "xn--fa-hia.de"),
+        ],
+    )
+    def test_u_label_and_a_label_spellings_match(self, pinned_host: str, lookup_host: str) -> None:
+        resolver = OverrideDNSResolver({(pinned_host, 8443): "127.0.0.1"})
+
+        assert resolver.resolve_all(lookup_host, 8443, 5.0) == ([("127.0.0.1", "IPv4")], 0.0)
+
+    def test_host_without_a_label_form_keeps_its_spelling(self) -> None:
+        resolver = OverrideDNSResolver({("\u2603.-x", 443): "127.0.0.1"})
+
+        assert resolver.resolve("\u2603.-X", 443, 5.0)[0] == "127.0.0.1"
+
     def test_resolve_falls_back_with_requested_address_family(self, mocker: MockerFixture) -> None:
         resolver = OverrideDNSResolver({}, family=socket.AF_INET)
         mock_getaddrinfo = mocker.patch("socket.getaddrinfo")

@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from ipaddress import IPv6Address, ip_address
 from typing import Any, cast
 
+import httpx
+
 from httptap.constants import MS_IN_SECOND
 from httptap.utils import format_address_family
 
@@ -52,6 +54,19 @@ def _extract_sockaddr(entry: Iterable[Any]) -> tuple[Any, ...]:
         if isinstance(item, tuple):
             return item
     return ()
+
+
+def _override_key(host: str) -> str:
+    """Return ``host`` in the IDNA 2008 A-label form httpx sends as Host and SNI.
+
+    ``--resolve`` entries and lookups are compared in this form, so a U-label
+    and its A-label name the same host. Names httpx cannot encode keep their
+    lowercased spelling.
+    """
+    try:
+        return httpx.URL(scheme="http", host=host).raw_host.decode("ascii")
+    except httpx.InvalidURL:
+        return host.lower()
 
 
 class DNSResolutionError(Exception):
@@ -175,12 +190,12 @@ class OverrideDNSResolver:
         family: int = socket.AF_UNSPEC,
     ) -> None:
         """Initialize fixed overrides and a family-restricted fallback resolver."""
-        self._overrides = {(host.lower(), port): address for (host, port), address in overrides.items()}
+        self._overrides = {(_override_key(host), port): address for (host, port), address in overrides.items()}
         self._fallback = SystemDNSResolver(family)
 
     def resolve(self, host: str, port: int, timeout: float) -> tuple[str, str, float]:
         """Resolve a configured address immediately or delegate to the system resolver."""
-        address = self._overrides.get((host.lower(), port))
+        address = self._overrides.get((_override_key(host), port))
         if address is None:
             return self._fallback.resolve(host, port, timeout)
 
@@ -190,7 +205,7 @@ class OverrideDNSResolver:
 
     def resolve_all(self, host: str, port: int, timeout: float) -> tuple[list[tuple[str, str]], float]:
         """Return the pinned address, or every system address for fallback."""
-        if (host.lower(), port) in self._overrides:
+        if (_override_key(host), port) in self._overrides:
             ip, family, elapsed_ms = self.resolve(host, port, timeout)
             return [(ip, family)], elapsed_ms
         return self._fallback.resolve_all(host, port, timeout)

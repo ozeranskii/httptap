@@ -46,13 +46,18 @@ Examples:
 from __future__ import annotations
 
 import os
+import socket
 import ssl
+import sys
+import threading
 import time
 import warnings
-from contextlib import suppress
-from typing import TYPE_CHECKING
+from base64 import b64encode
+from contextlib import closing, suppress
+from typing import TYPE_CHECKING, Self
 from urllib.parse import urlsplit, urlunsplit
 
+import httpcore
 import httpx
 
 from ._pkgmeta import get_package_info
@@ -146,6 +151,7 @@ def _build_timing_metrics(
     is_https: bool,
     connect_ms: float | None = None,
     tls_ms: float | None = None,
+    failed_attempts_ms: float = 0.0,
 ) -> TimingMetrics:
     """Build complete timing metrics from collector and trace data.
 
@@ -154,6 +160,10 @@ def _build_timing_metrics(
         is_https: Whether this was an HTTPS request.
         connect_ms: Optional precise TCP connection time from trace.
         tls_ms: Optional precise TLS handshake time from trace.
+        failed_attempts_ms: Time spent on resolved addresses that failed before
+            the one that answered. It is already part of ``ttfb_ms`` and
+            ``total_ms`` and is counted as connect time, so it is neither
+            estimated as TLS nor left over as server wait.
 
     Returns:
         TimingMetrics with all phase durations and derived metrics calculated.
@@ -177,7 +187,7 @@ def _build_timing_metrics(
     if timing.connect_ms == 0.0 and (not is_https or timing.tls_ms == 0.0):
         # Calculate connection phase time (time from DNS end to TTFB)
         # This represents the TCP connect + TLS handshake time
-        connection_phase_ms = max(0.0, timing.ttfb_ms - timing.dns_ms)
+        connection_phase_ms = max(0.0, timing.ttfb_ms - timing.dns_ms - failed_attempts_ms)
 
         if is_https:
             # Estimate using 30%/70% split (TCP/TLS)
@@ -190,6 +200,7 @@ def _build_timing_metrics(
             timing.tls_ms = 0.0
             timing.is_estimated = False  # HTTP doesn't need TLS estimation
 
+    timing.connect_ms += failed_attempts_ms
     timing.calculate_derived()
     return timing
 
@@ -216,6 +227,10 @@ def _consume_response_body(response: httpx.Response, deadline: float | None = No
 
     With ``deadline`` set, every received chunk is checked against it, so a
     body that keeps trickling in cannot outlive the total request budget.
+
+    Raises:
+        httpx.ReadTimeout: If a chunk arrives after ``deadline``.
+
     """
     if response.is_stream_consumed:
         # In-memory responses (e.g. mock transports) arrive already read; the
@@ -225,9 +240,86 @@ def _consume_response_body(response: httpx.Response, deadline: float | None = No
     total_bytes = 0
     for chunk in response.iter_raw():
         total_bytes += len(chunk)
-        if deadline is not None:
-            remaining_timeout(deadline)
+        if deadline is not None and time.monotonic() >= deadline:
+            raise httpx.ReadTimeout(_DEADLINE_EXCEEDED)
     return total_bytes
+
+
+class _DeadlineWatchdog:
+    """Shut the request's connection down once the total deadline passes.
+
+    httpx timeouts bound each network operation, not the request: a server
+    that answers every read just before the read timeout (late headers, a
+    stalled body, trickling bytes) can keep a request alive far past the
+    deadline. Recomputing per-read timeouts is not possible from outside
+    httpcore, which fixes the read timeout when a response starts, so a timer
+    thread shuts the socket down at the deadline instead. That wakes a
+    blocked read at once without polling, and the request then fails with a
+    transport error that ``make_request`` reports as the deadline.
+
+    The socket is taken from the httpcore trace events that hand over a new
+    stream (TCP connect, TLS handshake). A TLS handshake in progress cannot be
+    interrupted this way, since the TLS socket only exists once it completes;
+    it stays bounded by the connect timeout and is shut down right after if
+    the deadline passed meanwhile.
+    """
+
+    _STREAM_EVENTS = (".connect_tcp.complete", ".start_tls.complete")
+
+    def __init__(self, deadline: float) -> None:
+        """Prepare a watchdog for ``deadline``; it is armed by entering the context."""
+        self._lock = threading.Lock()
+        self._socket: socket.socket | None = None
+        self._active = True
+        self.expired = False
+        self._timer = threading.Timer(max(0.0, deadline - time.monotonic()), self._expire)
+        self._timer.daemon = True
+
+    def __enter__(self) -> Self:
+        """Start the deadline timer."""
+        self._timer.start()
+        return self
+
+    def __exit__(self, *_exc_info: object) -> None:
+        """Disarm the watchdog and wait for its timer thread to finish."""
+        with self._lock:
+            self._active = False
+            self._socket = None
+        self._timer.cancel()
+        self._timer.join()
+
+    def observe(self, name: str, info: Mapping[str, object]) -> None:
+        """Track the socket of the latest stream reported by an httpcore trace event."""
+        if not name.endswith(self._STREAM_EVENTS):
+            return
+        get_extra_info = getattr(info.get("return_value"), "get_extra_info", None)
+        sock = get_extra_info("socket") if callable(get_extra_info) else None
+        if not isinstance(sock, socket.socket):
+            return
+        with self._lock:
+            self._socket = sock
+            if self.expired:
+                self._shutdown()
+
+    def _expire(self) -> None:
+        with self._lock:
+            if not self._active:
+                return
+            self.expired = True
+            self._shutdown()
+
+    def _shutdown(self) -> None:
+        if self._socket is None:
+            return
+        with suppress(OSError):
+            if sys.platform == "win32":
+                # Winsock does not wake a select() blocked on a socket that is
+                # shut down; closing it does, and the read then fails.
+                self._socket.close()
+            else:
+                # socket.socket.shutdown also for TLS sockets: SSLSocket.shutdown
+                # drops the SSL object under the thread blocked reading from it.
+                socket.socket.shutdown(self._socket, socket.SHUT_RDWR)
 
 
 class TraceCollector:
@@ -345,6 +437,25 @@ def _resolve_addresses(
     return list(addresses)
 
 
+# httpcore's message when a SOCKS5 proxy answers CONNECT with a failure reply
+# (refused, host or network unreachable, ...). The proxy was reached and
+# accepted the credentials, so the failure concerns this target address only;
+# authentication and handshake failures use other messages.
+_SOCKS_CONNECT_REPLY_FAILURE = "Proxy Server could not connect:"
+
+
+def _is_socks_target_refusal(error: httpx.ProxyError) -> bool:
+    """Return whether a SOCKS proxy refused to reach this particular target address."""
+    return str(error).startswith(_SOCKS_CONNECT_REPLY_FAILURE)
+
+
+def _close_streams(streams: list[httpcore.NetworkStream]) -> None:
+    """Close httpcore network streams, ignoring ones that are already closed."""
+    for stream in streams:
+        with suppress(Exception):
+            stream.close()
+
+
 def _has_tls_error(error: BaseException) -> bool:
     """Return whether an HTTP client error was caused by TLS negotiation."""
     cause: BaseException | None = error
@@ -380,6 +491,35 @@ def _needs_remote_dns(proxy_url: str) -> bool:
     """
     scheme = proxy_url.split("://", maxsplit=1)[0].lower()
     return scheme in _REMOTE_DNS_PROXY_SCHEMES
+
+
+_SUPPORTED_PROXY_SCHEMES: tuple[str, ...] = ("http", "https", "socks5", "socks5h")
+_MAX_PORT = 65535
+
+
+def _with_default_proxy_scheme(value: str) -> str:
+    """Treat a proxy given without a scheme as a plain HTTP proxy, as curl does."""
+    return value if "://" in value else f"http://{value}"
+
+
+def _proxy_url_problem(proxy_url: str) -> str | None:
+    """Return why ``proxy_url`` cannot be used as a proxy, or None if it can.
+
+    The reason never repeats the URL, so it is safe to show next to the
+    redacted URL.
+    """
+    try:
+        parsed = httpx.URL(proxy_url)
+        port = parsed.port
+    except httpx.InvalidURL:
+        return "malformed URL"
+    if parsed.scheme not in _SUPPORTED_PROXY_SCHEMES:
+        return f"unsupported scheme {parsed.scheme!r}; expected one of {', '.join(_SUPPORTED_PROXY_SCHEMES)}"
+    if not parsed.host:
+        return "missing host"
+    if port is not None and not 1 <= port <= _MAX_PORT:
+        return f"port {port} out of range 1-{_MAX_PORT}"
+    return None
 
 
 def _host_matches_no_proxy(host: str, no_proxy: str) -> bool:
@@ -486,7 +626,7 @@ def _resolve_effective_proxy(
     ):
         value = os.environ.get(var_name)
         if value:
-            return value, var_name
+            return _with_default_proxy_scheme(value), var_name
 
     if _any_proxy_env_set():
         return None, PROXY_SOURCE_NO_MATCH
@@ -641,6 +781,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     network_info.tls_custom_ca = bool(ca_bundle_path) if verify_ssl else False
     response_info = ResponseInfo()
     request_deadline = deadline if deadline is not None else time.monotonic() + timeout
+    watchdog = _DeadlineWatchdog(request_deadline)
 
     try:
         remaining_timeout(request_deadline)
@@ -657,8 +798,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         if not host:
             msg = "Invalid URL: missing hostname"
             raise HTTPClientError(msg)  # noqa: TRY301
-        # IDNA-2008 A-label form for everything sent on the wire (Host, SNI);
-        # DNS and --resolve keys keep the hostname as the user wrote it.
+        # IDNA 2008 A-label form for DNS, Host and SNI alike: given a Unicode
+        # name, getaddrinfo would apply IDNA 2003, which maps some names
+        # (faß.de -> fass.de) to a different domain than the one in Host/SNI.
         wire_host = source_url.raw_host.decode("ascii")
 
         # Determine effective proxy and DNS resolution strategy.
@@ -679,6 +821,11 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         )
         network_info.proxy_url = redact_url_credentials(effective_proxy_url) if effective_proxy_url else None
         network_info.proxy_source = proxy_source
+        if effective_proxy_url is not None:
+            problem = _proxy_url_problem(effective_proxy_url)
+            if problem is not None:
+                msg = f"Invalid proxy URL in {proxy_source}: {network_info.proxy_url} ({problem})"
+                raise HTTPClientError(msg, network_info=network_info)  # noqa: TRY301
         skip_local_dns = effective_proxy_url is not None and _needs_remote_dns(effective_proxy_url)
 
         if skip_local_dns:
@@ -692,7 +839,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             # Local DNS: resolve hostname before connecting
             timing_collector.mark_dns_start()
             try:
-                addresses = _resolve_addresses(dns_resolver, host, port, remaining_timeout(request_deadline))
+                addresses = _resolve_addresses(dns_resolver, wire_host, port, remaining_timeout(request_deadline))
             except DNSResolutionError as e:
                 raise HTTPClientError(str(e), network_info=network_info) from e
             finally:
@@ -702,16 +849,27 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 
         ssl_context = create_ssl_context(verify_ssl=verify_ssl, ca_bundle_path=ca_bundle_path)
 
-        with httpx.Client(
-            timeout=timeout,
-            http2=http2,
-            follow_redirects=False,
-            verify=ssl_context,
-            # Proxy resolution is handled above against the original hostname.
-            # Do not let httpx reapply environment proxy settings after DNS.
-            proxy=proxy if proxy is not None and effective_proxy_url is not None else effective_proxy_url,
-            trust_env=False,
-        ) as client:
+        try:
+            transport = httpx.HTTPTransport(
+                verify=ssl_context,
+                http2=http2,
+                # Proxy resolution is handled above against the original hostname.
+                # Do not let httpx reapply environment proxy settings after DNS.
+                proxy=proxy if proxy is not None and effective_proxy_url is not None else effective_proxy_url,
+                trust_env=False,
+            )
+        except (ValueError, ImportError, httpx.InvalidURL) as exc:
+            # httpx renders proxy URLs with the password masked, and optional
+            # transport dependencies (socksio, h2) fail with an ImportError.
+            msg = f"Cannot set up the HTTP client: {exc}"
+            raise HTTPClientError(msg, network_info=network_info) from exc
+        # The client only builds requests (default headers, timeouts); they are
+        # sent on the transport directly. Client.send prepares the next redirect
+        # request even with follow_redirects=False and fails on a Location that
+        # httpx cannot parse, which would turn a received 3xx into an error.
+        client = httpx.Client(transport=transport, timeout=timeout, follow_redirects=False, trust_env=False)
+
+        with client, watchdog:
             client.headers["User-Agent"] = USER_AGENT
             if headers:
                 client.headers.update(headers)
@@ -723,10 +881,18 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                 client.headers["Host"] = host_header
 
             has_authorization_header = headers is not None and any(name.lower() == "authorization" for name in headers)
-            stream_kwargs: dict[str, object] = {}
             if parsed_url.username is not None and not has_authorization_header:
-                stream_kwargs["auth"] = (source_url.username, source_url.password)
+                credentials = f"{source_url.username}:{source_url.password}".encode()
+                client.headers["Authorization"] = f"Basic {b64encode(credentials).decode('ascii')}"
 
+            # One request start for every attempt: time lost on addresses that
+            # failed is part of the request, as with curl. The final attempt's
+            # trace only measures its own connect, so the failed attempts are
+            # added to connect_ms (curl's time_connect counts them as well);
+            # otherwise they would show up as server wait time.
+            timing_collector.mark_request_start()
+            requests_started = time.perf_counter()
+            failed_attempts_ms = 0.0
             for index, (ip, ip_family) in enumerate(addresses):  # pragma: no branch - exits via break or raise
                 attempt_timeout = request_deadline - time.monotonic()
                 if attempt_timeout <= 0:
@@ -734,38 +900,74 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                     raise httpx.ConnectTimeout(msg)
                 addresses_left = len(addresses) - index
                 client.timeout = httpx.Timeout(attempt_timeout, connect=attempt_timeout / addresses_left)
-                request_target = f"[{ip}]" if ip_family == "IPv6" else ip
+                # Not keyed on ip_family: with a remote-DNS proxy the target is the
+                # URL host itself, which may be an IPv6 literal with no family set.
+                request_target = f"[{ip}]" if ":" in ip else ip
                 request_url = urlunsplit(
                     (parsed_url.scheme, f"{request_target}:{port}", parsed_url.path, parsed_url.query, "")
                 )
                 # Record the address before connecting so a total failure still reports
-                # the last address tried, and restart timing/trace for each attempt so
-                # failed attempts are not billed to the server wait time.
+                # the last address tried; the trace restarts so it describes the
+                # connection that served the response.
                 network_info.ip = None if skip_local_dns else ip
                 network_info.ip_family = None if skip_local_dns else ip_family
                 trace = TraceCollector()
+                tcp_streams: list[httpcore.NetworkStream] = []
+
+                def on_trace(
+                    name: str,
+                    info: dict[str, object],
+                    trace: TraceCollector = trace,
+                    tcp_streams: list[httpcore.NetworkStream] = tcp_streams,
+                ) -> None:
+                    trace(name, info)
+                    watchdog.observe(name, info)
+                    stream = info.get("return_value")
+                    if name.endswith(".connect_tcp.complete") and isinstance(stream, httpcore.NetworkStream):
+                        tcp_streams.append(stream)
+
+                failed_attempts_ms = (time.perf_counter() - requests_started) * MS_IN_SECOND
                 try:
-                    timing_collector.mark_request_start()
-                    with client.stream(
-                        method.value,
-                        request_url,
-                        content=content,
-                        extensions={"trace": trace, "sni_hostname": wire_host},
-                        **stream_kwargs,  # type: ignore[arg-type]
-                    ) as response:
-                        timing_collector.mark_ttfb()
-                        _populate_response_metadata(response, response_info)
-                        _populate_tls_from_stream(response, network_info)
-                        network_info.http_version = network_info.http_version or _normalize_http_version(
-                            response.http_version
+                    try:
+                        request = client.build_request(
+                            method.value,
+                            request_url,
+                            content=content,
+                            extensions={"trace": on_trace, "sni_hostname": wire_host},
                         )
-                        response_info.bytes = _consume_response_body(response, request_deadline)
-                        break
+                        response = transport.handle_request(request)
+                        response.request = request
+                        with closing(response):
+                            timing_collector.mark_ttfb()
+                            _populate_response_metadata(response, response_info)
+                            _populate_tls_from_stream(response, network_info)
+                            network_info.http_version = network_info.http_version or _normalize_http_version(
+                                response.http_version
+                            )
+                            response_info.bytes = _consume_response_body(response, request_deadline)
+                            break
+                    except Exception:
+                        # httpcore's SOCKS pool does not close the proxy socket when
+                        # the handshake or TLS setup fails; with address fallback
+                        # those sockets would pile up until garbage collection.
+                        _close_streams(tcp_streams)
+                        raise
+                except httpx.ProxyError as exc:
+                    if not _is_socks_target_refusal(exc) or index == len(addresses) - 1:
+                        raise
                 except httpx.ConnectError as exc:
-                    if _has_tls_error(exc) or index == len(addresses) - 1:
+                    # Through a proxy (only a local-DNS socks5:// one resolves to
+                    # several addresses) the TCP connect goes to the proxy itself,
+                    # so its failure would repeat for every address.
+                    if (
+                        watchdog.expired
+                        or effective_proxy_url is not None
+                        or _has_tls_error(exc)
+                        or index == len(addresses) - 1
+                    ):
                         raise
                 except httpx.ConnectTimeout:
-                    if index == len(addresses) - 1:
+                    if effective_proxy_url is not None or index == len(addresses) - 1:
                         raise
 
         timing_collector.mark_request_end()
@@ -775,6 +977,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             is_https=is_https,
             connect_ms=trace.connect_ms,
             tls_ms=trace.tls_ms,
+            failed_attempts_ms=failed_attempts_ms,
         )
 
         # Fallback probe: only when the live connection exposed no TLS and no
@@ -797,6 +1000,10 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         msg = f"Request timeout: {exc}"
         raise HTTPClientError(msg, network_info=network_info) from exc
     except httpx.RequestError as exc:
+        if watchdog.expired:
+            # The watchdog shut the connection down; the transport error it
+            # caused is only a symptom of the deadline.
+            raise HTTPClientError(_DEADLINE_EXCEEDED, network_info=network_info) from exc
         msg = f"Request failed: {exc}"
         if (
             is_https

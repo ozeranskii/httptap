@@ -6,11 +6,13 @@ import ssl
 import threading
 import time
 from contextlib import suppress
-from types import SimpleNamespace, TracebackType
-from typing import TYPE_CHECKING, Any, Self
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, NoReturn
 
+import httpcore
 import httpx
 import pytest
+from httpcore._backends.sync import SyncBackend
 
 from httptap.constants import (
     PROXY_SOURCE_CLI,
@@ -25,6 +27,7 @@ from httptap.http_client import (
     _build_timing_metrics,
     _build_user_agent,
     _consume_response_body,
+    _DeadlineWatchdog,
     _extract_ssl_object,
     _host_matches_no_proxy,
     _is_certificate_verification_error,
@@ -43,6 +46,8 @@ from httptap.models import NetworkInfo, TimingMetrics
 from httptap.tls_inspector import TLSInspectionError
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pytest_httpx
     import pytest_mock
     from faker import Faker
@@ -89,6 +94,39 @@ class FakeTimingCollector:
 
     def get_metrics(self) -> TimingMetrics:
         return self._metrics
+
+
+def _ok_response(request: httpx.Request) -> httpx.Response:
+    return httpx.Response(200, request=request)
+
+
+class FakeTransport(httpx.BaseTransport):
+    """Stand-in for ``httpx.HTTPTransport`` that records its options and the requests it sends."""
+
+    def __init__(self, respond: Callable[[httpx.Request], httpx.Response], **kwargs: object) -> None:
+        self.kwargs = kwargs
+        self.requests: list[httpx.Request] = []
+        self._respond = respond
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        return self._respond(request)
+
+
+def patch_transport(
+    mocker: pytest_mock.MockerFixture,
+    respond: Callable[[httpx.Request], httpx.Response] = _ok_response,
+) -> list[FakeTransport]:
+    """Replace the HTTP transport ``make_request`` builds; return the transports it created."""
+    created: list[FakeTransport] = []
+
+    def build(**kwargs: object) -> FakeTransport:
+        transport = FakeTransport(respond, **kwargs)
+        created.append(transport)
+        return transport
+
+    mocker.patch("httptap.http_client.httpx.HTTPTransport", side_effect=build)
+    return created
 
 
 @pytest.mark.parametrize(
@@ -143,7 +181,7 @@ def test_make_request_uses_custom_headers(
     assert timing.is_estimated is True  # connect/TLS derived from heuristics
 
 
-def test_make_request_starts_timing_after_client_setup(  # noqa: C901
+def test_make_request_starts_timing_after_client_setup(
     mocker: pytest_mock.MockerFixture,
 ) -> None:
     events: list[str] = []
@@ -167,34 +205,16 @@ def test_make_request_starts_timing_after_client_setup(  # noqa: C901
         def mark_request_end(self) -> None:
             events.append("request_end")
 
-    class ResponseStream:
-        def __enter__(self) -> httpx.Response:
-            return httpx.Response(200, request=httpx.Request("GET", "https://203.0.113.10:443/"))
-
-        def __exit__(self, *_exc: object) -> None:
-            return None
-
-    class DummyClient:
-        def __init__(self, **_kwargs: object) -> None:
-            events.append("client_init")
-            self.headers: dict[str, str] = {}
-
-        def __enter__(self) -> Self:
-            return self
-
-        def __exit__(self, *_exc: object) -> None:
-            return None
-
-        def stream(self, *_args: object, **_kwargs: object) -> ResponseStream:
-            events.append("stream")
-            return ResponseStream()
+    def respond(request: httpx.Request) -> httpx.Response:
+        events.append("send")
+        return httpx.Response(200, request=request)
 
     def fake_create_ssl_context(**_kwargs: object) -> object:
         events.append("ssl_context")
         return object()
 
     mocker.patch("httptap.http_client.create_ssl_context", side_effect=fake_create_ssl_context)
-    mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+    patch_transport(mocker, respond)
 
     make_request(
         "https://example.test/",
@@ -204,8 +224,7 @@ def test_make_request_starts_timing_after_client_setup(  # noqa: C901
     )
 
     assert events.index("request_start") > events.index("ssl_context")
-    assert events.index("request_start") > events.index("client_init")
-    assert events.index("request_start") < events.index("stream")
+    assert events.index("request_start") < events.index("send")
 
 
 def test_make_request_preserves_user_host_header(
@@ -363,6 +382,141 @@ def test_make_request_total_deadline_stops_slow_stream() -> None:
     assert not thread.is_alive()
 
 
+def _serve_stalling_response(header_chunks: list[bytes], delay: float) -> tuple[int, threading.Thread]:
+    """Send ``header_chunks`` ``delay`` seconds apart, then stall until the client goes away."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+
+    def serve() -> None:
+        with listener:
+            connection, _address = listener.accept()
+            with connection:
+                connection.recv(4096)
+                with suppress(OSError):
+                    for chunk in header_chunks:
+                        time.sleep(delay)
+                        connection.sendall(chunk)
+                    connection.settimeout(5)
+                    connection.recv(1)  # returns once the client closes the connection
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    return listener.getsockname()[1], thread
+
+
+@pytest.mark.parametrize(
+    ("header_chunks", "delay"),
+    [
+        ([b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nx"], 0.6),
+        ([bytes([byte]) for byte in b"HTTP/1.1 200 OK\r\n"], 0.1),
+    ],
+    ids=["late-headers-then-body-stall", "trickling-headers"],
+)
+def test_make_request_total_deadline_is_independent_of_read_timing(header_chunks: list[bytes], delay: float) -> None:
+    """Each read staying under the read timeout must not stretch the total deadline."""
+    port, thread = _serve_stalling_response(header_chunks, delay)
+    threads_before = threading.active_count()
+    started = time.monotonic()
+
+    with pytest.raises(HTTPClientError, match="total deadline exceeded") as exc_info:
+        make_request(f"http://127.0.0.1:{port}/", timeout=1.0, http2=False)
+
+    assert time.monotonic() - started < 1.4
+    assert exc_info.value.network_info is not None
+    assert exc_info.value.network_info.ip == "127.0.0.1"
+    thread.join(timeout=5)
+    assert not thread.is_alive()
+    assert threading.active_count() == threads_before - 1
+
+
+def _stream_event(sock: object) -> dict[str, object]:
+    return {"return_value": SimpleNamespace(get_extra_info=lambda name: sock if name == "socket" else None)}
+
+
+def _assert_read_is_cut_off(sock: socket.socket) -> None:
+    """A blocked read ends well before its own timeout: EOF after shutdown, OSError after close."""
+    started = time.monotonic()
+    with suppress(OSError):
+        sock.settimeout(5)
+        assert sock.recv(1) == b""
+    assert time.monotonic() - started < 4
+
+
+class TestDeadlineWatchdog:
+    """The watchdog shuts down only the live connection, and only after the deadline."""
+
+    def test_shuts_down_observed_socket_at_deadline(self) -> None:
+        local, remote = socket.socketpair()
+        with local, remote, _DeadlineWatchdog(time.monotonic() + 0.05) as watchdog:
+            watchdog.observe("connection.connect_tcp.complete", _stream_event(local))
+            _assert_read_is_cut_off(local)
+            assert watchdog.expired is True
+
+    @pytest.mark.parametrize(
+        ("platform", "closed"),
+        [("win32", True), ("linux", False)],
+    )
+    def test_cuts_off_the_socket_in_the_way_the_platform_wakes_readers(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        platform: str,
+        closed: bool,  # noqa: FBT001
+    ) -> None:
+        monkeypatch.setattr("httptap.http_client.sys.platform", platform)
+        local, remote = socket.socketpair()
+        with local, remote, _DeadlineWatchdog(time.monotonic() + 60) as watchdog:
+            watchdog.observe("connection.connect_tcp.complete", _stream_event(local))
+            watchdog._expire()
+
+            assert (local.fileno() == -1) is closed
+
+    def test_socket_reported_after_expiry_is_shut_down_at_once(self) -> None:
+        local, remote = socket.socketpair()
+        with local, remote, _DeadlineWatchdog(time.monotonic()) as watchdog:
+            deadline = time.monotonic() + 5
+            while not watchdog.expired and time.monotonic() < deadline:
+                time.sleep(0.01)
+            watchdog.observe("connection.start_tls.complete", _stream_event(local))
+            _assert_read_is_cut_off(local)
+
+    @pytest.mark.parametrize(
+        ("name", "info"),
+        [
+            ("connection.connect_tcp.started", _stream_event(None)),
+            ("connection.connect_tcp.complete", {"return_value": None}),
+            ("connection.connect_tcp.complete", _stream_event(object())),
+        ],
+    )
+    def test_ignores_events_without_a_socket(self, name: str, info: dict[str, object]) -> None:
+        with _DeadlineWatchdog(time.monotonic() + 60) as watchdog:
+            watchdog.observe(name, info)
+            assert watchdog._socket is None
+
+    def test_does_nothing_once_disarmed(self) -> None:
+        local, remote = socket.socketpair()
+        with local, remote:
+            watchdog = _DeadlineWatchdog(time.monotonic() + 60)
+            with watchdog:
+                watchdog.observe("connection.connect_tcp.complete", _stream_event(local))
+            watchdog._expire()  # a timer that fired while being cancelled
+
+            assert watchdog.expired is False
+            remote.sendall(b"x")
+            assert local.recv(1) == b"x"
+
+    def test_expiry_tolerates_missing_and_closed_sockets(self) -> None:
+        watchdog = _DeadlineWatchdog(time.monotonic() + 60)
+        with watchdog:
+            watchdog._expire()
+            local, remote = socket.socketpair()
+            local.close()
+            remote.close()
+            watchdog.observe("connection.connect_tcp.complete", _stream_event(local))
+
+        assert watchdog.expired is True
+
+
 def test_certificate_verification_error_detection_handles_cyclic_chains() -> None:
     """Exception chains that reference themselves terminate."""
     outer = httpx.ConnectError("connect failed")
@@ -426,10 +580,20 @@ class TestResolveAddresses:
     ("url", "pinned", "expected"),
     [
         ("http://bücher.test:8080/", ("bücher.test", 8080), ("xn--bcher-kva.test:8080", "xn--bcher-kva.test")),
+        (
+            "http://bücher.test:8080/",
+            ("xn--bcher-kva.test", 8080),
+            ("xn--bcher-kva.test:8080", "xn--bcher-kva.test"),
+        ),
+        (
+            "http://xn--bcher-kva.test:8080/",
+            ("Bücher.test", 8080),
+            ("xn--bcher-kva.test:8080", "xn--bcher-kva.test"),
+        ),
         ("http://Example.TEST/", ("example.test", 80), ("example.test", "example.test")),
         ("http://[2001:db8::1]:8080/", ("2001:db8::1", 8080), ("[2001:db8::1]:8080", "2001:db8::1")),
     ],
-    ids=["idn", "ascii", "ipv6"],
+    ids=["idn", "idn-a-label-resolve", "a-label-url-u-label-resolve", "ascii", "ipv6"],
 )
 def test_make_request_sends_wire_form_of_host(
     httpx_mock: pytest_httpx.HTTPXMock,
@@ -437,7 +601,7 @@ def test_make_request_sends_wire_form_of_host(
     pinned: tuple[str, int],
     expected: tuple[str, str],
 ) -> None:
-    """Host and SNI use the IDNA A-label while --resolve keys keep the user's spelling."""
+    """Host and SNI use the IDNA A-label, and --resolve keys match it in either spelling."""
     expected_host, expected_sni = expected
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -455,6 +619,22 @@ def test_make_request_sends_wire_form_of_host(
     )
 
     assert response.status == 200
+
+
+def test_make_request_resolves_the_idna2008_a_label() -> None:
+    """DNS is asked for the same name that Host and SNI carry, not an IDNA 2003 spelling."""
+    resolved: list[str] = []
+
+    class SpyResolver:
+        def resolve(self, host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+            resolved.append(host)
+            message = "stop after resolution"
+            raise DNSResolutionError(message)
+
+    with pytest.raises(HTTPClientError, match="stop after resolution"):
+        make_request("https://faß.de/", dns_resolver=SpyResolver())
+
+    assert resolved == ["xn--fa-hia.de"]
 
 
 class TestErrorsCarryNetworkInfo:
@@ -501,6 +681,388 @@ class TestErrorsCarryNetworkInfo:
 
         assert exc_info.value.network_info is not None
         assert exc_info.value.network_info.proxy_source is not None
+
+
+def _serve_one_proxied_request() -> tuple[int, list[bytes], threading.Thread]:
+    """Start a forward proxy that records one request head and answers 204."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    received: list[bytes] = []
+
+    def serve() -> None:
+        with listener:
+            connection, _address = listener.accept()
+            with connection:
+                request = b""
+                while b"\r\n\r\n" not in request:
+                    request += connection.recv(4096)
+                received.append(request)
+                connection.sendall(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    return listener.getsockname()[1], received, thread
+
+
+class TestIPv6LiteralThroughRemoteDNSProxy:
+    """A proxy that resolves names itself still gets an IPv6 literal target in brackets."""
+
+    def test_forward_proxy_request_reaches_proxy(self) -> None:
+        proxy_port, received, thread = _serve_one_proxied_request()
+
+        _timing, network, response = make_request(
+            "http://[::1]:8081/path", timeout=5.0, http2=False, proxy=f"http://127.0.0.1:{proxy_port}"
+        )
+        thread.join(timeout=2)
+
+        assert response.status == 204
+        assert network.ip is None
+        assert network.proxy_url == f"http://127.0.0.1:{proxy_port}"
+        assert b"\r\nHost: [::1]:8081\r\n" in received[0]
+
+    @pytest.mark.parametrize(
+        "proxy", ["http://proxy.test:3128", "https://proxy.test:3128", "socks5h://proxy.test:1080"]
+    )
+    def test_request_target_is_bracketed(self, mocker: pytest_mock.MockerFixture, proxy: str) -> None:
+        transports = patch_transport(mocker)
+
+        make_request(
+            "https://[2001:db8::1]:8443/x",
+            proxy=proxy,
+            tls_inspector=FakeTLSInspector(),
+            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
+        )
+
+        (request,) = transports[0].requests
+        assert str(request.url) == "https://[2001:db8::1]:8443/x"
+        assert request.extensions["sni_hostname"] == "2001:db8::1"
+        assert request.headers["Host"] == "[2001:db8::1]:8443"
+
+
+class _OneAddressFailsResolver:
+    """Resolve to an address that cannot be reached, then to the working one."""
+
+    def __init__(self, failing: tuple[str, str]) -> None:
+        self._failing = failing
+
+    def resolve(self, _host: str, _port: int, _timeout: float) -> tuple[str, str, float]:  # pragma: no cover
+        return "127.0.0.1", "IPv4", 0.0
+
+    def resolve_all(self, _host: str, _port: int, _timeout: float) -> tuple[list[tuple[str, str]], float]:
+        return [self._failing, ("127.0.0.1", "IPv4")], 0.0
+
+
+def _serve_http_ok(count: int = 1) -> tuple[int, threading.Thread]:
+    """Answer ``count`` plain HTTP requests on 127.0.0.1 with ``200 ok``."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+
+    def serve() -> None:
+        with listener:
+            for _ in range(count):
+                connection, _address = listener.accept()
+                with connection:
+                    request = b""
+                    while b"\r\n\r\n" not in request:
+                        request += connection.recv(4096)
+                    connection.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    return listener.getsockname()[1], thread
+
+
+def _serve_socks5(
+    *,
+    refused_hosts: frozenset[str] = frozenset(),
+    accepted_auth: tuple[bytes, bytes] | None = None,
+) -> tuple[int, list[str], threading.Thread]:
+    """Run a SOCKS5 proxy that refuses CONNECT to ``refused_hosts`` and relays the rest.
+
+    Returns the port, the log of requested targets (and auth failures), and the
+    server thread, which ends once the listener is idle for a second.
+    """
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    listener.settimeout(1)
+    log: list[str] = []
+
+    def handle(client: socket.socket) -> None:
+        client.recv(262)
+        if accepted_auth is None:
+            client.sendall(b"\x05\x00")
+        else:
+            client.sendall(b"\x05\x02")
+            request = client.recv(515)
+            username = request[2 : 2 + request[1]]
+            password = request[3 + request[1] :]
+            if (username, password) != accepted_auth:
+                log.append("auth failed")
+                client.sendall(b"\x01\x01")
+                return
+            client.sendall(b"\x01\x00")
+        request = client.recv(262)
+        if request[3] == 4:
+            host = socket.inet_ntop(socket.AF_INET6, request[4:20])
+            port = int.from_bytes(request[20:22], "big")
+        else:
+            host = socket.inet_ntoa(request[4:8])
+            port = int.from_bytes(request[8:10], "big")
+        log.append(host)
+        reply_tail = b"\x00\x01" + socket.inet_aton("127.0.0.1") + port.to_bytes(2, "big")
+        if host in refused_hosts:
+            client.sendall(b"\x05\x05" + reply_tail)  # connection refused
+            return
+        with socket.create_connection((host, port)) as upstream:
+            client.sendall(b"\x05\x00" + reply_tail)
+            to_upstream = threading.Thread(target=_relay, args=(client, upstream), daemon=True)
+            to_upstream.start()
+            _relay(upstream, client)
+            to_upstream.join(timeout=2)
+
+    def serve() -> None:
+        with listener:
+            while True:
+                try:
+                    client, _address = listener.accept()
+                except TimeoutError:
+                    return
+                with client:
+                    handle(client)
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    return listener.getsockname()[1], log, thread
+
+
+def _relay(source: socket.socket, target: socket.socket) -> None:
+    with suppress(OSError):
+        while data := source.recv(65536):
+            target.sendall(data)
+    with suppress(OSError):
+        target.shutdown(socket.SHUT_WR)
+
+
+class TestAddressFallbackAccounting:
+    """Time spent on addresses that failed is part of the request, and counted as connect time."""
+
+    def test_failed_attempts_count_towards_connect_and_total(self, mocker: pytest_mock.MockerFixture) -> None:
+        port, thread = _serve_http_ok()
+        connect_tcp = SyncBackend.connect_tcp
+        failed_attempt_seconds = 0.3
+
+        def connect_or_fail_slowly(self: SyncBackend, host: str, *args: Any, **kwargs: Any) -> object:  # noqa: ANN401
+            if host == "192.0.2.1":
+                time.sleep(failed_attempt_seconds)
+                message = "timed out"
+                raise httpcore.ConnectTimeout(message)
+            return connect_tcp(self, host, *args, **kwargs)
+
+        mocker.patch.object(SyncBackend, "connect_tcp", connect_or_fail_slowly)
+        started = time.perf_counter()
+
+        timing, network, response = make_request(
+            f"http://example.test:{port}/",
+            timeout=5.0,
+            http2=False,
+            dns_resolver=_OneAddressFailsResolver(("192.0.2.1", "IPv4")),
+        )
+        wall_ms = (time.perf_counter() - started) * 1000
+        thread.join(timeout=2)
+
+        assert response.status == 200
+        assert network.ip == "127.0.0.1"
+        failed_ms = failed_attempt_seconds * 1000
+        assert failed_ms <= timing.total_ms <= wall_ms
+        assert timing.ttfb_ms >= failed_ms
+        assert timing.connect_ms >= failed_ms
+        assert timing.is_estimated is False
+        assert timing.wait_ms < failed_ms
+        phases = timing.dns_ms + timing.connect_ms + timing.tls_ms + timing.wait_ms
+        assert phases == pytest.approx(timing.ttfb_ms)
+
+
+class TestSocksLocalDNSFallback:
+    """With a local-DNS SOCKS proxy, a target the proxy cannot reach falls back to the next address."""
+
+    def test_refused_target_falls_back_to_next_address(self) -> None:
+        origin_port, origin = _serve_http_ok()
+        proxy_port, log, proxy = _serve_socks5(refused_hosts=frozenset({"::1"}))
+
+        _timing, network, response = make_request(
+            f"http://localhost:{origin_port}/",
+            timeout=5.0,
+            http2=False,
+            proxy=f"socks5://127.0.0.1:{proxy_port}",
+            dns_resolver=_OneAddressFailsResolver(("::1", "IPv6")),
+        )
+        origin.join(timeout=2)
+        proxy.join(timeout=3)
+
+        assert response.status == 200
+        assert network.ip == "127.0.0.1"
+        assert log == ["::1", "127.0.0.1"]
+
+    def test_refused_last_address_is_reported(self) -> None:
+        proxy_port, log, proxy = _serve_socks5(refused_hosts=frozenset({"::1", "127.0.0.1"}))
+
+        with pytest.raises(HTTPClientError, match="Proxy Server could not connect"):
+            make_request(
+                "http://localhost:9/",
+                timeout=5.0,
+                proxy=f"socks5://127.0.0.1:{proxy_port}",
+                dns_resolver=_OneAddressFailsResolver(("::1", "IPv6")),
+            )
+        proxy.join(timeout=3)
+
+        assert log == ["::1", "127.0.0.1"]
+
+    def test_authentication_failure_is_not_retried(self) -> None:
+        proxy_port, log, proxy = _serve_socks5(accepted_auth=(b"user", b"right"))
+
+        with pytest.raises(HTTPClientError, match="Invalid username/password"):
+            make_request(
+                "http://localhost:9/",
+                timeout=5.0,
+                proxy=f"socks5://user:wrong@127.0.0.1:{proxy_port}",
+                dns_resolver=_OneAddressFailsResolver(("::1", "IPv6")),
+            )
+        proxy.join(timeout=3)
+
+        assert log == ["auth failed"]
+
+    @pytest.mark.parametrize("error", [httpcore.ConnectError, httpcore.ConnectTimeout])
+    def test_unreachable_proxy_is_not_retried(
+        self,
+        mocker: pytest_mock.MockerFixture,
+        error: type[Exception],
+    ) -> None:
+        def unreachable(*_args: object, **_kwargs: object) -> NoReturn:
+            message = "proxy unreachable"
+            raise error(message)
+
+        connect_tcp = mocker.patch.object(SyncBackend, "connect_tcp", side_effect=unreachable)
+
+        with pytest.raises(HTTPClientError, match="proxy unreachable"):
+            make_request(
+                "http://localhost:9/",
+                timeout=5.0,
+                proxy="socks5://127.0.0.1:1080",
+                dns_resolver=_OneAddressFailsResolver(("::1", "IPv6")),
+            )
+
+        assert connect_tcp.call_count == 1
+
+
+def _serve_redirect(location: bytes) -> tuple[int, threading.Thread]:
+    """Answer one request with a 302 pointing at ``location`` and a small body."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+
+    def serve() -> None:
+        with listener:
+            connection, _address = listener.accept()
+            with connection:
+                request = b""
+                while b"\r\n\r\n" not in request:
+                    request += connection.recv(4096)
+                connection.sendall(
+                    b"HTTP/1.1 302 Found\r\nLocation: " + location + b"\r\n"
+                    b"Content-Length: 5\r\nConnection: close\r\n\r\nmoved"
+                )
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    return listener.getsockname()[1], thread
+
+
+@pytest.mark.parametrize("location", [b"http://host:abc/", b"http://[::1", b"http://127.0.0.1:99999/x"])
+def test_make_request_reports_redirect_with_unparsable_location(location: bytes) -> None:
+    """A 3xx is a normal response even when its Location is not a valid URL; following it is the caller's call."""
+    port, thread = _serve_redirect(location)
+
+    _timing, _network, response = make_request(f"http://127.0.0.1:{port}/", timeout=5.0, http2=False)
+    thread.join(timeout=2)
+
+    assert response.status == 302
+    assert response.location == location.decode()
+    assert response.bytes == 5
+
+
+class TestProxyURLValidation:
+    """Proxy URLs that cannot be used fail as network errors without leaking credentials."""
+
+    def test_scheme_less_env_proxy_is_used_as_http_proxy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        proxy_port, received, thread = _serve_one_proxied_request()
+        monkeypatch.setenv("HTTP_PROXY", f"user:s3cret@127.0.0.1:{proxy_port}")
+
+        _timing, network, response = make_request("http://origin.test:8080/path", timeout=5.0, http2=False)
+        thread.join(timeout=2)
+
+        assert response.status == 204
+        assert network.proxy_url == f"http://user:****@127.0.0.1:{proxy_port}"
+        assert received[0].startswith(b"GET http://origin.test:8080/path HTTP/1.1\r\n")
+        assert b"Proxy-Authorization: Basic dXNlcjpzM2NyZXQ=" in received[0]
+
+    @pytest.mark.parametrize(
+        ("proxy_url", "reason"),
+        [
+            ("ftp://user:s3cret@127.0.0.1:3128", "unsupported scheme"),
+            ("socks4://user:s3cret@127.0.0.1:1080", "unsupported scheme"),
+            ("http://user:s3cret@[::1", "malformed"),
+            ("http://user:s3cret@127.0.0.1:abc", "malformed"),
+            ("http://user:s3cret@127.0.0.1:99999", "port"),
+            ("http://user:s3cret@127.0.0.1:0", "port"),
+            ("http://user:s3cret@", "missing host"),
+        ],
+    )
+    def test_invalid_env_proxy_is_a_redacted_client_error(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        proxy_url: str,
+        reason: str,
+    ) -> None:
+        monkeypatch.setenv("HTTP_PROXY", proxy_url)
+
+        with pytest.raises(HTTPClientError, match=reason) as exc_info:
+            make_request("http://example.test/", dns_resolver=FakeDNSResolver())
+
+        assert "s3cret" not in str(exc_info.value)
+        # Windows environment variable names are case-insensitive, so the
+        # lowercase spelling, which is looked up first, matches there too.
+        assert "http_proxy" in str(exc_info.value).lower()
+        network = exc_info.value.network_info
+        assert network is not None
+        assert network.proxy_url is not None
+        assert "s3cret" not in network.proxy_url
+        assert network.proxy_source is not None
+        assert network.proxy_source.lower() == "http_proxy"
+
+    def test_explicit_proxy_is_validated_too(self) -> None:
+        with pytest.raises(HTTPClientError, match="unsupported scheme") as exc_info:
+            make_request("http://example.test/", proxy="user:s3cret@gateway:3128", dns_resolver=FakeDNSResolver())
+
+        assert "s3cret" not in str(exc_info.value)
+
+    def test_client_construction_failure_is_a_client_error(self, mocker: pytest_mock.MockerFixture) -> None:
+        mocker.patch(
+            "httptap.http_client.httpx.HTTPTransport",
+            side_effect=ImportError("Using SOCKS proxy, but the 'socksio' package is not installed."),
+        )
+
+        with pytest.raises(HTTPClientError, match="socksio") as exc_info:
+            make_request(
+                "http://example.test/",
+                proxy="socks5://user:s3cret@gateway:1080",
+                dns_resolver=FakeDNSResolver(),
+            )
+
+        assert exc_info.value.network_info is not None
+        assert exc_info.value.network_info.proxy_url == "socks5://user:****@gateway:1080"
 
 
 @pytest.mark.parametrize("url", ["http://example.test:99999/", "http://example.test:abc/"])
@@ -716,7 +1278,7 @@ class TestConsumeResponseBody:
         response = httpx.Response(200, stream=httpx.ByteStream(b"body"))
         monkeypatch.setattr("httptap.http_client.time.monotonic", lambda: 2.0)
 
-        with pytest.raises(HTTPClientError, match="total deadline exceeded"):
+        with pytest.raises(httpx.ReadTimeout, match="total deadline exceeded"):
             _consume_response_body(response, deadline=1.0)
 
 
@@ -937,33 +1499,15 @@ class TestLiveTLSExtractionSupersedesProbe:
 
     @staticmethod
     def _patch_client(mocker: pytest_mock.MockerFixture, network_stream: object) -> None:
-        class DummyStream:
-            def __enter__(self) -> httpx.Response:
-                request = httpx.Request("GET", "https://secure.test/")
-                return httpx.Response(
-                    200,
-                    request=request,
-                    content=b"ok",
-                    extensions={"network_stream": network_stream},
-                )
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-        class DummyClient:
-            def __init__(self, *_: object, **__: object) -> None:
-                self.headers: dict[str, str] = {}
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-            def stream(self, *_: object, **__: object) -> DummyStream:
-                return DummyStream()
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+        patch_transport(
+            mocker,
+            lambda request: httpx.Response(
+                200,
+                request=request,
+                content=b"ok",
+                extensions={"network_stream": network_stream},
+            ),
+        )
 
     def test_probe_skipped_when_live_tls_available(
         self,
@@ -1231,54 +1775,7 @@ class TestMakeRequest:
         mocker: pytest_mock.MockerFixture,
     ) -> None:
         """Dial IP but preserve original host for headers and SNI."""
-        url = "https://example.test/api?q=ok"
-        captured: dict[str, object] = {}
-
-        class DummyStream:
-            def __init__(self, request_url: str) -> None:
-                self.request_url = request_url
-
-            def __enter__(self) -> httpx.Response:
-                request = httpx.Request("GET", self.request_url)
-                return httpx.Response(
-                    200,
-                    request=request,
-                    headers={"content-type": "application/json"},
-                    content=b"{}",
-                    extensions={"network_stream": SimpleNamespace(get_extra_info=lambda _n: None)},
-                )
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-        class DummyClient:
-            def __init__(self, *_: object, **__: object) -> None:
-                self.headers: dict[str, str] = {}
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-            def stream(
-                self,
-                method: str,
-                request_url: str,
-                content: bytes | None = None,
-                *,
-                extensions: dict[str, object] | None = None,
-            ) -> DummyStream:
-                assert content is None
-                assert method == "GET"
-                assert extensions is not None
-                captured["request_url"] = request_url
-                captured["extensions"] = dict(extensions)
-                captured["headers"] = dict(self.headers)
-                return DummyStream(request_url)
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
-
+        transports = patch_transport(mocker)
         timing_input = TimingMetrics(
             dns_ms=5.0,
             connect_ms=0.0,
@@ -1288,7 +1785,7 @@ class TestMakeRequest:
         )
 
         _timing, _network, response = make_request(
-            url,
+            "https://example.test/api?q=ok",
             timeout=5.0,
             dns_resolver=FakeDNSResolver(),
             tls_inspector=FakeTLSInspector(),
@@ -1296,92 +1793,39 @@ class TestMakeRequest:
         )
 
         assert response.status == 200
-        assert captured["request_url"] == "https://203.0.113.10:443/api?q=ok"
-        assert captured["extensions"] is not None
-        assert captured["headers"] is not None
-        extensions = captured["extensions"]
-        headers = captured["headers"]
-        assert isinstance(extensions, dict)
-        assert isinstance(headers, dict)
-        assert extensions.get("sni_hostname") == "example.test"
-        assert "trace" in extensions
-        assert headers.get("Host") == "example.test"
+        (request,) = transports[0].requests
+        assert request.method == "GET"
+        assert request.content == b""
+        assert str(request.url) == "https://203.0.113.10/api?q=ok"
+        assert request.extensions["sni_hostname"] == "example.test"
+        assert "trace" in request.extensions
+        assert request.headers["Host"] == "example.test"
 
     def test_make_request_brackets_ipv6_address(
         self,
         mocker: pytest_mock.MockerFixture,
     ) -> None:
         """IPv6 targets are wrapped in brackets when dialing by IP."""
-        url = "https://[2001:db8::1]:8443/"
-        captured: dict[str, object] = {}
 
         class IPv6Resolver:
             def resolve(self, _host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
                 return "2001:db8::1", "IPv6", 1.0
 
-        class DummyStream:
-            def __init__(self, request_url: str) -> None:
-                self.request_url = request_url
-
-            def __enter__(self) -> httpx.Response:
-                request = httpx.Request("GET", self.request_url)
-                return httpx.Response(
-                    200,
-                    request=request,
-                    headers={"content-type": "text/plain"},
-                    content=b"ok",
-                    extensions={"network_stream": SimpleNamespace(get_extra_info=lambda _n: None)},
-                )
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-        class DummyClient:
-            def __init__(self, *_: object, **__: object) -> None:
-                self.headers: dict[str, str] = {}
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-            def stream(
-                self,
-                method: str,
-                request_url: str,
-                *,
-                content: bytes | None = None,
-                extensions: dict[str, object] | None = None,
-            ) -> DummyStream:
-                assert method == "GET"
-                assert content is None
-                assert extensions is not None
-                captured["request_url"] = request_url
-                captured["extensions"] = dict(extensions)
-                captured["headers"] = dict(self.headers)
-                return DummyStream(request_url)
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
-
-        timing_input = TimingMetrics(dns_ms=1.0, ttfb_ms=5.0, total_ms=6.0)
+        transports = patch_transport(mocker)
 
         _timing, _network, response = make_request(
-            url,
+            "https://[2001:db8::1]:8443/",
             timeout=2.0,
             dns_resolver=IPv6Resolver(),
             tls_inspector=FakeTLSInspector(),
-            timing_collector=FakeTimingCollector(timing_input),
+            timing_collector=FakeTimingCollector(TimingMetrics(dns_ms=1.0, ttfb_ms=5.0, total_ms=6.0)),
         )
 
         assert response.status == 200
-        assert captured["request_url"] == "https://[2001:db8::1]:8443/"
-        extensions = captured["extensions"]
-        headers = captured["headers"]
-        assert isinstance(extensions, dict)
-        assert isinstance(headers, dict)
-        assert extensions.get("sni_hostname") == "2001:db8::1"
-        assert headers.get("Host") == "[2001:db8::1]:8443"
+        (request,) = transports[0].requests
+        assert str(request.url) == "https://[2001:db8::1]:8443/"
+        assert request.extensions["sni_hostname"] == "2001:db8::1"
+        assert request.headers["Host"] == "[2001:db8::1]:8443"
 
     def test_make_request_handles_missing_hostname(self) -> None:
         """Test error handling for URL without hostname."""
@@ -1492,7 +1936,7 @@ class TestMakeRequest:
         mocker: pytest_mock.MockerFixture,
     ) -> None:
         """The verification error is still reported when no time is left for diagnostics."""
-        clock = iter([0.0, 0.0, 0.0, 0.0])
+        clock = iter([0.0, 0.0, 0.0, 0.0, 0.0])
         mocker.patch("httptap.http_client.time.monotonic", side_effect=lambda: next(clock, 10.0))
         httpx_mock.add_exception(
             httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] certificate has expired"),
@@ -1517,21 +1961,11 @@ class TestMakeRequest:
     ) -> None:
         """Certificate diagnostics must not bypass a configured proxy."""
 
-        class FailingClient:
-            def __init__(self, *_args: object, **_kwargs: object) -> None:
-                self.headers: dict[str, str] = {}
+        def fail(_request: httpx.Request) -> NoReturn:
+            msg = "[SSL: CERTIFICATE_VERIFY_FAILED] certificate has expired"
+            raise httpx.ConnectError(msg)
 
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_args: object) -> None:
-                return None
-
-            def stream(self, *_args: object, **_kwargs: object) -> object:
-                msg = "[SSL: CERTIFICATE_VERIFY_FAILED] certificate has expired"
-                raise httpx.ConnectError(msg)
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=FailingClient)
+        patch_transport(mocker, fail)
         inspect = mocker.patch("httptap.http_client.SocketTLSInspector.inspect")
 
         with pytest.raises(HTTPClientError, match="CERTIFICATE_VERIFY_FAILED"):
@@ -1649,7 +2083,7 @@ class TestMakeRequest:
         httpx_mock: pytest_httpx.HTTPXMock,
         mocker: pytest_mock.MockerFixture,
     ) -> None:
-        readings = iter([0.0, 0.0, 0.0, 0.0])
+        readings = iter([0.0, 0.0, 0.0, 0.0, 0.0])
         mocker.patch("httptap.http_client.time.monotonic", side_effect=lambda: next(readings, 10.0))
         inspector = mocker.Mock()
         httpx_mock.add_response(method="GET", url="https://203.0.113.10", status_code=200)
@@ -1696,7 +2130,7 @@ class TestMakeRequest:
             return_value=([("::1", "IPv6"), ("127.0.0.1", "IPv4")], 1.0),
         )
         # deadline = 0 + 5; DNS and the first attempt run at 0, the second attempt would start at 10.
-        readings = iter([0.0, 0.0, 0.0, 0.0])
+        readings = iter([0.0, 0.0, 0.0, 0.0, 0.0])
         mocker.patch("httptap.http_client.time.monotonic", side_effect=lambda: next(readings, 10.0))
         httpx_mock.add_exception(httpx.ConnectTimeout("Connection timed out"), method="GET", url="http://[::1]/")
 
@@ -1771,7 +2205,7 @@ class TestMakeRequest:
             return_value=([("::1", "IPv6"), ("127.0.0.1", "IPv4")], 1.0),
         )
         # deadline, pre-DNS check, DNS budget and the first attempt read 100; the second attempt reads 105.
-        clock_values = iter([100.0, 100.0, 100.0, 100.0, 105.0])
+        clock_values = iter([100.0, 100.0, 100.0, 100.0, 100.0, 105.0])
         mocker.patch("httptap.http_client.time.monotonic", side_effect=lambda: next(clock_values, 105.0))
         connect_timeouts: list[float] = []
 
@@ -1885,66 +2319,7 @@ class TestMakeRequest:
         mocker: pytest_mock.MockerFixture,
     ) -> None:
         """Test that verify_ssl flag disables TLS verification."""
-        url = "https://self-signed.test"
-        created_clients: list[DummyClient] = []
-
-        class DummyStream:
-            def __enter__(self) -> httpx.Response:
-                return response
-
-            def __exit__(
-                self,
-                _exc_type: type[BaseException] | None,
-                _exc: BaseException | None,
-                _tb: TracebackType | None,
-            ) -> None:
-                return None
-
-        class DummyClient:
-            def __init__(self, *_: object, **kwargs: object) -> None:
-                self.kwargs = kwargs
-                self.headers: dict[str, str] = {}
-                created_clients.append(self)
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(
-                self,
-                _exc_type: type[BaseException] | None,
-                _exc: BaseException | None,
-                _tb: TracebackType | None,
-            ) -> None:
-                return None
-
-            def stream(
-                self,
-                method: str,
-                request_url: str,
-                *,
-                content: bytes | None = None,
-                extensions: dict[str, object] | None = None,
-            ) -> DummyStream:
-                assert method == "GET"
-                assert content is None
-                assert request_url == "https://203.0.113.10:443"
-                assert extensions is not None
-                assert "trace" in extensions
-                return DummyStream()
-
-        request = httpx.Request("GET", url)
-        response = httpx.Response(
-            200,
-            request=request,
-            headers={"content-type": "text/plain"},
-            content=b"ok",
-            extensions={
-                "network_stream": SimpleNamespace(get_extra_info=lambda _name: None),
-            },
-        )
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
-
+        transports = patch_transport(mocker)
         timing_input = TimingMetrics(
             dns_ms=2.0,
             connect_ms=0.0,
@@ -1954,7 +2329,7 @@ class TestMakeRequest:
         )
 
         _timing, network, obtained_response = make_request(
-            url,
+            "https://self-signed.test",
             timeout=5.0,
             verify_ssl=False,
             dns_resolver=FakeDNSResolver(),
@@ -1962,8 +2337,8 @@ class TestMakeRequest:
         )
 
         assert obtained_response.status == 200
-        assert created_clients
-        verify_arg = created_clients[0].kwargs["verify"]
+        assert str(transports[0].requests[0].url) == "https://203.0.113.10"
+        verify_arg = transports[0].kwargs["verify"]
         assert isinstance(verify_arg, ssl.SSLContext)
         assert verify_arg.verify_mode == ssl.CERT_NONE
         assert verify_arg.check_hostname is False
@@ -1973,98 +2348,45 @@ class TestMakeRequest:
         self,
         mocker: pytest_mock.MockerFixture,
     ) -> None:
-        url = "https://proxy.test"
         proxy = httpx.Proxy("socks5://gateway:1080", headers={"X-Proxy-Test": "enabled"})
-        created_clients: list[Any] = []
-
-        class DummyClient:
-            def __init__(self, *_: object, **kwargs: object) -> None:
-                self.kwargs = kwargs
-                self.headers: dict[str, str] = {}
-                created_clients.append(self)
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-            def stream(self, *_args: object, **_kwargs: object) -> object:
-                class _Stream:
-                    def __enter__(self) -> httpx.Response:
-                        request = httpx.Request("GET", url)
-                        return httpx.Response(200, request=request)
-
-                    def __exit__(self, *_exc: object) -> None:
-                        return None
-
-                return _Stream()
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+        transports = patch_transport(mocker)
 
         make_request(
-            url,
+            "https://proxy.test",
             timeout=5.0,
             proxy=proxy,
             dns_resolver=FakeDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
         )
 
-        assert created_clients
-        assert created_clients[0].kwargs["proxy"] is proxy
-        assert created_clients[0].kwargs["trust_env"] is False
+        assert transports[0].kwargs["proxy"] is proxy
+        assert transports[0].kwargs["trust_env"] is False
 
     def test_make_request_redacts_proxy_credentials_in_network_info(
         self,
         mocker: pytest_mock.MockerFixture,
     ) -> None:
-        url = "https://proxy.test"
         proxy_url = "http://user:secret@gateway:3128"
-        created_clients: list[Any] = []
-
-        class DummyClient:
-            def __init__(self, *_: object, **kwargs: object) -> None:
-                self.kwargs = kwargs
-                self.headers: dict[str, str] = {}
-                created_clients.append(self)
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-            def stream(self, *_args: object, **_kwargs: object) -> object:
-                class _Stream:
-                    def __enter__(self) -> httpx.Response:
-                        request = httpx.Request("GET", url)
-                        return httpx.Response(200, request=request)
-
-                    def __exit__(self, *_exc: object) -> None:
-                        return None
-
-                return _Stream()
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+        transports = patch_transport(mocker)
 
         _, network, _ = make_request(
-            url,
+            "https://proxy.test",
             timeout=5.0,
             proxy=proxy_url,
             dns_resolver=FakeDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
         )
 
-        assert created_clients[0].kwargs["proxy"] == proxy_url
+        assert transports[0].kwargs["proxy"] == proxy_url
         assert network.proxy_url == "http://user:****@gateway:3128"
 
     @pytest.mark.parametrize(
-        ("proxy_url", "expect_dns_called", "expect_hostname_in_url"),
+        ("proxy_url", "expect_dns_called"),
         [
-            ("socks5h://gateway:1080", False, True),
-            ("http://proxy.example.com:8080", False, True),
-            ("https://secure-proxy.example.com:8443", False, True),
-            ("socks5://gateway:1080", True, False),
+            ("socks5h://gateway:1080", False),
+            ("http://proxy.example.com:8080", False),
+            ("https://secure-proxy.example.com:8443", False),
+            ("socks5://gateway:1080", True),
         ],
         ids=["socks5h-remote-dns", "http-remote-dns", "https-remote-dns", "socks5-local-dns"],
     )
@@ -2074,14 +2396,12 @@ class TestMakeRequest:
         proxy_url: str,
         *,
         expect_dns_called: bool,
-        expect_hostname_in_url: bool,
     ) -> None:
         """Verify DNS resolution strategy depends on proxy type.
 
         Remote DNS proxies (socks5h, http, https) skip local DNS and use hostname.
         Local DNS proxies (socks5) resolve DNS locally and use IP address.
         """
-        url = "https://target.test/api"
         dns_calls: list[str] = []
 
         class SpyDNSResolver:
@@ -2089,51 +2409,23 @@ class TestMakeRequest:
                 dns_calls.append(host)
                 return "203.0.113.10", "IPv4", 4.2
 
-        captured_urls: list[str] = []
-
-        class DummyClient:
-            def __init__(self, *_: object, **__: object) -> None:
-                self.headers: dict[str, str] = {}
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-            def stream(self, _method: str, request_url: str, **_kw: object) -> object:
-                captured_urls.append(request_url)
-
-                class _Stream:
-                    def __enter__(self) -> httpx.Response:
-                        return httpx.Response(200, request=httpx.Request("GET", url))
-
-                    def __exit__(self, *_exc: object) -> None:
-                        return None
-
-                return _Stream()
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+        transports = patch_transport(mocker)
 
         make_request(
-            url,
+            "https://target.test/api",
             timeout=5.0,
             proxy=proxy_url,
             dns_resolver=SpyDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
         )
 
-        assert len(captured_urls) == 1
-        request_host = httpx.URL(captured_urls[0]).host
+        (request,) = transports[0].requests
         if expect_dns_called:
             assert len(dns_calls) == 1
-            assert request_host == "203.0.113.10"
+            assert request.url.host == "203.0.113.10"
         else:
             assert len(dns_calls) == 0
-            assert request_host == "target.test"
-
-        if expect_hostname_in_url:
-            assert request_host == "target.test"
+            assert request.url.host == "target.test"
 
     def test_make_request_env_proxy_skips_local_dns(
         self,
@@ -2141,47 +2433,18 @@ class TestMakeRequest:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Proxy from HTTPS_PROXY env var triggers remote DNS behavior."""
-        url = "https://example.com/path"
         monkeypatch.setenv("HTTPS_PROXY", "http://env-proxy:3128")
-
         dns_calls: list[str] = []
-        created_clients: list[Any] = []
 
         class SpyDNSResolver:
             def resolve(self, host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
                 dns_calls.append(host)
                 return "203.0.113.99", "IPv4", 4.2
 
-        captured_urls: list[str] = []
-
-        class DummyClient:
-            def __init__(self, *_: object, **kwargs: object) -> None:
-                self.kwargs = kwargs
-                self.headers: dict[str, str] = {}
-                created_clients.append(self)
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-            def stream(self, _method: str, request_url: str, **_kw: object) -> object:
-                captured_urls.append(request_url)
-
-                class _Stream:
-                    def __enter__(self) -> httpx.Response:
-                        return httpx.Response(200, request=httpx.Request("GET", url), content=b"ok")
-
-                    def __exit__(self, *_exc: object) -> None:
-                        return None
-
-                return _Stream()
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+        transports = patch_transport(mocker)
 
         make_request(
-            url,
+            "https://example.com/path",
             timeout=5.0,
             proxy=None,
             dns_resolver=SpyDNSResolver(),
@@ -2189,10 +2452,10 @@ class TestMakeRequest:
         )
 
         assert len(dns_calls) == 0
-        assert len(captured_urls) == 1
-        assert httpx.URL(captured_urls[0]).host == "example.com"
-        assert created_clients[0].kwargs["proxy"] == "http://env-proxy:3128"
-        assert created_clients[0].kwargs["trust_env"] is False
+        (request,) = transports[0].requests
+        assert request.url.host == "example.com"
+        assert transports[0].kwargs["proxy"] == "http://env-proxy:3128"
+        assert transports[0].kwargs["trust_env"] is False
 
     @pytest.mark.parametrize(
         ("noproxy", "no_proxy"),
@@ -2208,49 +2471,20 @@ class TestMakeRequest:
         no_proxy: str,
     ) -> None:
         """NO_PROXY and --proxy "" bypass environment proxy settings."""
-        url = "https://internal.corp/api"
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
         if no_proxy:
             monkeypatch.setenv("NO_PROXY", no_proxy)
-
         dns_calls: list[str] = []
-        created_clients: list[Any] = []
 
         class SpyDNSResolver:
             def resolve(self, host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
                 dns_calls.append(host)
                 return "10.0.0.5", "IPv4", 1.0
 
-        captured_urls: list[str] = []
-
-        class DummyClient:
-            def __init__(self, *_: object, **kwargs: object) -> None:
-                self.kwargs = kwargs
-                self.headers: dict[str, str] = {}
-                created_clients.append(self)
-
-            def __enter__(self) -> Self:
-                return self
-
-            def __exit__(self, *_exc: object) -> None:
-                return None
-
-            def stream(self, _method: str, request_url: str, **_kw: object) -> object:
-                captured_urls.append(request_url)
-
-                class _Stream:
-                    def __enter__(self) -> httpx.Response:
-                        return httpx.Response(200, request=httpx.Request("GET", url), content=b"ok")
-
-                    def __exit__(self, *_exc: object) -> None:
-                        return None
-
-                return _Stream()
-
-        mocker.patch("httptap.http_client.httpx.Client", side_effect=DummyClient)
+        transports = patch_transport(mocker)
 
         make_request(
-            url,
+            "https://internal.corp/api",
             timeout=5.0,
             proxy=None,
             noproxy=noproxy,
@@ -2259,10 +2493,10 @@ class TestMakeRequest:
         )
 
         assert len(dns_calls) == 1
-        assert len(captured_urls) == 1
-        assert "10.0.0.5" in captured_urls[0]
-        assert created_clients[0].kwargs["proxy"] is None
-        assert created_clients[0].kwargs["trust_env"] is False
+        (request,) = transports[0].requests
+        assert request.url.host == "10.0.0.5"
+        assert transports[0].kwargs["proxy"] is None
+        assert transports[0].kwargs["trust_env"] is False
 
     def test_make_request_handles_unexpected_exception(
         self,
@@ -2465,6 +2699,12 @@ class TestResolveEffectiveProxy:
         url, source = _resolve_effective_proxy(None, "https", "example.com")
         assert url is None
         assert source == PROXY_SOURCE_NO_MATCH
+
+    def test_scheme_less_env_value_defaults_to_http(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Like curl and ``-x``, a proxy without a scheme is a plain HTTP proxy."""
+        monkeypatch.setenv("HTTP_PROXY", "user:s3cret@127.0.0.1:3128")
+        url, _source = _resolve_effective_proxy(None, "http", "example.com")
+        assert url == "http://user:s3cret@127.0.0.1:3128"
 
     def test_noproxy_flag_ignores_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Return 'noproxy' when noproxy flag is set, even with proxy env vars."""
