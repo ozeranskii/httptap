@@ -221,7 +221,6 @@ def test_make_request_preserves_user_host_header(
         dns_resolver=FakeDNSResolver(),
         tls_inspector=FakeTLSInspector(),
         timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-        force_new_connection=False,
         headers={"host": "vhost.test"},
     )
 
@@ -244,7 +243,6 @@ def test_make_request_includes_non_default_port_in_host_header(
         dns_resolver=FakeDNSResolver(),
         tls_inspector=FakeTLSInspector(),
         timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-        force_new_connection=False,
     )
 
     assert response.status == 200
