@@ -268,7 +268,6 @@ def test_make_request_preserves_path_params_and_url_userinfo(
         dns_resolver=dns_resolver,
         tls_inspector=FakeTLSInspector(),
         timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-        force_new_connection=False,
     )
 
     assert response.status == 200
@@ -291,7 +290,6 @@ def test_make_request_preserves_explicit_authorization_over_url_userinfo(
         dns_resolver=FakeDNSResolver(),
         tls_inspector=FakeTLSInspector(),
         timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-        force_new_connection=False,
         headers={"authorization": "Bearer custom-token"},
     )
 
