@@ -18,6 +18,7 @@ else:
     from typing_extensions import Self
 
 from httptap.cli import (
+    EXIT_EXPORT_ERROR,
     EXIT_FATAL_ERROR,
     EXIT_HTTP_FAILURE,
     EXIT_NETWORK_ERROR,
@@ -324,21 +325,25 @@ def test_main_returns_error_when_json_export_fails(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr("httptap.cli.OutputRenderer", lambda *_args, **_kwargs: FailingRenderer())
     monkeypatch.setattr("sys.argv", ["httptap", "--json", "out.json", "https://example.test"])
 
-    assert main() == EXIT_FATAL_ERROR
+    assert main() == EXIT_EXPORT_ERROR
 
 
+@pytest.mark.parametrize("mode_args", [["--metrics-only"], []], ids=["metrics-only", "rich"])
 def test_main_json_dash_writes_only_json_to_stdout(
+    mode_args: list[str],
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", lambda *_args, **_kwargs: AnalyzerStub())
-    monkeypatch.setattr("sys.argv", ["httptap", "--metrics-only", "--json", "-", "https://example.test"])
+    monkeypatch.setattr("sys.argv", ["httptap", *mode_args, "--json", "-", "https://example.test"])
 
     assert main() == EXIT_SUCCESS
 
-    assert json.loads(capsys.readouterr().out)["initial_url"] == "https://example.test"
+    stdout = capsys.readouterr().out
+    assert stdout.startswith("{")
+    assert json.loads(stdout)["initial_url"] == "https://example.test"
     assert not (tmp_path / "-").exists()
 
 

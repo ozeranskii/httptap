@@ -489,6 +489,7 @@ shell pipelines, CI jobs, and systemd services.
 | `47`  | —                       | Maximum redirects followed.                                |
 | `64`  | `EX_USAGE`              | Invalid command-line arguments.                            |
 | `70`  | `EX_SOFTWARE`           | Internal error (unexpected exception, bug).                |
+| `73`  | `EX_CANTCREAT`          | `--json` output file could not be written.                 |
 | `75`  | `EX_TEMPFAIL`           | Network / TLS error (partial output may still be rendered). |
 | `128 + N` | Signal offset       | Killed by signal `N` (e.g., `130` for `SIGINT` / Ctrl-C).  |
 

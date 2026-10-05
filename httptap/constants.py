@@ -43,11 +43,13 @@ _EX_OK_FALLBACK = 0
 _EX_USAGE_FALLBACK = 64
 _EX_TEMPFAIL_FALLBACK = 75
 _EX_SOFTWARE_FALLBACK = 70
+_EX_CANTCREAT_FALLBACK = 73
 
 EXIT_CODE_OK = getattr(os, "EX_OK", _EX_OK_FALLBACK)
 EXIT_CODE_USAGE = getattr(os, "EX_USAGE", _EX_USAGE_FALLBACK)
 EXIT_CODE_TEMPFAIL = getattr(os, "EX_TEMPFAIL", _EX_TEMPFAIL_FALLBACK)
 EXIT_CODE_SOFTWARE = getattr(os, "EX_SOFTWARE", _EX_SOFTWARE_FALLBACK)
+EXIT_CODE_CANTCREAT = getattr(os, "EX_CANTCREAT", _EX_CANTCREAT_FALLBACK)
 
 # Project-specific exit codes (no sysexits.h equivalent).
 # SLO threshold violation — chosen to match the de-facto convention

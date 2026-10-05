@@ -105,11 +105,12 @@ their key for deterministic output.
 | Priority | Condition                               | Exit code |
 |:--------:|-----------------------------------------|:---------:|
 | 1        | Invalid arguments (bad `--slo` spec)    | `64`      |
-| 2        | Network / TLS failure on any step       | `75`      |
-| 3        | HTTP 4xx/5xx response with `--fail`     | `22`      |
-| 4        | Internal error                          | `70`      |
-| 5        | SLO violation on final successful step  | `4`       |
-| 6        | Success                                 | `0`       |
+| 2        | `--json` file could not be written      | `73`      |
+| 3        | Network / TLS failure on any step       | `75`      |
+| 4        | HTTP 4xx/5xx response with `--fail`     | `22`      |
+| 5        | Internal error                          | `70`      |
+| 6        | SLO violation on final successful step  | `4`       |
+| 7        | Success                                 | `0`       |
 
 Network errors and `--fail` responses always take precedence over SLO violations, so a
 failing host does not masquerade as a latency regression in a CI log.

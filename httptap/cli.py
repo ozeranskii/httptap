@@ -29,6 +29,7 @@ from . import __version__
 from .analyzer import HTTPTapAnalyzer
 from .constants import (
     DEFAULT_TIMEOUT_SECONDS,
+    EXIT_CODE_CANTCREAT,
     EXIT_CODE_HTTP_FAILURE,
     EXIT_CODE_OK,
     EXIT_CODE_SLO_VIOLATION,
@@ -64,6 +65,7 @@ EXIT_FATAL_ERROR = EXIT_CODE_SOFTWARE
 EXIT_SLO_VIOLATION = EXIT_CODE_SLO_VIOLATION
 EXIT_HTTP_FAILURE = EXIT_CODE_HTTP_FAILURE
 EXIT_TOO_MANY_REDIRECTS = EXIT_CODE_TOO_MANY_REDIRECTS
+EXIT_EXPORT_ERROR = EXIT_CODE_CANTCREAT
 
 
 # Global console for error messages
@@ -198,6 +200,7 @@ Exit codes:
   {EXIT_TOO_MANY_REDIRECTS:>3}              : Maximum redirects followed
   {EXIT_USAGE_ERROR:>3} (EX_USAGE)    : Invalid arguments
   {EXIT_FATAL_ERROR:>3} (EX_SOFTWARE) : Internal error
+  {EXIT_EXPORT_ERROR:>3} (EX_CANTCREAT): Export file could not be written
   {EXIT_NETWORK_ERROR:>3} (EX_TEMPFAIL) : Network/TLS error (partial output available)
         """,
     )
@@ -368,7 +371,8 @@ def _execute_analysis(
     headers: Mapping[str, str],
 ) -> list[StepMetrics]:
     """Execute HTTP analysis with optional progress reporting."""
-    if args.metrics_only:
+    # The spinner draws on stdout, which must stay machine-readable.
+    if args.metrics_only or args.json == "-":
         return analyzer.analyze_url(args.url, method=method, content=content, headers=headers)
 
     with Progress(
@@ -427,7 +431,7 @@ def _complete_analysis(
     _render_results(renderer, steps, args, slo_result=slo_result)
     _warn_redirect_limit(steps)
     if not _export_results(renderer, steps, args, slo_result=slo_result):
-        return EXIT_FATAL_ERROR
+        return EXIT_EXPORT_ERROR
     return determine_exit_code(
         steps,
         slo_result=slo_result,
