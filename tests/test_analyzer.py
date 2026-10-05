@@ -760,3 +760,38 @@ def test_analyze_url_redacts_userinfo_in_steps_but_requests_with_it() -> None:
         "https://user:****@example.test/start",
         "https://user:****@example.test/next",
     ]
+
+
+class _FailingExecutor:
+    def __init__(self, network: NetworkInfo) -> None:
+        self.network = network
+
+    def execute(self, options: RequestOptions) -> RequestOutcome:
+        del options
+        message = "Request failed: connection refused"
+        raise HTTPClientError(message, network_info=self.network)
+
+
+def test_failed_step_keeps_partial_network_info_and_proxy() -> None:
+    """A failed request still reports where it went and through which proxy."""
+    network = NetworkInfo(
+        ip="203.0.113.7", ip_family="IPv4", proxy_url="http://proxy.test:3128", proxy_source="--proxy"
+    )
+    analyzer = HTTPTapAnalyzer(request_executor=_FailingExecutor(network))
+
+    step = analyzer.analyze_url("http://example.test/")[0]
+
+    assert step.error_kind == "network"
+    assert step.network.ip == "203.0.113.7"
+    assert step.proxied_via == "http://proxy.test:3128"
+
+
+def test_failed_step_falls_back_to_configured_proxy() -> None:
+    analyzer = HTTPTapAnalyzer(
+        request_executor=_FailingExecutor(NetworkInfo()),
+        proxy="http://user:pw@proxy.test:3128",
+    )
+
+    step = analyzer.analyze_url("http://example.test/")[0]
+
+    assert step.proxied_via == "http://user:****@proxy.test:3128"

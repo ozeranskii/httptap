@@ -673,7 +673,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             try:
                 addresses = _resolve_addresses(dns_resolver, host, port, remaining_timeout(request_deadline))
             except DNSResolutionError as e:
-                raise HTTPClientError(str(e)) from e
+                raise HTTPClientError(str(e), network_info=network_info) from e
             finally:
                 timing_collector.mark_dns_end()
 
@@ -770,9 +770,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 
     except httpx.TimeoutException as exc:
         if time.monotonic() >= request_deadline:
-            raise HTTPClientError(_DEADLINE_EXCEEDED) from exc
+            raise HTTPClientError(_DEADLINE_EXCEEDED, network_info=network_info) from exc
         msg = f"Request timeout: {exc}"
-        raise HTTPClientError(msg) from exc
+        raise HTTPClientError(msg, network_info=network_info) from exc
     except httpx.RequestError as exc:
         msg = f"Request failed: {exc}"
         if (
@@ -792,8 +792,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                         network_info,
                         diagnostic_inspector.inspect(wire_host, port, probe_timeout, connect_host=network_info.ip),
                     )
-            raise HTTPClientError(msg, network_info=network_info) from exc
-        raise HTTPClientError(msg) from exc
+        raise HTTPClientError(msg, network_info=network_info) from exc
     except HTTPClientError:
         raise
 

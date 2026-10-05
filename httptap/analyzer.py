@@ -27,7 +27,7 @@ from .constants import (
     HTTPMethod,
 )
 from .http_client import HTTPClientError, remaining_timeout
-from .models import StepMetrics
+from .models import NetworkInfo, StepMetrics
 from .request_executor import HTTPClientRequestExecutor, RequestExecutor, RequestOptions, RequestOutcome
 from .utils import redact_url_credentials, sanitize_headers
 
@@ -265,6 +265,12 @@ class HTTPTapAnalyzer:
 
         return steps
 
+    def _proxied_via(self, network: NetworkInfo) -> str | None:
+        """Return the redacted proxy a request went through, if any."""
+        if network.proxy_url:
+            return network.proxy_url
+        return redact_url_credentials(str(self._proxy)) if self._proxy else None
+
     def _analyze_single_request(  # noqa: PLR0913
         self,
         url: str,
@@ -330,9 +336,7 @@ class HTTPTapAnalyzer:
             step.timing = outcome.timing
             step.network = outcome.network
             step.response = outcome.response
-            step.proxied_via = outcome.network.proxy_url or (
-                redact_url_credentials(str(self._proxy)) if self._proxy else None
-            )
+            step.proxied_via = self._proxied_via(outcome.network)
 
         except HTTPClientError as e:
             # Request failed, but we have partial data
@@ -340,6 +344,7 @@ class HTTPTapAnalyzer:
             step.error_kind = "network"
             if e.network_info is not None:
                 step.network = e.network_info
+                step.proxied_via = self._proxied_via(e.network_info)
             step.note = f"Step {step_number}: Request failed"
 
         except Exception as exc:  # noqa: BLE001
