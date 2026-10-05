@@ -18,6 +18,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
+from httptap.analyzer import HTTPTapAnalyzer
 from httptap.cli import (
     EXIT_EXPORT_ERROR,
     EXIT_FATAL_ERROR,
@@ -42,6 +43,7 @@ from httptap.cli import (
 from httptap.constants import REDIRECT_LIMIT_NOTE, UNIX_SIGNAL_EXIT_OFFSET, HTTPMethod
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
 from httptap.otlp import OTLPDependencyError, OTLPExportError
+from httptap.request_executor import RequestOptions, RequestOutcome
 from httptap.slo import SLOResult, SLOViolation
 
 if TYPE_CHECKING:
@@ -517,6 +519,34 @@ def test_main_returns_error_when_json_export_fails(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr("sys.argv", ["httptap", "--json", "out.json", "https://example.test"])
 
     assert main() == EXIT_EXPORT_ERROR
+
+
+class _SingleStepExecutor:
+    def execute(self, options: RequestOptions) -> RequestOutcome:
+        del options
+        return RequestOutcome(
+            timing=TimingMetrics(total_ms=10.0),
+            network=NetworkInfo(ip="203.0.113.1"),
+            response=ResponseInfo(status=200),
+        )
+
+
+@pytest.mark.parametrize("mode_args", [["--compact"], ["--metrics-only"], ["--json", "-"], []])
+def test_main_never_prints_url_password(
+    mode_args: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def build_analyzer(*_args: object, **_kwargs: object) -> HTTPTapAnalyzer:
+        return HTTPTapAnalyzer(request_executor=_SingleStepExecutor())
+
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", build_analyzer)
+    monkeypatch.setattr("sys.argv", ["httptap", *mode_args, "https://user:s3cret@example.test/"])
+
+    assert main() == EXIT_SUCCESS
+
+    captured = capsys.readouterr()
+    assert "s3cret" not in captured.out + captured.err
 
 
 @pytest.mark.parametrize("mode_args", [["--metrics-only"], []], ids=["metrics-only", "rich"])

@@ -294,7 +294,9 @@ class HTTPTapAnalyzer:
             with error information, ensuring the analysis chain can continue.
 
         """
-        step = StepMetrics(url=url, step_number=step_number)
+        # The step keeps a redacted URL for display and export; the request below
+        # still uses the original one so userinfo can authenticate.
+        step = StepMetrics(url=redact_url_credentials(url), step_number=step_number)
 
         # Populate request metadata
         step.request_method = method.value
