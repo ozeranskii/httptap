@@ -273,6 +273,15 @@ def test_prometheus_failed_step_exports_only_success_gauge() -> None:
     assert 'httptap_last_run_timestamp_seconds{host="down.example.test"} 1700000000.000' in output
 
 
+def test_prometheus_failed_step_with_malformed_url_has_empty_host() -> None:
+    step = build_step("http://[::1/next", 200, 0.0)
+    step.error = "Invalid redirect target: Invalid IPv6 URL"
+
+    output = PrometheusExporter._render([step], now=0.0)
+
+    assert 'httptap_request_success{host="",step="1"} 0' in output
+
+
 def test_prometheus_render_without_steps_has_only_metadata() -> None:
     output = PrometheusExporter._render([])
 

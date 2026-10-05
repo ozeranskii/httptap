@@ -28,6 +28,7 @@ __all__ = [
     "read_request_data",
     "redact_url_credentials",
     "sanitize_headers",
+    "url_hostname",
     "url_validation_error",
     "validate_url",
 ]
@@ -376,6 +377,22 @@ def validate_url(url: str) -> bool:
     if _WHITESPACE_RE.search(url):
         return False
     return url_validation_error(url, {"http", "https"}) is None
+
+
+def url_hostname(url: str) -> str:
+    """Return the lowercase hostname of ``url``, or ``""`` when it has none or cannot be parsed.
+
+    Examples:
+        >>> url_hostname("https://Example.com:8443/path")
+        'example.com'
+        >>> url_hostname("http://[::1/path")
+        ''
+
+    """
+    try:
+        return urlsplit(url).hostname or ""
+    except ValueError:
+        return ""
 
 
 def url_validation_error(url: str, schemes: Collection[str]) -> str | None:

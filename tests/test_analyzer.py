@@ -107,6 +107,68 @@ def test_analyze_url_with_redirect_blank_location_header() -> None:
     assert steps[0].response.location == ""
 
 
+@pytest.mark.parametrize(
+    ("location", "reason"),
+    [
+        ("http://example.test:99999/next", "Port out of range"),
+        ("http://example.test:abc/next", "Port could not be cast"),
+        ("http://[::1/next", "Invalid IPv6 URL"),
+        ("ftp://example.test/next", "unsupported scheme 'ftp'"),
+        ("http://:8080/next", "missing host"),
+        ("http://example.test:0/next", "port must be between 1 and 65535"),
+    ],
+)
+def test_analyze_url_records_invalid_redirect_target_as_error_step(location: str, reason: str) -> None:
+    executor = StubExecutor([(302, location), (200, None)])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+
+    steps = analyzer.analyze_url("https://example.test/start", method=HTTPMethod.POST, content=b"x")
+
+    assert len(executor.calls) == 1
+    assert len(steps) == 2
+    redirect, failed = steps
+    assert redirect.response.status == 302
+    assert not redirect.has_error
+    assert failed.step_number == 2
+    assert failed.url == location
+    assert failed.request_method == "GET"
+    assert failed.request_body_bytes == 0
+    assert failed.error_kind == "network"
+    assert (failed.error or "").startswith(f"Invalid redirect target: {reason}")
+    assert failed.response.status is None
+
+
+def test_analyze_url_redacts_credentials_of_invalid_redirect_target() -> None:
+    executor = StubExecutor([(302, "http://alice:topsecret@example.test:99999/next")])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+
+    steps = analyzer.analyze_url("https://example.test/start")
+
+    assert steps[1].url == "http://alice:****@example.test:99999/next"
+    assert "topsecret" not in repr(steps[1].to_dict())
+
+
+def test_analyze_url_resolves_invalid_relative_redirect_against_current_url() -> None:
+    executor = StubExecutor([(302, "//example.test:99999/next")])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+
+    steps = analyzer.analyze_url("https://example.test/start")
+
+    assert steps[1].url == "https://example.test:99999/next"
+    assert steps[1].has_error
+
+
+def test_analyze_url_redirect_limit_takes_precedence_over_invalid_target() -> None:
+    executor = StubExecutor([(302, "http://example.test:99999/next")])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, max_redirects=0, request_executor=executor)
+
+    steps = analyzer.analyze_url("https://example.test/start")
+
+    assert len(steps) == 1
+    assert steps[0].redirect_limit_reached
+    assert not steps[0].has_error
+
+
 def test_analyze_url_respects_max_redirects() -> None:
     """Test that analyzer respects max_redirects limit."""
     # Create infinite redirect chain

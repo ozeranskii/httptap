@@ -5,7 +5,8 @@ from __future__ import annotations
 import time
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, NamedTuple
-from urllib.parse import urlsplit
+
+from .utils import url_hostname
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -157,7 +158,7 @@ class OTLPExporter:
         if step.response.status is not None:
             span.set_attribute("http.response.status_code", step.response.status)
         span.set_attribute("http.response.body.size", step.response.bytes)
-        hostname = urlsplit(step.url).hostname
+        hostname = url_hostname(step.url)
         if hostname:
             span.set_attribute("server.address", hostname)
         if step.network.ip:

@@ -29,7 +29,7 @@ from .constants import (
 from .http_client import HTTPClientError, remaining_timeout
 from .models import NetworkInfo, StepMetrics
 from .request_executor import HTTPClientRequestExecutor, RequestExecutor, RequestOptions, RequestOutcome
-from .utils import redact_url_credentials, sanitize_headers
+from .utils import redact_url_credentials, sanitize_headers, url_validation_error
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -58,6 +58,21 @@ def _is_same_origin_or_https_upgrade(current_url: str, next_url: str) -> bool:
     return current == ("http", target[1], HTTP_DEFAULT_PORT) and target == ("https", current[1], HTTPS_DEFAULT_PORT)
 
 
+def _resolve_redirect_target(current_url: str, location: str) -> tuple[str, str | None]:
+    """Resolve a ``Location`` value against the current URL.
+
+    Returns:
+        The absolute next-hop URL (or the raw ``Location`` when it cannot even
+        be joined) and the reason it cannot be requested, or ``None`` when it
+        is a usable http(s) URL.
+    """
+    try:
+        next_url = urljoin(current_url, location)
+    except ValueError as exc:
+        return location, str(exc)
+    return next_url, url_validation_error(next_url, {"http", "https"})
+
+
 def _redirect_method(status: int, method: HTTPMethod) -> HTTPMethod:
     """Return the method for the next hop per RFC 9110 and curl/browser behavior."""
     if status == HTTPStatus.SEE_OTHER and method != HTTPMethod.HEAD:
@@ -82,6 +97,18 @@ def _redirect_headers(
         if (keep_credentials or name.lower() not in ORIGIN_BOUND_HEADERS)
         and (keep_body_headers or name.lower() not in BODY_HEADERS)
     }
+
+
+def _invalid_redirect_step(url: str, step_number: int, method: HTTPMethod, reason: str) -> StepMetrics:
+    """Build the failed step for a redirect target that cannot be requested."""
+    return StepMetrics(
+        url=redact_url_credentials(url),
+        step_number=step_number,
+        error=f"Invalid redirect target: {reason}",
+        error_kind="network",
+        note=f"Step {step_number}: Invalid redirect target",
+        request_method=method.value,
+    )
 
 
 class HTTPTapAnalyzer:
@@ -192,7 +219,12 @@ class HTTPTapAnalyzer:
         Returns:
             List of StepMetrics, one per request in the chain. Each step contains
             timing, network, and response information. Returns at least one step
-            even if request fails.
+            even if request fails. When a redirect points at a URL that cannot
+            be requested (malformed authority, invalid port, missing host or a
+            non-http(s) scheme), the redirect step is kept as is and the chain
+            ends with an extra failed step for that target: it carries the
+            target URL and a network-kind error but no timing or response, just
+            like a hop whose connection failed.
 
         Examples:
             Basic usage without redirects:
@@ -243,9 +275,11 @@ class HTTPTapAnalyzer:
                         step.note = f"{REDIRECT_LIMIT_NOTE} ({self.max_redirects})"
                         step.redirect_limit_reached = True
                         break
-                    # Handle relative URLs
-                    next_url = urljoin(current_url, next_url)
                     next_method = _redirect_method(step.response.status or 0, method)
+                    next_url, target_error = _resolve_redirect_target(current_url, next_url)
+                    if target_error is not None:
+                        steps.append(_invalid_redirect_step(next_url, step_number + 1, next_method, target_error))
+                        break
                     headers = _redirect_headers(
                         headers,
                         keep_credentials=_is_same_origin_or_https_upgrade(current_url, next_url),

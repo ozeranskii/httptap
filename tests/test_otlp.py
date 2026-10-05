@@ -189,6 +189,14 @@ def test_step_without_optional_fields_sets_only_known_attributes() -> None:
     assert set(request.attributes) == {"httptap.step_number", "http.response.body.size"}
 
 
+def test_step_with_malformed_url_has_no_server_address() -> None:
+    tracer = _Tracer()
+
+    OTLPExporter._record_chain(_Trace, tracer, [StepMetrics(url="http://[::1/next", error="Invalid redirect target")])
+
+    assert "server.address" not in tracer.spans[1].attributes
+
+
 def test_export_sends_finished_spans_with_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     provider = _install(monkeypatch, _Exporter)
 
