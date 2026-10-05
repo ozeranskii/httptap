@@ -434,6 +434,15 @@ def _stream_event(sock: object) -> dict[str, object]:
     return {"return_value": SimpleNamespace(get_extra_info=lambda name: sock if name == "socket" else None)}
 
 
+def _assert_read_is_cut_off(sock: socket.socket) -> None:
+    """A blocked read ends well before its own timeout: EOF after shutdown, OSError after close."""
+    started = time.monotonic()
+    with suppress(OSError):
+        sock.settimeout(5)
+        assert sock.recv(1) == b""
+    assert time.monotonic() - started < 4
+
+
 class TestDeadlineWatchdog:
     """The watchdog shuts down only the live connection, and only after the deadline."""
 
@@ -441,9 +450,26 @@ class TestDeadlineWatchdog:
         local, remote = socket.socketpair()
         with local, remote, _DeadlineWatchdog(time.monotonic() + 0.05) as watchdog:
             watchdog.observe("connection.connect_tcp.complete", _stream_event(local))
-            local.settimeout(5)
-            assert local.recv(1) == b""  # woken by the shutdown, not by the timeout
+            _assert_read_is_cut_off(local)
             assert watchdog.expired is True
+
+    @pytest.mark.parametrize(
+        ("platform", "closed"),
+        [("win32", True), ("linux", False)],
+    )
+    def test_cuts_off_the_socket_in_the_way_the_platform_wakes_readers(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        platform: str,
+        closed: bool,  # noqa: FBT001
+    ) -> None:
+        monkeypatch.setattr("httptap.http_client.sys.platform", platform)
+        local, remote = socket.socketpair()
+        with local, remote, _DeadlineWatchdog(time.monotonic() + 60) as watchdog:
+            watchdog.observe("connection.connect_tcp.complete", _stream_event(local))
+            watchdog._expire()
+
+            assert (local.fileno() == -1) is closed
 
     def test_socket_reported_after_expiry_is_shut_down_at_once(self) -> None:
         local, remote = socket.socketpair()
@@ -452,8 +478,7 @@ class TestDeadlineWatchdog:
             while not watchdog.expired and time.monotonic() < deadline:
                 time.sleep(0.01)
             watchdog.observe("connection.start_tls.complete", _stream_event(local))
-            local.settimeout(5)
-            assert local.recv(1) == b""
+            _assert_read_is_cut_off(local)
 
     @pytest.mark.parametrize(
         ("name", "info"),
@@ -1007,12 +1032,15 @@ class TestProxyURLValidation:
             make_request("http://example.test/", dns_resolver=FakeDNSResolver())
 
         assert "s3cret" not in str(exc_info.value)
-        assert "HTTP_PROXY" in str(exc_info.value)
+        # Windows environment variable names are case-insensitive, so the
+        # lowercase spelling, which is looked up first, matches there too.
+        assert "http_proxy" in str(exc_info.value).lower()
         network = exc_info.value.network_info
         assert network is not None
         assert network.proxy_url is not None
         assert "s3cret" not in network.proxy_url
-        assert network.proxy_source == "HTTP_PROXY"
+        assert network.proxy_source is not None
+        assert network.proxy_source.lower() == "http_proxy"
 
     def test_explicit_proxy_is_validated_too(self) -> None:
         with pytest.raises(HTTPClientError, match="unsupported scheme") as exc_info:

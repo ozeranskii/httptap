@@ -48,6 +48,7 @@ from __future__ import annotations
 import os
 import socket
 import ssl
+import sys
 import threading
 import time
 import warnings
@@ -310,10 +311,15 @@ class _DeadlineWatchdog:
     def _shutdown(self) -> None:
         if self._socket is None:
             return
-        # socket.socket.shutdown also for TLS sockets: SSLSocket.shutdown
-        # drops the SSL object under the thread blocked reading from it.
         with suppress(OSError):
-            socket.socket.shutdown(self._socket, socket.SHUT_RDWR)
+            if sys.platform == "win32":
+                # Winsock does not wake a select() blocked on a socket that is
+                # shut down; closing it does, and the read then fails.
+                self._socket.close()
+            else:
+                # socket.socket.shutdown also for TLS sockets: SSLSocket.shutdown
+                # drops the SSL object under the thread blocked reading from it.
+                socket.socket.shutdown(self._socket, socket.SHUT_RDWR)
 
 
 class TraceCollector:
