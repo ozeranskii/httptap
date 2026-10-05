@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from io import StringIO
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,7 @@ from httptap.formatters import format_compact_line, format_metrics_line
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
 from httptap.render import OutputRenderer
 from httptap.slo import SLOResult, SLOViolation
+from httptap.utils import UTC
 from httptap.visualizer import WaterfallVisualizer
 
 if TYPE_CHECKING:
@@ -182,6 +184,32 @@ class TestOutputRenderer:
         output = console.export_text()
         assert "ERROR" in output or "timeout" in output
 
+    @pytest.mark.parametrize("compact", [False, True], ids=["rich", "compact"])
+    def test_render_error_without_network_details(self, compact: bool, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: FBT001
+        """Errors without any network data print no empty network line."""
+        monkeypatch.setattr("httptap.render.format_network_info", lambda _step: None)
+        console = Console(record=True, width=120)
+        renderer = OutputRenderer(compact=compact, console=console)
+        step = build_step("https://example.com", 0, 0.0, error="DNS lookup failed")
+
+        renderer.render_analysis([step], "https://example.com")
+
+        assert "DNS lookup failed" in console.export_text()
+
+    def test_render_step_with_certificate_error_shows_network_details(self) -> None:
+        """Certificate metadata remains visible after an error panel."""
+        console = Console(record=True, width=120)
+        renderer = OutputRenderer(console=console)
+        step = build_step("https://expired.example.test", 0, 0.0, error="certificate verify failed")
+        step.network.cert_cn = "expired.example.test"
+        step.network.cert_days_left = -1
+
+        renderer.render_analysis([step], "https://expired.example.test")
+
+        output = console.export_text()
+        assert "Cert: expired.example.test" in output
+        assert "Expires: -1d" in output
+
     def test_export_json(self, mocker: MockerFixture, tmp_path: Path) -> None:
         """Test JSON export functionality."""
         console = Console()
@@ -224,6 +252,28 @@ class TestOutputRenderer:
         output = console.export_text()
         assert "ERROR" in output
         assert "DNS failed" in output
+
+    def test_render_metrics_only_includes_failed_certificate_details(self) -> None:
+        """Certificate diagnostics remain available in metrics-only output."""
+        console = Console(record=True, width=120)
+        renderer = OutputRenderer(metrics_only=True, console=console)
+        step = build_step("https://expired.example.test", 0, 0.0, error="certificate has expired")
+        step.network.cert_cn = "expired.example.test"
+        step.network.cert_sans = ["expired.example.test", "www.expired.example.test"]
+        step.network.cert_issuer = "Example CA"
+        step.network.cert_not_before = datetime(2025, 1, 1, tzinfo=UTC)
+        step.network.cert_not_after = datetime(2026, 1, 1, tzinfo=UTC)
+        step.network.cert_days_left = -1
+
+        renderer._render_metrics_only([step])
+
+        output = console.export_text()
+        assert "cert_cn=expired.example.test" in output
+        assert "cert_sans=expired.example.test,www.expired.example.test" in output
+        assert "cert_issuer=Example%20CA" in output
+        assert "cert_not_before=2025-01-01T00:00:00+00:00" in output
+        assert "cert_not_after=2026-01-01T00:00:00+00:00" in output
+        assert "cert_days_left=-1" in output
 
     def test_render_metrics_only_attaches_slo_to_final_success(
         self,

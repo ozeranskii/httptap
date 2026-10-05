@@ -26,7 +26,12 @@ class SocketTLSInspector:
 
     __slots__ = ("_ca_bundle_path", "_verify")
 
-    def __init__(self, *, verify: bool = True, ca_bundle_path: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        verify: bool = True,
+        ca_bundle_path: str | None = None,
+    ) -> None:
         """Initialize inspector with optional verification toggle and custom CA bundle.
 
         Args:
@@ -38,7 +43,7 @@ class SocketTLSInspector:
         self._verify = verify
         self._ca_bundle_path = ca_bundle_path
 
-    def inspect(self, host: str, port: int, timeout: float) -> NetworkInfo:
+    def inspect(self, host: str, port: int, timeout: float, *, connect_host: str | None = None) -> NetworkInfo:
         """Inspect TLS connection and extract metadata.
 
         Args:
@@ -46,6 +51,8 @@ class SocketTLSInspector:
             port: Port number (typically 443 for HTTPS).
             timeout: Connection timeout in seconds. The probe is additionally
                 capped by ``TLS_PROBE_MAX_TIMEOUT_SECONDS``.
+            connect_host: Address for the TCP connection. When provided, the
+                original ``host`` remains the SNI hostname.
 
         Returns:
             A NetworkInfo populated with the resolved IP, negotiated TLS
@@ -60,7 +67,7 @@ class SocketTLSInspector:
         deadline = time.monotonic() + probe_timeout
 
         try:
-            connection = socket.create_connection((host, port), timeout=probe_timeout)
+            connection = socket.create_connection((connect_host or host, port), timeout=probe_timeout)
             with closing(connection) as raw_sock:
                 self._populate_network_info(raw_sock, network_info)
 

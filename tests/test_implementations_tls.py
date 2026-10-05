@@ -154,6 +154,28 @@ class TestSocketTLSInspector:
         assert network_info.cert_cn is None
         assert network_info.cert_days_left is None
 
+    def test_diagnostic_probe_connects_to_resolved_ip_with_original_sni(self, mocker: MockerFixture) -> None:
+        """Diagnostic probes dial the resolved address but keep the hostname for SNI."""
+        inspector = SocketTLSInspector(verify=False)
+        mock_socket = mocker.MagicMock(spec=socket.socket)
+        mock_socket.getpeername.return_value = ("203.0.113.10", 443)
+        mock_socket.family = socket.AF_INET
+        mock_tls_socket = mocker.MagicMock(spec=ssl.SSLSocket)
+        mock_create_connection = mocker.patch("socket.create_connection", return_value=mock_socket)
+        mock_context = mocker.MagicMock()
+        mock_context.wrap_socket.return_value.__enter__.return_value = mock_tls_socket
+        mock_context.wrap_socket.return_value.__exit__.return_value = False
+        mocker.patch("httptap.implementations.tls.create_ssl_context", return_value=mock_context)
+        mocker.patch(
+            "httptap.implementations.tls.extract_tls_info",
+            return_value=("TLSv1.3", "cipher", None),
+        )
+
+        inspector.inspect("expired.example.com", 443, 5.0, connect_host="203.0.113.10")
+
+        mock_create_connection.assert_called_once_with(("203.0.113.10", 443), timeout=5.0)
+        mock_context.wrap_socket.assert_called_once_with(mock_socket, server_hostname="expired.example.com")
+
     def test_inspect_connection_failure_raises_error(
         self,
         mocker: MockerFixture,
