@@ -40,12 +40,10 @@ jobs:
           - ubuntu-latest
           - macos-latest
           - windows-latest
-        # uv resolves a bare "3.14" to a free-threaded build when one is
-        # installed, so the GIL build is requested explicitly.
         python:
           - "3.11"
           - "3.13"
-          - "3.14+gil"
+          - "3.14"
           - "3.14t"
 
     steps:

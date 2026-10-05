@@ -17,6 +17,7 @@ import struct
 import sys
 import threading
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -421,7 +422,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
             upstream.close()
             self.close_connection = True
 
-    def _forward(self) -> None:  # noqa: C901
+    def _forward(self) -> None:
         length = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(length) if length else b""
         ok = self._authorized()
@@ -457,13 +458,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
         upstream.sendall(("\r\n".join(lines) + "\r\n\r\n").encode("latin-1") + body)
         upstream.settimeout(60)
         try:
-            while True:
-                data = upstream.recv(65536)
-                if not data:
-                    break
-                self.wfile.write(data)
-        except OSError:
-            pass
+            # Either side may hang up mid-response; the relay just stops.
+            with suppress(OSError):
+                while data := upstream.recv(65536):
+                    self.wfile.write(data)
         finally:
             upstream.close()
             self.close_connection = True
