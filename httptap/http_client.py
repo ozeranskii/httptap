@@ -236,6 +236,9 @@ class TraceCollector:
     CONNECT_EVENT = "connection.connect_tcp"
     TLS_EVENT = "connection.start_tls"
     PROXY_TLS_EVENT = "proxy.start_tls"
+    SOCKS_CONNECT_EVENT = "socks.connect_tcp"
+    SOCKS_HANDSHAKE_EVENT = "socks.setup_socks5_connection"
+    SOCKS_TLS_EVENT = "socks.start_tls"
 
     def __init__(self) -> None:
         """Initialize empty event store for trace durations."""
@@ -252,42 +255,56 @@ class TraceCollector:
         # reuses the same event names as the request sent through the tunnel.
         event.setdefault(stage, timestamp)
 
-    def _duration_ms(self, event_name: str) -> float | None:
-        """Convert stored start/complete timestamps into milliseconds."""
-        event = self._events.get(event_name)
-        if not event:
-            return None
-        start = event.get("started")
-        end = event.get("complete")
+    def _stamp(self, event_name: str, stage: str) -> float | None:
+        """Return the recorded timestamp of ``event_name.stage``."""
+        return self._events.get(event_name, {}).get(stage)
+
+    @staticmethod
+    def _elapsed_ms(start: float | None, end: float | None) -> float | None:
+        """Return ``end - start`` in milliseconds, or None if either is missing or out of order."""
         if start is None or end is None or end < start:
             return None
         return (end - start) * MS_IN_SECOND
+
+    def _duration_ms(self, event_name: str) -> float | None:
+        """Convert stored start/complete timestamps into milliseconds."""
+        return self._elapsed_ms(self._stamp(event_name, "started"), self._stamp(event_name, "complete"))
 
     @property
     def connect_ms(self) -> float | None:
         """Return the time to establish the connection to the origin, in milliseconds.
 
-        For a direct connection this is the TCP connect. Through an HTTP
-        CONNECT proxy the origin is reachable only once the tunnel is up, so
-        the span runs from the TCP connect to the proxy until the origin TLS
-        handshake starts: TCP to the proxy, the proxy TLS handshake for an
-        ``https://`` proxy, and the CONNECT round-trip.
+        For a direct connection this is the TCP connect. Through a proxy the
+        origin is reachable only once the proxy path is set up, so the span
+        runs from the TCP connect to the proxy until the origin TLS handshake
+        starts (or the path is ready, for plain HTTP):
+
+        - HTTP CONNECT proxy: TCP to the proxy, the proxy TLS handshake for an
+          ``https://`` proxy, and the CONNECT round-trip.
+        - SOCKS proxy: TCP to the proxy and the SOCKS5 handshake.
         """
-        tunnel_ready = self._events.get(self.PROXY_TLS_EVENT, {}).get("started")
-        connect_started = self._events.get(self.CONNECT_EVENT, {}).get("started")
-        if tunnel_ready is not None and connect_started is not None and tunnel_ready >= connect_started:
-            return (tunnel_ready - connect_started) * MS_IN_SECOND
+        socks_started = self._stamp(self.SOCKS_CONNECT_EVENT, "started")
+        if socks_started is not None:
+            ready = self._stamp(self.SOCKS_TLS_EVENT, "started") or self._stamp(self.SOCKS_HANDSHAKE_EVENT, "complete")
+            return self._elapsed_ms(socks_started, ready)
+        tunnel_ready = self._stamp(self.PROXY_TLS_EVENT, "started")
+        if tunnel_ready is not None:
+            return self._elapsed_ms(self._stamp(self.CONNECT_EVENT, "started"), tunnel_ready)
         return self._duration_ms(self.CONNECT_EVENT)
 
     @property
     def tls_ms(self) -> float | None:
         """Return measured TLS handshake duration in milliseconds.
 
-        HTTPS requests through CONNECT proxies emit the origin handshake as
-        ``proxy.start_tls``. Prefer it over a proxy connection handshake.
+        HTTPS requests through CONNECT and SOCKS proxies emit the origin
+        handshake as ``proxy.start_tls`` / ``socks.start_tls``; prefer those over
+        the handshake with an ``https://`` proxy itself.
         """
-        proxy_tls_ms = self._duration_ms(self.PROXY_TLS_EVENT)
-        return proxy_tls_ms if proxy_tls_ms is not None else self._duration_ms(self.TLS_EVENT)
+        for event_name in (self.PROXY_TLS_EVENT, self.SOCKS_TLS_EVENT, self.TLS_EVENT):
+            duration = self._duration_ms(event_name)
+            if duration is not None:
+                return duration
+        return None
 
 
 def _defining_class(cls: type, name: str) -> type | None:

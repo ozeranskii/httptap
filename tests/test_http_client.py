@@ -1065,6 +1065,50 @@ class TestTraceCollector:
         # The tunnel request must not overwrite the first occurrence of shared event names.
         assert trace._events["http11.send_request_headers"]["started"] == pytest.approx(1.002)
 
+    @pytest.mark.parametrize(
+        ("events", "connect_ms", "tls_ms"),
+        [
+            (
+                [
+                    ("socks.connect_tcp.started", 1.000),
+                    ("socks.connect_tcp.complete", 1.002),
+                    ("socks.setup_socks5_connection.started", 1.002),
+                    ("socks.setup_socks5_connection.complete", 1.090),
+                    ("socks.start_tls.started", 1.090),
+                    ("socks.start_tls.complete", 1.300),
+                ],
+                90.0,
+                210.0,
+            ),
+            (
+                [
+                    ("socks.connect_tcp.started", 1.000),
+                    ("socks.connect_tcp.complete", 1.002),
+                    ("socks.setup_socks5_connection.started", 1.002),
+                    ("socks.setup_socks5_connection.complete", 1.040),
+                ],
+                40.0,
+                None,
+            ),
+        ],
+        ids=["https", "http"],
+    )
+    def test_trace_collector_measures_socks_path(
+        self,
+        mocker: pytest_mock.MockerFixture,
+        events: list[tuple[str, float]],
+        connect_ms: float,
+        tls_ms: float | None,
+    ) -> None:
+        """Through SOCKS, connect covers TCP to the proxy plus the SOCKS5 handshake."""
+        mocker.patch("httptap.http_client.time.perf_counter", side_effect=[timestamp for _, timestamp in events])
+        trace = TraceCollector()
+        for name, _timestamp in events:
+            trace(name, {})
+
+        assert trace.connect_ms == pytest.approx(connect_ms)
+        assert trace.tls_ms == (pytest.approx(tls_ms) if tls_ms is not None else None)
+
     def test_trace_collector_ignores_tunnel_without_tcp_connect(self) -> None:
         """Without a recorded TCP connect, the tunnel span cannot be measured."""
         trace = TraceCollector()
