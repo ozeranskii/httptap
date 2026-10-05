@@ -149,7 +149,6 @@ jobs:
     name: Test / Python ${{ matrix.python-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
-    environment: ci
     needs: test-matrix
     strategy:
       fail-fast: false
@@ -294,8 +293,10 @@ jobs:
           version-file: uv.lock
           enable-cache: false
 
+      # With the otel extra, the suite also runs the real-SDK OTLP tests
+      # against the lowest supported OpenTelemetry release.
       - name: Install lowest direct dependencies
-        run: uv sync --python 3.11 --resolution lowest-direct --no-dev --group test
+        run: uv sync --python 3.11 --resolution lowest-direct --no-dev --group test --extra otel
 
       - name: Run tests
         run: uv run --no-sync pytest
