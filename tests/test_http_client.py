@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import gzip
-import importlib
 import socket
 import ssl
 import threading
@@ -13,7 +12,6 @@ from typing import TYPE_CHECKING, Any, Self
 import httpx
 import pytest
 
-import httptap.http_client
 from httptap.constants import (
     PROXY_SOURCE_CLI,
     PROXY_SOURCE_DISABLED,
@@ -22,11 +20,14 @@ from httptap.constants import (
 )
 from httptap.http_client import (
     USER_AGENT,
+    HTTPClientError,
     TraceCollector,
     _build_timing_metrics,
+    _build_user_agent,
     _consume_response_body,
     _extract_ssl_object,
     _host_matches_no_proxy,
+    _is_certificate_verification_error,
     _needs_remote_dns,
     _normalize_http_version,
     _populate_response_metadata,
@@ -307,7 +308,7 @@ def test_make_request_rejects_expired_deadline_before_dns() -> None:
             calls.append((host, port, timeout))
             return "203.0.113.10", "IPv4", 1.0
 
-    with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
+    with pytest.raises(HTTPClientError, match="total deadline exceeded"):
         make_request(
             "http://example.test",
             deadline=0.0,
@@ -347,7 +348,7 @@ def test_make_request_total_deadline_stops_slow_stream() -> None:
     thread.start()
     started = time.monotonic()
 
-    with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
+    with pytest.raises(HTTPClientError, match="total deadline exceeded"):
         make_request(f"http://127.0.0.1:{port}/", timeout=0.4, http2=False)
 
     assert time.monotonic() - started < 0.75
@@ -362,7 +363,7 @@ def test_certificate_verification_error_detection_handles_cyclic_chains() -> Non
     outer.__cause__ = inner
     inner.__context__ = outer
 
-    assert httptap.http_client._is_certificate_verification_error(outer) is False
+    assert _is_certificate_verification_error(outer) is False
 
 
 class TestResolveAddresses:
@@ -410,7 +411,7 @@ class TestResolveAddresses:
             def resolve_all(self, _host: str, _port: int, _timeout: float) -> tuple[list[tuple[str, str]], float]:
                 return [], 0.0
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="No usable address records"):
+        with pytest.raises(HTTPClientError, match="No usable address records"):
             make_request("http://example.test/", dns_resolver=Empty())
 
 
@@ -455,7 +456,7 @@ class TestErrorsCarryNetworkInfo:
     def test_connect_error_keeps_ip_and_proxy(self, httpx_mock: pytest_httpx.HTTPXMock) -> None:
         httpx_mock.add_exception(httpx.ConnectError("Connection refused"))
 
-        with pytest.raises(httptap.http_client.HTTPClientError) as exc_info:
+        with pytest.raises(HTTPClientError) as exc_info:
             make_request(
                 "http://example.test/",
                 dns_resolver=FakeDNSResolver(),
@@ -471,7 +472,7 @@ class TestErrorsCarryNetworkInfo:
     def test_timeout_keeps_network_info(self, httpx_mock: pytest_httpx.HTTPXMock) -> None:
         httpx_mock.add_exception(httpx.ReadTimeout("read timed out"))
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="Request timeout") as exc_info:
+        with pytest.raises(HTTPClientError, match="Request timeout") as exc_info:
             make_request(
                 "http://example.test/",
                 timeout=5.0,
@@ -488,7 +489,7 @@ class TestErrorsCarryNetworkInfo:
                 message = f"DNS resolution failed for {host}"
                 raise DNSResolutionError(message)
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="DNS resolution failed") as exc_info:
+        with pytest.raises(HTTPClientError, match="DNS resolution failed") as exc_info:
             make_request("http://example.test/", dns_resolver=Failing(), noproxy=True)
 
         assert exc_info.value.network_info is not None
@@ -498,7 +499,7 @@ class TestErrorsCarryNetworkInfo:
 @pytest.mark.parametrize("url", ["http://example.test:99999/", "http://example.test:abc/"])
 def test_make_request_reports_invalid_url_as_client_error(url: str) -> None:
     """A malformed redirect target fails like any other request error, not as an internal error."""
-    with pytest.raises(httptap.http_client.HTTPClientError, match="Invalid URL"):
+    with pytest.raises(HTTPClientError, match="Invalid URL"):
         make_request(url, dns_resolver=FakeDNSResolver())
 
 
@@ -519,7 +520,7 @@ class TestBuildUserAgent:
         from httptap._pkgmeta import PackageInfo
 
         mocker.patch(
-            "httptap._pkgmeta.get_package_info",
+            "httptap.http_client.get_package_info",
             return_value=PackageInfo(
                 version="0.0.0",
                 author=faker.name(),
@@ -528,9 +529,7 @@ class TestBuildUserAgent:
             ),
         )
 
-        importlib.reload(httptap.http_client)
-
-        assert "httptap/0.0.0" in httptap.http_client.USER_AGENT
+        assert "httptap/0.0.0" in _build_user_agent()
 
 
 class TestBuildTimingMetrics:
@@ -710,7 +709,7 @@ class TestConsumeResponseBody:
         response = httpx.Response(200, stream=httpx.ByteStream(b"body"))
         monkeypatch.setattr("httptap.http_client.time.monotonic", lambda: 2.0)
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
+        with pytest.raises(HTTPClientError, match="total deadline exceeded"):
             _consume_response_body(response, deadline=1.0)
 
 
@@ -1379,8 +1378,8 @@ class TestMakeRequest:
 
     def test_make_request_handles_missing_hostname(self) -> None:
         """Test error handling for URL without hostname."""
-        with pytest.raises(httptap.http_client.HTTPClientError, match="Invalid URL: missing hostname"):
-            _timing, _network, _response = make_request(
+        with pytest.raises(HTTPClientError, match="Invalid URL: missing hostname"):
+            make_request(
                 "http://",
                 timeout=5.0,
             )
@@ -1393,7 +1392,7 @@ class TestMakeRequest:
                 msg = "DNS lookup failed"
                 raise DNSResolutionError(msg)
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="DNS lookup failed"):
+        with pytest.raises(HTTPClientError, match="DNS lookup failed"):
             make_request(
                 "https://invalid.test",
                 timeout=5.0,
@@ -1413,7 +1412,7 @@ class TestMakeRequest:
             url=f"https://{ip}",
         )
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="Request timeout"):
+        with pytest.raises(HTTPClientError, match="Request timeout"):
             make_request(
                 "https://slow.test",
                 timeout=1.0,
@@ -1434,7 +1433,7 @@ class TestMakeRequest:
             url=f"https://{ip}",
         )
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="Request failed"):
+        with pytest.raises(HTTPClientError, match="Request failed"):
             make_request(
                 "https://unreachable.test",
                 timeout=5.0,
@@ -1464,7 +1463,7 @@ class TestMakeRequest:
         )
         inspect = mocker.patch("httptap.http_client.SocketTLSInspector.inspect", return_value=certificate_info)
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="CERTIFICATE_VERIFY_FAILED") as exc_info:
+        with pytest.raises(HTTPClientError, match="CERTIFICATE_VERIFY_FAILED") as exc_info:
             make_request(
                 url,
                 timeout=5.0,
@@ -1495,7 +1494,7 @@ class TestMakeRequest:
         )
         inspect = mocker.patch("httptap.http_client.SocketTLSInspector.inspect")
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="CERTIFICATE_VERIFY_FAILED"):
+        with pytest.raises(HTTPClientError, match="CERTIFICATE_VERIFY_FAILED"):
             make_request(
                 "https://expired.example.test",
                 timeout=5.0,
@@ -1528,7 +1527,7 @@ class TestMakeRequest:
         mocker.patch("httptap.http_client.httpx.Client", side_effect=FailingClient)
         inspect = mocker.patch("httptap.http_client.SocketTLSInspector.inspect")
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="CERTIFICATE_VERIFY_FAILED"):
+        with pytest.raises(HTTPClientError, match="CERTIFICATE_VERIFY_FAILED"):
             make_request(
                 "https://expired.example.test",
                 timeout=5.0,
@@ -1602,7 +1601,7 @@ class TestMakeRequest:
         httpx_mock.add_exception(httpx.ConnectTimeout("Connection timed out"), method="GET", url="http://[::1]/")
         httpx_mock.add_exception(httpx.ConnectTimeout("Connection timed out"), method="GET", url="http://127.0.0.1/")
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="Request timeout"):
+        with pytest.raises(HTTPClientError, match="Request timeout"):
             make_request(
                 "http://localhost/",
                 timeout=5.0,
@@ -1694,7 +1693,7 @@ class TestMakeRequest:
         mocker.patch("httptap.http_client.time.monotonic", side_effect=lambda: next(readings, 10.0))
         httpx_mock.add_exception(httpx.ConnectTimeout("Connection timed out"), method="GET", url="http://[::1]/")
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="total deadline exceeded"):
+        with pytest.raises(HTTPClientError, match="total deadline exceeded"):
             make_request(
                 "http://localhost/",
                 timeout=5.0,
@@ -1743,7 +1742,7 @@ class TestMakeRequest:
         tls_error.__cause__ = ssl.SSLCertVerificationError("certificate verify failed")
         httpx_mock.add_exception(tls_error, method="GET", url="https://[2001:db8::1]/")
 
-        with pytest.raises(httptap.http_client.HTTPClientError, match="certificate verify failed"):
+        with pytest.raises(HTTPClientError, match="certificate verify failed"):
             make_request(
                 "https://example.test/",
                 timeout=5.0,
@@ -2118,16 +2117,16 @@ class TestMakeRequest:
         )
 
         assert len(captured_urls) == 1
+        request_host = httpx.URL(captured_urls[0]).host
         if expect_dns_called:
             assert len(dns_calls) == 1
-            assert "203.0.113.10" in captured_urls[0]
+            assert request_host == "203.0.113.10"
         else:
             assert len(dns_calls) == 0
-            assert "target.test" in captured_urls[0]
-            assert "203.0.113.10" not in captured_urls[0]
+            assert request_host == "target.test"
 
         if expect_hostname_in_url:
-            assert "target.test" in captured_urls[0]
+            assert request_host == "target.test"
 
     def test_make_request_env_proxy_skips_local_dns(
         self,
@@ -2184,8 +2183,7 @@ class TestMakeRequest:
 
         assert len(dns_calls) == 0
         assert len(captured_urls) == 1
-        assert "example.com" in captured_urls[0]
-        assert "203.0.113.99" not in captured_urls[0]
+        assert httpx.URL(captured_urls[0]).host == "example.com"
         assert created_clients[0].kwargs["proxy"] == "http://env-proxy:3128"
         assert created_clients[0].kwargs["trust_env"] is False
 
