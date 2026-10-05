@@ -341,9 +341,11 @@ jobs:
         with:
           subject-path: "dist/*"
 
-  # The only job that writes to the repository. It runs after the release
-  # tree was tested and built, and the push is fast-forward only: if main
-  # moved during the release, it fails before anything is published.
+  # The only job that writes to the git repository, through the deploy key of
+  # the release environment rather than the workflow token. It runs after the
+  # release tree was tested and built, and the push is fast-forward only and
+  # atomic: if main moved during the release, neither the branch nor the tag
+  # is updated and nothing is published.
   push-release:
     name: Push Release Commit and Tag
     runs-on: ubuntu-latest
@@ -354,7 +356,7 @@ jobs:
       - build
       - attest
     permissions:
-      contents: write # Required to push the release commit and tag
+      contents: read # The push goes over SSH with the deploy key
 
     steps:
       - name: Checkout
@@ -376,8 +378,9 @@ jobs:
           BUNDLE: ${{ runner.temp }}/release/release.bundle
         run: |
           git fetch "${BUNDLE}" "refs/tags/${TAG}:refs/tags/${TAG}"
-          git push origin "refs/tags/${TAG}^{commit}:refs/heads/${GITHUB_REF_NAME}"
-          git push origin "refs/tags/${TAG}"
+          git push --atomic origin \
+            "refs/tags/${TAG}^{commit}:refs/heads/${GITHUB_REF_NAME}" \
+            "refs/tags/${TAG}:refs/tags/${TAG}"
 
   publish-testpypi:
     name: Publish to TestPyPI
@@ -439,9 +442,12 @@ jobs:
     name: Publish container image to GHCR
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Gated on PyPI, so the image is only published once the release has
+    # passed the pypi environment's required review.
     needs:
       - prepare
       - push-release
+      - publish-pypi
     permissions:
       contents: read
       packages: write # Push to ghcr.io/<owner>/<repo>
