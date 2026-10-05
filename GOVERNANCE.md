@@ -76,7 +76,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). In short:
 4. Address review feedback; the maintainer merges when ready.
 
 Contributions are accepted under the inbound=outbound licensing model
-(Apache-2.0 for code, CC-BY-4.0 for documentation); no separate Contributor
+(Apache-2.0 for both code and documentation); no separate Contributor
 License Agreement (CLA) is required.
 
 ## Releases
@@ -86,8 +86,9 @@ Releases are cut by the maintainer using the automated release workflow in
 
 - **Cadence:** as-needed, typically every 2–6 weeks.
 - **Versioning:** [Semantic Versioning 2.0.0](https://semver.org).
-- **Channel:** [PyPI](https://pypi.org/project/httptap/) via OIDC Trusted
-  Publishing (no long-lived API tokens).
+- **Channels:** [PyPI](https://pypi.org/project/httptap/) via OIDC Trusted
+  Publishing (no long-lived API tokens), [GitHub Releases](https://github.com/ozeranskii/httptap/releases),
+  and the container image [`ghcr.io/ozeranskii/httptap`](https://github.com/ozeranskii/httptap/pkgs/container/httptap).
 - **Supply chain:** releases are signed with Sigstore keyless signing and
   ship SLSA v1.0 build provenance attestations via
   `actions/attest-build-provenance`. Each release also attaches a

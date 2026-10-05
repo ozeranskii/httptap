@@ -6,8 +6,8 @@
 
 header:
   schema-version: 2.0.0
-  last-updated: '2026-04-13'
-  last-reviewed: '2026-04-13'
+  last-updated: '2026-10-05'
+  last-reviewed: '2026-10-05'
   url: https://raw.githubusercontent.com/ozeranskii/httptap/main/security-insights.yml
 
 project:
@@ -107,6 +107,10 @@ repository:
         comment: |
           GitHub Releases carry the same wheel/sdist plus the full
           supply-chain artefact set (SBOM, VEX, SLSA provenance).
+      - uri: https://github.com/ozeranskii/httptap/pkgs/container/httptap
+        comment: |
+          Container image (ghcr.io/ozeranskii/httptap) built from the
+          released commit, with SLSA build provenance attestations.
     license:
       url: https://github.com/ozeranskii/httptap/blob/main/LICENSE
       expression: Apache-2.0
@@ -133,8 +137,8 @@ repository:
         integration:
           ci: true
         comment: |
-          Weekly version and security updates for both the PyPI (uv
-          group) and GitHub Actions ecosystems.
+          Weekly version and security updates for the uv (PyPI),
+          GitHub Actions, Docker and pre-commit ecosystems.
       - name: OpenSSF Scorecard
         type: SCA
         integration:

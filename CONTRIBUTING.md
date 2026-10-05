@@ -284,6 +284,9 @@ httptap/
 │   ├── request_executor.py # Custom request executor protocol
 │   ├── tls_inspector.py   # TLS certificate inspection
 │   ├── exporter.py        # JSON export functionality
+│   ├── prometheus.py      # Prometheus text-format export
+│   ├── otlp.py            # Optional OpenTelemetry OTLP export
+│   ├── slo.py             # SLO threshold parsing and evaluation
 │   ├── formatters.py      # Output formatters
 │   ├── render.py          # Output rendering orchestration
 │   ├── visualizer.py      # Rich table visualizer
@@ -406,7 +409,6 @@ See [`docs/development/release.md`](docs/development/release.md) for the complet
 
 - 💬 [GitHub Discussions](https://github.com/ozeranskii/httptap/discussions) - Ask questions, share ideas
 - 🐛 [GitHub Issues](https://github.com/ozeranskii/httptap/issues) - Report bugs, request features
-- 📧 Email maintainer (see `pyproject.toml`)
 
 ## License
 
