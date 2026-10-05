@@ -69,10 +69,11 @@ from httptap.constants import (
 from httptap.constants import (
     EXIT_CODE_HTTP_FAILURE,  # 22 - HTTP 4xx/5xx response with --fail
     EXIT_CODE_OK,  # 0  - Success (os.EX_OK)
+    EXIT_CODE_SLO_VIOLATION,  # 4  - SLO threshold violation
     EXIT_CODE_TOO_MANY_REDIRECTS,  # 47 - Maximum redirects followed
     EXIT_CODE_USAGE,  # 64 - Invalid arguments (os.EX_USAGE)
     EXIT_CODE_SOFTWARE,  # 70 - Internal error (os.EX_SOFTWARE)
-    EXIT_CODE_CANTCREAT,  # 73 - Export file could not be written (os.EX_CANTCREAT)
+    EXIT_CODE_CANTCREAT,  # 73 - --json output could not be written (os.EX_CANTCREAT)
     EXIT_CODE_TEMPFAIL,  # 75 - Network/TLS error (os.EX_TEMPFAIL)
 )
 ```

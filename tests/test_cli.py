@@ -1654,3 +1654,23 @@ def test_main_rejects_out_of_range_port(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr("sys.argv", ["httptap", "http://127.0.0.1:99999/"])
 
     assert main() == EXIT_USAGE_ERROR
+
+
+@pytest.mark.parametrize(
+    ("step", "fail_on_http_error", "expected"),
+    [
+        (StepMetrics(error="boom", error_kind="internal"), False, EXIT_FATAL_ERROR),
+        (StepMetrics(response=ResponseInfo(status=302), redirect_limit_reached=True), False, EXIT_TOO_MANY_REDIRECTS),
+        (StepMetrics(error="refused", error_kind="network"), False, EXIT_NETWORK_ERROR),
+        (StepMetrics(response=ResponseInfo(status=500)), True, EXIT_EXPORT_ERROR),
+        (StepMetrics(response=ResponseInfo(status=200)), False, EXIT_EXPORT_ERROR),
+    ],
+    ids=["internal-wins", "redirect-limit-wins", "network-wins", "export-beats-fail", "export-alone"],
+)
+def test_determine_exit_code_ranks_export_failure(
+    step: StepMetrics,
+    *,
+    fail_on_http_error: bool,
+    expected: int,
+) -> None:
+    assert determine_exit_code([step], fail_on_http_error=fail_on_http_error, export_failed=True) == expected
