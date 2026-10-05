@@ -693,3 +693,11 @@ def test_validate_url_checks_port(url: str, *, expected: bool) -> None:
 )
 def test_percent_encode_undecodable_bytes(text: str, expected: str) -> None:
     assert percent_encode_undecodable_bytes(text) == expected
+
+
+def test_percent_encode_undecodable_bytes_yields_an_ascii_url() -> None:
+    """Whatever bytes the platform restores, the result is plain ASCII that httpx can encode."""
+    encoded = percent_encode_undecodable_bytes("http://example.test/\udcff")
+
+    assert encoded.isascii()
+    assert encoded.startswith("http://example.test/%")
