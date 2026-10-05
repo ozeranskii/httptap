@@ -151,3 +151,18 @@ def test_data_sends_raw_argument_bytes(
 
     assert exit_code == 0
     assert origin.received[0].body == b"\xff\xfe raw"
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows argv is Unicode; undecodable bytes only exist on POSIX",
+)
+def test_undecodable_url_bytes_are_percent_encoded(
+    origin: _Origin,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = f"{origin.url}/".encode() + b"\xff\xfe"
+    exit_code = _run(monkeypatch, "--metrics-only", url.decode(sys.getfilesystemencoding(), "surrogateescape"))
+
+    assert exit_code == 0
+    assert origin.received[0].path == "/%FF%FE"

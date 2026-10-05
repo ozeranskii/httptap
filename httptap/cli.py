@@ -60,7 +60,14 @@ from .slo import (
     parse_slo_spec,
     select_step_for_evaluation,
 )
-from .utils import create_ssl_context, read_request_data, redact_url_credentials, url_validation_error, validate_url
+from .utils import (
+    create_ssl_context,
+    percent_encode_undecodable_bytes,
+    read_request_data,
+    redact_url_credentials,
+    url_validation_error,
+    validate_url,
+)
 
 # Exit codes (aligned with sysexits.h conventions where possible)
 # Fall back to canonical numeric equivalents when running on platforms
@@ -686,6 +693,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:  # noqa: PLR0911
         False if validation fails (error already printed), True if valid.
 
     """
+    args.url = percent_encode_undecodable_bytes(args.url)
     if not validate_url(args.url):
         error_text = Text()
         error_text.append("Invalid URL: ", style="bold red")

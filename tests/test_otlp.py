@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from types import SimpleNamespace
 from typing import ClassVar
 
@@ -289,3 +290,21 @@ def test_load_dependencies_explains_missing_extra(monkeypatch: pytest.MonkeyPatc
 
     with pytest.raises(OTLPDependencyError, match=r"httptap\[otel\]"):
         OTLPExporter._load_dependencies()
+
+
+class _LoggingExporter(_Exporter):
+    def export(self, spans: list[object]) -> str:
+        logging.getLogger("opentelemetry.exporter.otlp.proto.http").warning("Transient error, retrying")
+        return super().export(spans)
+
+
+def test_export_holds_back_sdk_warnings(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    _install(monkeypatch, _LoggingExporter)
+    sdk_logger = logging.getLogger("opentelemetry")
+    previous_level = sdk_logger.level
+
+    with caplog.at_level(logging.WARNING):
+        OTLPExporter().export([_step()], "http://collector.test:4318/v1/traces", timeout=3.0)
+
+    assert "Transient error" not in caplog.text
+    assert sdk_logger.level == previous_level
