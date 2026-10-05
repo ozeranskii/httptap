@@ -212,11 +212,15 @@ Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=
 
 #### `--json PATH`
 
-Export full request data to a JSON file.
+Export full request data to a JSON file. Use `-` to write the JSON to stdout
+instead; the regular report is then suppressed so the output can be piped.
 
 ```bash
 httptap --json report.json https://httpbin.io
+httptap --json - https://httpbin.io | jq '.summary'
 ```
+
+If the file cannot be written, httptap exits with code `73`.
 
 The JSON file contains:
 

@@ -115,6 +115,13 @@ Full request data exported as structured JSON for comprehensive analysis.
 httptap --json output.json https://httpbin.io
 ```
 
+Pass `-` as the path to write the JSON to stdout (the regular report is
+suppressed); status messages go to stderr:
+
+```bash
+httptap --json - https://httpbin.io | jq '.steps[0].timing'
+```
+
 ### JSON Structure
 
 ```json
