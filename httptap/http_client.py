@@ -55,6 +55,7 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Self
 from urllib.parse import urlsplit, urlunsplit
 
+import httpcore
 import httpx
 
 from ._pkgmeta import get_package_info
@@ -148,6 +149,7 @@ def _build_timing_metrics(
     is_https: bool,
     connect_ms: float | None = None,
     tls_ms: float | None = None,
+    failed_attempts_ms: float = 0.0,
 ) -> TimingMetrics:
     """Build complete timing metrics from collector and trace data.
 
@@ -156,6 +158,10 @@ def _build_timing_metrics(
         is_https: Whether this was an HTTPS request.
         connect_ms: Optional precise TCP connection time from trace.
         tls_ms: Optional precise TLS handshake time from trace.
+        failed_attempts_ms: Time spent on resolved addresses that failed before
+            the one that answered. It is already part of ``ttfb_ms`` and
+            ``total_ms`` and is counted as connect time, so it is neither
+            estimated as TLS nor left over as server wait.
 
     Returns:
         TimingMetrics with all phase durations and derived metrics calculated.
@@ -179,7 +185,7 @@ def _build_timing_metrics(
     if timing.connect_ms == 0.0 and (not is_https or timing.tls_ms == 0.0):
         # Calculate connection phase time (time from DNS end to TTFB)
         # This represents the TCP connect + TLS handshake time
-        connection_phase_ms = max(0.0, timing.ttfb_ms - timing.dns_ms)
+        connection_phase_ms = max(0.0, timing.ttfb_ms - timing.dns_ms - failed_attempts_ms)
 
         if is_https:
             # Estimate using 30%/70% split (TCP/TLS)
@@ -192,6 +198,7 @@ def _build_timing_metrics(
             timing.tls_ms = 0.0
             timing.is_estimated = False  # HTTP doesn't need TLS estimation
 
+    timing.connect_ms += failed_attempts_ms
     timing.calculate_derived()
     return timing
 
@@ -421,6 +428,25 @@ def _resolve_addresses(
         msg = f"No usable address records for {host}"
         raise DNSResolutionError(msg)
     return list(addresses)
+
+
+# httpcore's message when a SOCKS5 proxy answers CONNECT with a failure reply
+# (refused, host or network unreachable, ...). The proxy was reached and
+# accepted the credentials, so the failure concerns this target address only;
+# authentication and handshake failures use other messages.
+_SOCKS_CONNECT_REPLY_FAILURE = "Proxy Server could not connect:"
+
+
+def _is_socks_target_refusal(error: httpx.ProxyError) -> bool:
+    """Return whether a SOCKS proxy refused to reach this particular target address."""
+    return str(error).startswith(_SOCKS_CONNECT_REPLY_FAILURE)
+
+
+def _close_streams(streams: list[httpcore.NetworkStream]) -> None:
+    """Close httpcore network streams, ignoring ones that are already closed."""
+    for stream in streams:
+        with suppress(Exception):
+            stream.close()
 
 
 def _has_tls_error(error: BaseException) -> bool:
@@ -848,6 +874,14 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             if parsed_url.username is not None and not has_authorization_header:
                 stream_kwargs["auth"] = (source_url.username, source_url.password)
 
+            # One request start for every attempt: time lost on addresses that
+            # failed is part of the request, as with curl. The final attempt's
+            # trace only measures its own connect, so the failed attempts are
+            # added to connect_ms (curl's time_connect counts them as well);
+            # otherwise they would show up as server wait time.
+            timing_collector.mark_request_start()
+            requests_started = time.perf_counter()
+            failed_attempts_ms = 0.0
             for index, (ip, ip_family) in enumerate(addresses):  # pragma: no branch - exits via break or raise
                 attempt_timeout = request_deadline - time.monotonic()
                 if attempt_timeout <= 0:
@@ -862,38 +896,65 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                     (parsed_url.scheme, f"{request_target}:{port}", parsed_url.path, parsed_url.query, "")
                 )
                 # Record the address before connecting so a total failure still reports
-                # the last address tried, and restart timing/trace for each attempt so
-                # failed attempts are not billed to the server wait time.
+                # the last address tried; the trace restarts so it describes the
+                # connection that served the response.
                 network_info.ip = None if skip_local_dns else ip
                 network_info.ip_family = None if skip_local_dns else ip_family
                 trace = TraceCollector()
+                tcp_streams: list[httpcore.NetworkStream] = []
 
-                def on_trace(name: str, info: dict[str, object], trace: TraceCollector = trace) -> None:
+                def on_trace(
+                    name: str,
+                    info: dict[str, object],
+                    trace: TraceCollector = trace,
+                    tcp_streams: list[httpcore.NetworkStream] = tcp_streams,
+                ) -> None:
                     trace(name, info)
                     watchdog.observe(name, info)
+                    stream = info.get("return_value")
+                    if name.endswith(".connect_tcp.complete") and isinstance(stream, httpcore.NetworkStream):
+                        tcp_streams.append(stream)
 
+                failed_attempts_ms = (time.perf_counter() - requests_started) * MS_IN_SECOND
                 try:
-                    timing_collector.mark_request_start()
-                    with client.stream(
-                        method.value,
-                        request_url,
-                        content=content,
-                        extensions={"trace": on_trace, "sni_hostname": wire_host},
-                        **stream_kwargs,  # type: ignore[arg-type]
-                    ) as response:
-                        timing_collector.mark_ttfb()
-                        _populate_response_metadata(response, response_info)
-                        _populate_tls_from_stream(response, network_info)
-                        network_info.http_version = network_info.http_version or _normalize_http_version(
-                            response.http_version
-                        )
-                        response_info.bytes = _consume_response_body(response, request_deadline)
-                        break
+                    try:
+                        with client.stream(
+                            method.value,
+                            request_url,
+                            content=content,
+                            extensions={"trace": on_trace, "sni_hostname": wire_host},
+                            **stream_kwargs,  # type: ignore[arg-type]
+                        ) as response:
+                            timing_collector.mark_ttfb()
+                            _populate_response_metadata(response, response_info)
+                            _populate_tls_from_stream(response, network_info)
+                            network_info.http_version = network_info.http_version or _normalize_http_version(
+                                response.http_version
+                            )
+                            response_info.bytes = _consume_response_body(response, request_deadline)
+                            break
+                    except Exception:
+                        # httpcore's SOCKS pool does not close the proxy socket when
+                        # the handshake or TLS setup fails; with address fallback
+                        # those sockets would pile up until garbage collection.
+                        _close_streams(tcp_streams)
+                        raise
+                except httpx.ProxyError as exc:
+                    if not _is_socks_target_refusal(exc) or index == len(addresses) - 1:
+                        raise
                 except httpx.ConnectError as exc:
-                    if watchdog.expired or _has_tls_error(exc) or index == len(addresses) - 1:
+                    # Through a proxy (only a local-DNS socks5:// one resolves to
+                    # several addresses) the TCP connect goes to the proxy itself,
+                    # so its failure would repeat for every address.
+                    if (
+                        watchdog.expired
+                        or effective_proxy_url is not None
+                        or _has_tls_error(exc)
+                        or index == len(addresses) - 1
+                    ):
                         raise
                 except httpx.ConnectTimeout:
-                    if index == len(addresses) - 1:
+                    if effective_proxy_url is not None or index == len(addresses) - 1:
                         raise
 
         timing_collector.mark_request_end()
@@ -903,6 +964,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             is_https=is_https,
             connect_ms=trace.connect_ms,
             tls_ms=trace.tls_ms,
+            failed_attempts_ms=failed_attempts_ms,
         )
 
         # Fallback probe: only when the live connection exposed no TLS and no

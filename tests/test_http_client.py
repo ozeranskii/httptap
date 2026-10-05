@@ -7,10 +7,12 @@ import threading
 import time
 from contextlib import suppress
 from types import SimpleNamespace, TracebackType
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, NoReturn, Self
 
+import httpcore
 import httpx
 import pytest
+from httpcore._backends.sync import SyncBackend
 
 from httptap.constants import (
     PROXY_SOURCE_CLI,
@@ -696,6 +698,223 @@ class TestIPv6LiteralThroughRemoteDNSProxy:
             "sni": "2001:db8::1",
             "host": "[2001:db8::1]:8443",
         }
+
+
+class _OneAddressFailsResolver:
+    """Resolve to an address that cannot be reached, then to the working one."""
+
+    def __init__(self, failing: tuple[str, str]) -> None:
+        self._failing = failing
+
+    def resolve(self, _host: str, _port: int, _timeout: float) -> tuple[str, str, float]:  # pragma: no cover
+        return "127.0.0.1", "IPv4", 0.0
+
+    def resolve_all(self, _host: str, _port: int, _timeout: float) -> tuple[list[tuple[str, str]], float]:
+        return [self._failing, ("127.0.0.1", "IPv4")], 0.0
+
+
+def _serve_http_ok(count: int = 1) -> tuple[int, threading.Thread]:
+    """Answer ``count`` plain HTTP requests on 127.0.0.1 with ``200 ok``."""
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+
+    def serve() -> None:
+        with listener:
+            for _ in range(count):
+                connection, _address = listener.accept()
+                with connection:
+                    request = b""
+                    while b"\r\n\r\n" not in request:
+                        request += connection.recv(4096)
+                    connection.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    return listener.getsockname()[1], thread
+
+
+def _serve_socks5(
+    *,
+    refused_hosts: frozenset[str] = frozenset(),
+    accepted_auth: tuple[bytes, bytes] | None = None,
+) -> tuple[int, list[str], threading.Thread]:
+    """Run a SOCKS5 proxy that refuses CONNECT to ``refused_hosts`` and relays the rest.
+
+    Returns the port, the log of requested targets (and auth failures), and the
+    server thread, which ends once the listener is idle for a second.
+    """
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    listener.settimeout(1)
+    log: list[str] = []
+
+    def handle(client: socket.socket) -> None:
+        client.recv(262)
+        if accepted_auth is None:
+            client.sendall(b"\x05\x00")
+        else:
+            client.sendall(b"\x05\x02")
+            request = client.recv(515)
+            username = request[2 : 2 + request[1]]
+            password = request[3 + request[1] :]
+            if (username, password) != accepted_auth:
+                log.append("auth failed")
+                client.sendall(b"\x01\x01")
+                return
+            client.sendall(b"\x01\x00")
+        request = client.recv(262)
+        if request[3] == 4:
+            host = socket.inet_ntop(socket.AF_INET6, request[4:20])
+            port = int.from_bytes(request[20:22], "big")
+        else:
+            host = socket.inet_ntoa(request[4:8])
+            port = int.from_bytes(request[8:10], "big")
+        log.append(host)
+        reply_tail = b"\x00\x01" + socket.inet_aton("127.0.0.1") + port.to_bytes(2, "big")
+        if host in refused_hosts:
+            client.sendall(b"\x05\x05" + reply_tail)  # connection refused
+            return
+        with socket.create_connection((host, port)) as upstream:
+            client.sendall(b"\x05\x00" + reply_tail)
+            to_upstream = threading.Thread(target=_relay, args=(client, upstream), daemon=True)
+            to_upstream.start()
+            _relay(upstream, client)
+            to_upstream.join(timeout=2)
+
+    def serve() -> None:
+        with listener:
+            while True:
+                try:
+                    client, _address = listener.accept()
+                except TimeoutError:
+                    return
+                with client:
+                    handle(client)
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    return listener.getsockname()[1], log, thread
+
+
+def _relay(source: socket.socket, target: socket.socket) -> None:
+    with suppress(OSError):
+        while data := source.recv(65536):
+            target.sendall(data)
+    with suppress(OSError):
+        target.shutdown(socket.SHUT_WR)
+
+
+class TestAddressFallbackAccounting:
+    """Time spent on addresses that failed is part of the request, and counted as connect time."""
+
+    def test_failed_attempts_count_towards_connect_and_total(self, mocker: pytest_mock.MockerFixture) -> None:
+        port, thread = _serve_http_ok()
+        connect_tcp = SyncBackend.connect_tcp
+        failed_attempt_seconds = 0.3
+
+        def connect_or_fail_slowly(self: SyncBackend, host: str, *args: Any, **kwargs: Any) -> object:  # noqa: ANN401
+            if host == "192.0.2.1":
+                time.sleep(failed_attempt_seconds)
+                message = "timed out"
+                raise httpcore.ConnectTimeout(message)
+            return connect_tcp(self, host, *args, **kwargs)
+
+        mocker.patch.object(SyncBackend, "connect_tcp", connect_or_fail_slowly)
+        started = time.perf_counter()
+
+        timing, network, response = make_request(
+            f"http://example.test:{port}/",
+            timeout=5.0,
+            http2=False,
+            dns_resolver=_OneAddressFailsResolver(("192.0.2.1", "IPv4")),
+        )
+        wall_ms = (time.perf_counter() - started) * 1000
+        thread.join(timeout=2)
+
+        assert response.status == 200
+        assert network.ip == "127.0.0.1"
+        failed_ms = failed_attempt_seconds * 1000
+        assert failed_ms <= timing.total_ms <= wall_ms
+        assert timing.ttfb_ms >= failed_ms
+        assert timing.connect_ms >= failed_ms
+        assert timing.is_estimated is False
+        assert timing.wait_ms < failed_ms
+        phases = timing.dns_ms + timing.connect_ms + timing.tls_ms + timing.wait_ms
+        assert phases == pytest.approx(timing.ttfb_ms)
+
+
+class TestSocksLocalDNSFallback:
+    """With a local-DNS SOCKS proxy, a target the proxy cannot reach falls back to the next address."""
+
+    def test_refused_target_falls_back_to_next_address(self) -> None:
+        origin_port, origin = _serve_http_ok()
+        proxy_port, log, proxy = _serve_socks5(refused_hosts=frozenset({"::1"}))
+
+        _timing, network, response = make_request(
+            f"http://localhost:{origin_port}/",
+            timeout=5.0,
+            http2=False,
+            proxy=f"socks5://127.0.0.1:{proxy_port}",
+            dns_resolver=_OneAddressFailsResolver(("::1", "IPv6")),
+        )
+        origin.join(timeout=2)
+        proxy.join(timeout=3)
+
+        assert response.status == 200
+        assert network.ip == "127.0.0.1"
+        assert log == ["::1", "127.0.0.1"]
+
+    def test_refused_last_address_is_reported(self) -> None:
+        proxy_port, log, proxy = _serve_socks5(refused_hosts=frozenset({"::1", "127.0.0.1"}))
+
+        with pytest.raises(HTTPClientError, match="Proxy Server could not connect"):
+            make_request(
+                "http://localhost:9/",
+                timeout=5.0,
+                proxy=f"socks5://127.0.0.1:{proxy_port}",
+                dns_resolver=_OneAddressFailsResolver(("::1", "IPv6")),
+            )
+        proxy.join(timeout=3)
+
+        assert log == ["::1", "127.0.0.1"]
+
+    def test_authentication_failure_is_not_retried(self) -> None:
+        proxy_port, log, proxy = _serve_socks5(accepted_auth=(b"user", b"right"))
+
+        with pytest.raises(HTTPClientError, match="Invalid username/password"):
+            make_request(
+                "http://localhost:9/",
+                timeout=5.0,
+                proxy=f"socks5://user:wrong@127.0.0.1:{proxy_port}",
+                dns_resolver=_OneAddressFailsResolver(("::1", "IPv6")),
+            )
+        proxy.join(timeout=3)
+
+        assert log == ["auth failed"]
+
+    @pytest.mark.parametrize("error", [httpcore.ConnectError, httpcore.ConnectTimeout])
+    def test_unreachable_proxy_is_not_retried(
+        self,
+        mocker: pytest_mock.MockerFixture,
+        error: type[Exception],
+    ) -> None:
+        def unreachable(*_args: object, **_kwargs: object) -> NoReturn:
+            message = "proxy unreachable"
+            raise error(message)
+
+        connect_tcp = mocker.patch.object(SyncBackend, "connect_tcp", side_effect=unreachable)
+
+        with pytest.raises(HTTPClientError, match="proxy unreachable"):
+            make_request(
+                "http://localhost:9/",
+                timeout=5.0,
+                proxy="socks5://127.0.0.1:1080",
+                dns_resolver=_OneAddressFailsResolver(("::1", "IPv6")),
+            )
+
+        assert connect_tcp.call_count == 1
 
 
 class TestProxyURLValidation:
