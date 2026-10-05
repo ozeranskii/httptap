@@ -5,7 +5,6 @@ to present analysis results to the user.
 """
 
 from collections.abc import Sequence
-from urllib.parse import quote
 
 from rich.console import Console
 from rich.markup import escape
@@ -24,6 +23,7 @@ from .exporter import JSONExporter
 from .formatters import (
     format_compact_line,
     format_error,
+    format_metric_value,
     format_metrics_line,
     format_network_info,
     format_response_info,
@@ -275,8 +275,7 @@ class OutputRenderer:
                     ("cert_days_left", step.network.cert_days_left),
                 ):
                     if value is not None and value != "":
-                        # Only whitespace and "=" would break key=value parsing.
-                        parts.append(f"{key}={quote(str(value), safe='.,-*:+/')}")
+                        parts.append(f"{key}={format_metric_value(value)}")
                 self.console.print(" ".join(parts), markup=False, soft_wrap=True)
                 continue
 

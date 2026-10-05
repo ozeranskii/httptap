@@ -131,8 +131,11 @@ the change. Expected format:
 Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
 ```
 
-Sources for `proxy`: `direct`, `none` (NO_PROXY hit), `disabled` (`--proxy ""`),
-`<url>` with a `proxy_from=...` hint.
+Sources for `proxy`: `direct` (optionally with `proxy_from=no_scheme_match`),
+`none` (NO_PROXY hit, `proxy_from=env:no_proxy`), `disabled` (`--proxy ""`,
+`proxy_from=arg`), or `<url>` with `proxy_from=arg` or `proxy_from=env:<VAR>`.
+Values are percent-encoded where they would otherwise break `key=value`
+tokenization.
 
 ## Scripting & CI
 

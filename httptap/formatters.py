@@ -4,6 +4,8 @@ This module provides formatters for converting metrics and data
 into human-readable formats with Rich markup support.
 """
 
+from urllib.parse import quote
+
 from rich.markup import escape
 from rich.panel import Panel
 from rich.text import Text
@@ -216,6 +218,16 @@ def format_bytes_human(num_bytes: int) -> str:
     return f"{size_kib / BYTES_PER_KIB:.1f} MB"
 
 
+def format_metric_value(value: object) -> str:
+    """Escape a value for a ``key=value`` token of the ``--metrics-only`` output.
+
+    Only characters that would break whitespace/``=`` tokenization are
+    percent-encoded; URLs, timestamps, IPv6 addresses and ``*`` wildcards stay
+    readable.
+    """
+    return quote(str(value), safe=".,-*:+/@[]")
+
+
 def format_metrics_line(
     step: StepMetrics,
     *,
@@ -250,20 +262,20 @@ def format_metrics_line(
     ]
 
     if step.network.ip:
-        parts.append(f"ip={step.network.ip}")
+        parts.append(f"ip={format_metric_value(step.network.ip)}")
     if step.network.ip_family:
-        parts.append(f"family={step.network.ip_family}")
+        parts.append(f"family={format_metric_value(step.network.ip_family)}")
     if step.network.tls_version:
-        parts.append(f"tls_version={step.network.tls_version}")
+        parts.append(f"tls_version={format_metric_value(step.network.tls_version)}")
 
     if step.proxied_via:
         src = step.network.proxy_source
         hint = "arg" if src == PROXY_SOURCE_CLI else f"env:{src}"
-        parts.append(f"proxy={step.proxied_via} proxy_from={hint}")
+        parts.append(f"proxy={format_metric_value(step.proxied_via)} proxy_from={format_metric_value(hint)}")
     elif step.network.proxy_source == PROXY_SOURCE_NO_PROXY:
         parts.append("proxy=none proxy_from=env:no_proxy")
     elif step.network.proxy_source == PROXY_SOURCE_DISABLED:
-        parts.append('proxy=disabled proxy_from=--proxy ""')
+        parts.append("proxy=disabled proxy_from=arg")
     elif step.network.proxy_source == PROXY_SOURCE_NO_MATCH:
         parts.append("proxy=direct proxy_from=no_scheme_match")
     else:

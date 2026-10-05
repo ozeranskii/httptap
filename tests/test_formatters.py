@@ -15,6 +15,7 @@ from httptap.formatters import (
     format_bytes_human,
     format_compact_line,
     format_error,
+    format_metric_value,
     format_metrics_line,
     format_network_info,
     format_response_info,
@@ -504,7 +505,7 @@ class TestFormatMetricsLine:
         line = format_metrics_line(step)
 
         assert "proxy=disabled" in line
-        assert 'proxy_from=--proxy ""' in line
+        assert "proxy_from=arg" in line
 
     def test_format_metrics_line_proxy_no_scheme_match(self) -> None:
         """Test metrics line shows no matching proxy scheme."""
@@ -669,3 +670,36 @@ class TestFormatSLOPanel:
 
         assert "SLO: pass" in text
         assert "(none)" in text
+
+
+@pytest.mark.parametrize(
+    ("network", "proxied_via"),
+    [
+        (NetworkInfo(proxy_source=PROXY_SOURCE_DISABLED), None),
+        (NetworkInfo(proxy_source="NO_PROXY"), None),
+        (
+            NetworkInfo(ip="2001:db8::1", ip_family="IPv6", proxy_source="HTTPS_PROXY"),
+            "http://user:****@proxy.test:3128",
+        ),
+        (NetworkInfo(ip="203.0.113.1", tls_version="TLSv1.3", proxy_source="--proxy"), "socks5h://gw.test:1080"),
+    ],
+    ids=["disabled", "no-proxy", "env-proxy-ipv6", "cli-proxy"],
+)
+def test_metrics_line_tokens_are_key_value(network: NetworkInfo, proxied_via: str | None) -> None:
+    """Every token after the step label splits into exactly one key and one value."""
+    step = StepMetrics(step_number=1, network=network, response=ResponseInfo(status=200), proxied_via=proxied_via)
+
+    _label, _, tokens = format_metrics_line(step).partition(": ")
+
+    for token in tokens.split(" "):
+        key, separator, value = token.partition("=")
+        assert separator, token
+        assert key, token
+        assert "=" not in value, token
+
+
+def test_format_metric_value_escapes_only_separators() -> None:
+    assert format_metric_value("*.example.test") == "*.example.test"
+    assert format_metric_value("2026-01-01T00:00:00+00:00") == "2026-01-01T00:00:00+00:00"
+    assert format_metric_value("Example CA Ltd") == "Example%20CA%20Ltd"
+    assert format_metric_value("a=b") == "a%3Db"
