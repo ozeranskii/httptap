@@ -1,4 +1,5 @@
 import ssl
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -510,6 +511,14 @@ class TestReadRequestData:
         content, headers = read_request_data(plain_data)
 
         assert content == plain_data.encode("utf-8")
+        assert headers == {}
+
+    def test_read_request_data_inline_keeps_undecodable_argv_bytes(self) -> None:
+        argument = b"\xff\xfe{".decode(sys.getfilesystemencoding(), "surrogateescape")
+
+        content, headers = read_request_data(argument)
+
+        assert content == b"\xff\xfe{"
         assert headers == {}
 
     def test_read_request_data_from_json_file(self, tmp_path: Path) -> None:

@@ -6,6 +6,7 @@ management.
 """
 
 import json
+import os
 import re
 import socket
 import ssl
@@ -280,11 +281,16 @@ CONTENT_TYPE_BY_EXTENSION = {
 
 
 def _load_data_from_source(data_arg: str) -> tuple[bytes, Path | None]:
-    """Load data from inline string or file reference."""
+    """Load data from inline string or file reference.
+
+    Inline data is converted back to the exact bytes given on the command
+    line: ``os.fsencode`` reverses the ``surrogateescape`` decoding of argv,
+    so arguments that are not valid UTF-8 are sent unchanged.
+    """
     if data_arg.startswith("@"):
         filepath = Path(data_arg[1:])
         return filepath.read_bytes(), filepath
-    return data_arg.encode("utf-8"), None
+    return os.fsencode(data_arg), None
 
 
 def _detect_content_type_from_extension(source: Path) -> str | None:

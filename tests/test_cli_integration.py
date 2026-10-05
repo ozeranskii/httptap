@@ -135,3 +135,15 @@ def test_rich_output_redacts_location_credentials(
     assert exit_code == 0
     assert f"http://alice:****@{origin.url.removeprefix('http://')}/ok" in out
     assert "topsecret" not in out + err
+
+
+def test_data_sends_raw_argument_bytes(
+    origin: _Origin,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data = b"\xff\xfe raw".decode(sys.getfilesystemencoding(), "surrogateescape")
+
+    exit_code = _run(monkeypatch, "--metrics-only", "-d", data, f"{origin.url}/echo")
+
+    assert exit_code == 0
+    assert origin.received[0].body == b"\xff\xfe raw"

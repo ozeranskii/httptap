@@ -9,6 +9,7 @@ import argparse
 import ipaddress
 import logging
 import math
+import re
 import signal
 import socket
 import sys
@@ -145,6 +146,31 @@ def _parse_http_method(value: str) -> HTTPMethod:
         raise argparse.ArgumentTypeError(msg) from exc
 
 
+# RFC 9110 section 5.6.2 token characters.
+_HEADER_NAME_RE = re.compile(r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+")
+# Visible ASCII, space and tab. obs-text (0x80-0xFF) is excluded because httpx
+# encodes str header values as ASCII.
+_HEADER_VALUE_RE = re.compile(r"[\t\x20-\x7e]*")
+_HEADER_CONTROL_RE = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
+
+
+def _validate_header(name: str, value: str) -> None:
+    """Reject header names and values that cannot be sent as given.
+
+    The value itself is never echoed: it may carry a credential.
+    """
+    if not _HEADER_NAME_RE.fullmatch(name):
+        msg = f"Invalid header name {name!r}: must be an HTTP token (letters, digits and !#$%&'*+-.^_`|~)"
+        raise ValueError(msg)
+    if _HEADER_VALUE_RE.fullmatch(value):
+        return
+    if _HEADER_CONTROL_RE.search(value):
+        msg = f"Invalid value for header {name!r}: control characters such as CR, LF or NUL are not allowed"
+    else:
+        msg = f"Invalid value for header {name!r}: only ASCII characters are supported"
+    raise ValueError(msg)
+
+
 def _parse_headers(values: Sequence[str] | None) -> dict[str, str]:
     """Convert --header inputs into a case-preserving mapping."""
     if not values:
@@ -162,6 +188,7 @@ def _parse_headers(values: Sequence[str] | None) -> dict[str, str]:
         if not name:
             msg = f"Header name cannot be empty: '{item}'"
             raise ValueError(msg)
+        _validate_header(name, value)
         lower = name.lower()
         key = canonical.get(lower, name)
         canonical.setdefault(lower, key)
