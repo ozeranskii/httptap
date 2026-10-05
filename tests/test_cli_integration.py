@@ -137,6 +137,10 @@ def test_rich_output_redacts_location_credentials(
     assert "topsecret" not in out + err
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows argv is Unicode; undecodable bytes only exist on POSIX",
+)
 def test_data_sends_raw_argument_bytes(
     origin: _Origin,
     monkeypatch: pytest.MonkeyPatch,

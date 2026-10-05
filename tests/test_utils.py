@@ -516,6 +516,10 @@ class TestReadRequestData:
         assert content == plain_data.encode("utf-8")
         assert headers == {}
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows argv is Unicode; undecodable bytes only exist on POSIX",
+    )
     def test_read_request_data_inline_keeps_undecodable_argv_bytes(self) -> None:
         argument = b"\xff\xfe{".decode(sys.getfilesystemencoding(), "surrogateescape")
 

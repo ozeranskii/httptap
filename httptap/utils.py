@@ -14,7 +14,7 @@ from collections.abc import Collection, Mapping
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import SplitResult, urlsplit
 
 __all__ = [
     "MASK_PATTERN",
@@ -394,7 +394,17 @@ def validate_url(url: str) -> bool:
     """
     if _WHITESPACE_RE.search(url):
         return False
-    return url_validation_error(url, {"http", "https"}) is None
+    # Same rules as url_validation_error, without building messages on this hot path.
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return False
+    if parts.scheme not in _HTTP_SCHEMES or not parts.hostname:
+        return False
+    try:
+        return parts.port != 0
+    except ValueError:
+        return False
 
 
 def url_hostname(url: str) -> str:
@@ -411,6 +421,9 @@ def url_hostname(url: str) -> str:
         return urlsplit(url).hostname or ""
     except ValueError:
         return ""
+
+
+_HTTP_SCHEMES = frozenset({"http", "https"})
 
 
 def url_validation_error(url: str, schemes: Collection[str]) -> str | None:
@@ -435,8 +448,6 @@ def url_validation_error(url: str, schemes: Collection[str]) -> str | None:
     """
     try:
         parts = urlsplit(url)
-        # ``port`` is parsed lazily and raises for non-numeric or out-of-range values.
-        port = parts.port
     except ValueError as exc:
         # Malformed authority, e.g. an unterminated IPv6 literal.
         return str(exc)
@@ -445,6 +456,16 @@ def url_validation_error(url: str, schemes: Collection[str]) -> str | None:
         return f"unsupported scheme {parts.scheme!r}" if parts.scheme else "missing scheme"
     if not parts.hostname:
         return "missing host"
+    return _port_error(parts)
+
+
+def _port_error(parts: SplitResult) -> str | None:
+    """Return why the port of ``parts`` is unusable, or ``None`` if it is fine."""
+    try:
+        # ``port`` is parsed lazily and raises for non-numeric or out-of-range values.
+        port = parts.port
+    except ValueError as exc:
+        return str(exc)
     if port == 0:
         return "port must be between 1 and 65535"
     return None
