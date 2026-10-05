@@ -945,7 +945,7 @@ typing = [
 [package.metadata]
 requires-dist = [
     { name = "argcomplete", marker = "extra == 'completion'", specifier = ">=3.7.2" },
-    { name = "cryptography", specifier = ">=42.0.0" },
+    { name = "cryptography", specifier = ">=50.0.2" },
     { name = "httpcore", specifier = ">=1.0.0" },
     { name = "httpx", extras = ["http2", "socks"], specifier = ">=0.28.1" },
     { name = "opentelemetry-api", marker = "extra == 'otel'", specifier = ">=1.30.0" },
