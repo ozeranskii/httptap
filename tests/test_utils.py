@@ -1,4 +1,5 @@
 import ssl
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -78,6 +79,13 @@ class TestRedactUrlCredentials:
             ("socks5://token@gateway:1080", "socks5://****@gateway:1080"),
             ("http://proxy:3128", "http://proxy:3128"),
             ("http://proxy:3128/path?q=a@b", "http://proxy:3128/path?q=a@b"),
+            ("http://user:secret@[::1", "http://user:****@[::1"),
+            ("http://user:secret@host:99999/x", "http://user:****@host:99999/x"),
+            ("//user:secret@host/x", "//user:****@host/x"),
+            ("/relative/path?next=user:secret@host", "/relative/path?next=user:secret@host"),
+            ("user:secret@proxy:3128", "user:****@proxy:3128"),
+            ("token@proxy:3128/path", "****@proxy:3128/path"),
+            ("proxy:3128", "proxy:3128"),
         ],
     )
     def test_redact_url_credentials(self, url: str, expected: str) -> None:
@@ -118,6 +126,12 @@ class TestSanitizeHeaders:
         assert sanitized["authorization"] != "Bearer token"
         assert sanitized["COOKIE"] != "session=123"
         assert sanitized["SeT-CoOkIe"] != "auth=456"
+
+    @pytest.mark.parametrize("header", ["Location", "content-location"])
+    def test_sanitize_headers_redacts_url_credentials(self, header: str) -> None:
+        sanitized = sanitize_headers({header: "http://alice:topsecret@example.test/ok"})
+
+        assert sanitized == {header: "http://alice:****@example.test/ok"}
 
     def test_sanitize_headers_preserves_non_sensitive(self, faker: Faker) -> None:
         """Test that non-sensitive headers are preserved."""
@@ -500,6 +514,18 @@ class TestReadRequestData:
         content, headers = read_request_data(plain_data)
 
         assert content == plain_data.encode("utf-8")
+        assert headers == {}
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows argv is Unicode; undecodable bytes only exist on POSIX",
+    )
+    def test_read_request_data_inline_keeps_undecodable_argv_bytes(self) -> None:
+        argument = b"\xff\xfe{".decode(sys.getfilesystemencoding(), "surrogateescape")
+
+        content, headers = read_request_data(argument)
+
+        assert content == b"\xff\xfe{"
         assert headers == {}
 
     def test_read_request_data_from_json_file(self, tmp_path: Path) -> None:

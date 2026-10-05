@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import signal
 import socket
 import sys
@@ -84,6 +85,43 @@ def test_parse_headers_invalid(raw: list[str]) -> None:
         match=r"(header format|Header name cannot be empty)",
     ):
         _parse_headers(raw)
+
+
+@pytest.mark.parametrize(
+    ("raw", "error"),
+    [
+        ("Bad Name: v", "Invalid header name 'Bad Name'"),
+        ("X-Ünicode: v", "Invalid header name 'X-Ünicode'"),
+        ("X-Bad(): v", "Invalid header name 'X-Bad()'"),
+        ("X-A: a\nb", "Invalid value for header 'X-A': control characters"),
+        ("X-A: a\rb", "Invalid value for header 'X-A': control characters"),
+        ("X-A: a\x00b", "Invalid value for header 'X-A': control characters"),
+        ("X-A: a\x7fb", "Invalid value for header 'X-A': control characters"),
+        ("X-Name: тест", "Invalid value for header 'X-Name': only ASCII"),
+        ("X-Name: café", "Invalid value for header 'X-Name': only ASCII"),
+    ],
+)
+def test_parse_headers_rejects_invalid_names_and_values(raw: str, error: str) -> None:
+    with pytest.raises(ValueError, match=re.escape(error)):
+        _parse_headers([raw])
+
+
+def test_parse_headers_accepts_token_names_and_visible_values() -> None:
+    raw = 'X-Odd!#$%&\'*+.^_`|~1: a\tb ~!@ "quoted"'
+
+    assert _parse_headers([raw]) == {"X-Odd!#$%&'*+.^_`|~1": 'a\tb ~!@ "quoted"'}
+
+
+def test_main_rejects_invalid_header_value_without_echoing_it(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.argv", ["httptap", "-H", "Authorization: Bearer s3cret\nX: y", "https://example.test"])
+
+    assert main() == EXIT_USAGE_ERROR
+    err = capsys.readouterr().err
+    assert "Invalid value for header 'Authorization'" in err
+    assert "s3cret" not in err
 
 
 def test_curl_flag_aliases_are_supported() -> None:
@@ -739,10 +777,46 @@ def test_validate_arguments_rejects_invalid_proxy_scheme(
 
 
 @pytest.mark.parametrize(
+    ("proxy", "reason"),
+    [
+        ("http://user:s3cret@[::1", "Invalid IPv6 URL"),
+        ("http://user:s3cret@127.0.0.1:99999", "Port out of range"),
+        ("http://user:s3cret@127.0.0.1:0", "port must be between 1 and 65535"),
+        ("user:s3cret@127.0.0.1:abc", "Port could not be cast"),
+        ("socks5://user:s3cret@:1080", "missing host"),
+    ],
+)
+def test_validate_arguments_rejects_malformed_proxy_url(
+    proxy: str,
+    reason: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        json=None,
+        ignore_ssl=False,
+        ca_bundle=None,
+        proxy=proxy,
+        slo=None,
+    )
+
+    assert validate_arguments(args) is False
+    err = capsys.readouterr().err
+    assert "Invalid proxy URL" in err
+    assert reason in err
+    assert "user:****@" in err
+    assert "s3cret" not in err
+
+
+@pytest.mark.parametrize(
     ("argv", "error"),
     [
         (["--cacert", "missing-ca-bundle.pem", "https://example.test"], "CA bundle file does not exist"),
         (["--proxy", "foo://bar", "https://example.test"], "Proxy URL must use"),
+        (["--proxy", "http://[::1", "https://example.test"], "Invalid proxy URL"),
+        (["--proxy", "http://127.0.0.1:99999", "https://example.test"], "Invalid proxy URL"),
         (["--timeout", "nan", "https://example.test"], "Invalid timeout"),
     ],
 )

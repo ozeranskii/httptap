@@ -6,18 +6,20 @@ management.
 """
 
 import json
+import os
 import re
 import socket
 import ssl
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import SplitResult, urlsplit
 
 __all__ = [
     "MASK_PATTERN",
     "SENSITIVE_HEADERS",
+    "URL_HEADERS",
     "UTC",
     "calculate_days_until",
     "create_ssl_context",
@@ -28,6 +30,8 @@ __all__ = [
     "read_request_data",
     "redact_url_credentials",
     "sanitize_headers",
+    "url_hostname",
+    "url_validation_error",
     "validate_url",
 ]
 
@@ -39,6 +43,9 @@ SENSITIVE_HEADERS: set[str] = {
     "api-key",
     "x-api-key",
 }
+
+# Headers whose value is a URL; only the userinfo of these is masked.
+URL_HEADERS: set[str] = {"location", "content-location"}
 
 MASK_PATTERN = "****"
 
@@ -66,8 +73,16 @@ def mask_sensitive_value(value: str, show_chars: int = 4) -> str:
     return f"{value[:show_chars]}{MASK_PATTERN}{value[-show_chars:]}"
 
 
+# RFC 3986, appendix B: the optional scheme followed by "//" that precedes the authority.
+_URL_AUTHORITY_PREFIX_RE = re.compile(r"(?:[^:/?#]+:)?//")
+
+
 def redact_url_credentials(url: str) -> str:
     """Mask the password (or a bare token) in the userinfo part of a URL.
+
+    The authority is located textually rather than with ``urlsplit`` so that
+    malformed URLs (an unterminated IPv6 literal, an invalid port) are still
+    redacted instead of raising, which matters when they are echoed in errors.
 
     Args:
         url: URL that may contain ``user:password@`` credentials.
@@ -85,14 +100,18 @@ def redact_url_credentials(url: str) -> str:
         'http://proxy:3128'
 
     """
-    parts = urlsplit(url)
-    userinfo, separator, hostport = parts.netloc.rpartition("@")
+    # Without a "//" prefix the leading segment is taken as the authority, so
+    # scheme-less proxy values such as ``user:pass@host:3128`` are masked too.
+    prefix = _URL_AUTHORITY_PREFIX_RE.match(url)
+    start = prefix.end() if prefix else 0
+    end = next((index for index in range(start, len(url)) if url[index] in "/?#"), len(url))
+    userinfo, separator, hostport = url[start:end].rpartition("@")
     if not separator:
         return url
 
     username, has_password, _ = userinfo.partition(":")
     masked = f"{username}:{MASK_PATTERN}" if has_password else MASK_PATTERN
-    return urlunsplit(parts._replace(netloc=f"{masked}@{hostport}"))
+    return f"{url[:start]}{masked}@{hostport}{url[end:]}"
 
 
 def sanitize_headers(headers: Mapping[str, str]) -> dict[str, str]:
@@ -102,17 +121,23 @@ def sanitize_headers(headers: Mapping[str, str]) -> dict[str, str]:
         headers: Dictionary of HTTP headers.
 
     Returns:
-        New dictionary with sensitive values masked.
+        New dictionary with sensitive values masked and URL credentials in
+        ``Location``-style headers redacted.
 
     Examples:
         >>> sanitize_headers({"Authorization": "Bearer secret"})
         {'Authorization': 'Bear****cret'}
+        >>> sanitize_headers({"Location": "https://user:secret@example.com/"})
+        {'Location': 'https://user:****@example.com/'}
 
     """
     sanitized = {}
     for key, value in headers.items():
-        if key.lower() in SENSITIVE_HEADERS:
+        name = key.lower()
+        if name in SENSITIVE_HEADERS:
             sanitized[key] = mask_sensitive_value(value)
+        elif name in URL_HEADERS:
+            sanitized[key] = redact_url_credentials(value)
         else:
             sanitized[key] = value
     return sanitized
@@ -258,11 +283,16 @@ CONTENT_TYPE_BY_EXTENSION = {
 
 
 def _load_data_from_source(data_arg: str) -> tuple[bytes, Path | None]:
-    """Load data from inline string or file reference."""
+    """Load data from inline string or file reference.
+
+    Inline data is converted back to the exact bytes given on the command
+    line: ``os.fsencode`` reverses the ``surrogateescape`` decoding of argv,
+    so arguments that are not valid UTF-8 are sent unchanged.
+    """
     if data_arg.startswith("@"):
         filepath = Path(data_arg[1:])
         return filepath.read_bytes(), filepath
-    return data_arg.encode("utf-8"), None
+    return os.fsencode(data_arg), None
 
 
 def _detect_content_type_from_extension(source: Path) -> str | None:
@@ -364,18 +394,78 @@ def validate_url(url: str) -> bool:
     """
     if _WHITESPACE_RE.search(url):
         return False
-
+    # Same rules as url_validation_error, without building messages on this hot path.
     try:
         parts = urlsplit(url)
     except ValueError:
-        # Malformed authority, e.g. an unterminated IPv6 literal.
         return False
-
-    if parts.scheme not in {"http", "https"} or not parts.hostname:
+    if parts.scheme not in _HTTP_SCHEMES or not parts.hostname:
         return False
-
     try:
-        # ``port`` is parsed lazily and raises for non-numeric or out-of-range values.
         return parts.port != 0
     except ValueError:
         return False
+
+
+def url_hostname(url: str) -> str:
+    """Return the lowercase hostname of ``url``, or ``""`` when it has none or cannot be parsed.
+
+    Examples:
+        >>> url_hostname("https://Example.com:8443/path")
+        'example.com'
+        >>> url_hostname("http://[::1/path")
+        ''
+
+    """
+    try:
+        return urlsplit(url).hostname or ""
+    except ValueError:
+        return ""
+
+
+_HTTP_SCHEMES = frozenset({"http", "https"})
+
+
+def url_validation_error(url: str, schemes: Collection[str]) -> str | None:
+    """Explain why ``url`` is not an absolute URL usable for a connection.
+
+    Args:
+        url: URL string to check.
+        schemes: Accepted lowercase schemes.
+
+    Returns:
+        A short reason (malformed authority, unsupported scheme, missing host,
+        invalid port), or ``None`` when the URL is usable.
+
+    Examples:
+        >>> url_validation_error("http://127.0.0.1:99999/", {"http"})
+        'Port out of range 0-65535'
+        >>> url_validation_error("ftp://example.com/", {"http", "https"})
+        "unsupported scheme 'ftp'"
+        >>> url_validation_error("https://example.com/", {"http", "https"}) is None
+        True
+
+    """
+    try:
+        parts = urlsplit(url)
+    except ValueError as exc:
+        # Malformed authority, e.g. an unterminated IPv6 literal.
+        return str(exc)
+
+    if parts.scheme not in schemes:
+        return f"unsupported scheme {parts.scheme!r}" if parts.scheme else "missing scheme"
+    if not parts.hostname:
+        return "missing host"
+    return _port_error(parts)
+
+
+def _port_error(parts: SplitResult) -> str | None:
+    """Return why the port of ``parts`` is unusable, or ``None`` if it is fine."""
+    try:
+        # ``port`` is parsed lazily and raises for non-numeric or out-of-range values.
+        port = parts.port
+    except ValueError as exc:
+        return str(exc)
+    if port == 0:
+        return "port must be between 1 and 65535"
+    return None

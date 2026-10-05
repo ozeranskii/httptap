@@ -7,9 +7,10 @@ import tempfile
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import urlsplit
 
 from rich.markup import escape
+
+from .utils import url_hostname
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -76,7 +77,7 @@ class PrometheusExporter:
             "# TYPE httptap_last_run_timestamp_seconds gauge",
         ]
         for step in steps:
-            labels = f'host="{_label_value(_hostname(step.url))}",step="{step.step_number}"'
+            labels = f'host="{_label_value(url_hostname(step.url))}",step="{step.step_number}"'
             lines.append(f"httptap_request_success{{{labels}}} {0 if step.has_error else 1}")
             if step.has_error:
                 continue
@@ -89,7 +90,7 @@ class PrometheusExporter:
             lines.append(f"httptap_response_body_size_bytes{{{labels}}} {step.response.bytes}")
 
         if steps:
-            host = _label_value(_hostname(steps[0].url))
+            host = _label_value(url_hostname(steps[0].url))
             timestamp = time.time() if now is None else now
             lines.append(f'httptap_last_run_timestamp_seconds{{host="{host}"}} {timestamp:.3f}')
 
@@ -114,11 +115,6 @@ class PrometheusExporter:
         except OSError:
             temporary_path.unlink(missing_ok=True)
             raise
-
-
-def _hostname(url: str) -> str:
-    """Return the hostname of ``url`` (empty when it cannot be parsed)."""
-    return urlsplit(url).hostname or ""
 
 
 def _label_value(value: str) -> str:

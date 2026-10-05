@@ -189,6 +189,14 @@ def test_step_without_optional_fields_sets_only_known_attributes() -> None:
     assert set(request.attributes) == {"httptap.step_number", "http.response.body.size"}
 
 
+def test_step_with_malformed_url_has_no_server_address() -> None:
+    tracer = _Tracer()
+
+    OTLPExporter._record_chain(_Trace, tracer, [StepMetrics(url="http://[::1/next", error="Invalid redirect target")])
+
+    assert "server.address" not in tracer.spans[1].attributes
+
+
 def test_export_sends_finished_spans_with_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     provider = _install(monkeypatch, _Exporter)
 
@@ -217,6 +225,21 @@ def test_export_wraps_delivery_errors(monkeypatch: pytest.MonkeyPatch) -> None:
         OTLPExporter().export([_step()], "http://collector.test:4318/v1/traces", timeout=3.0)
 
     assert provider.shutdown_called is True
+
+
+@pytest.mark.parametrize("exporter_cls", [_RejectingExporter, _RaisingExporter])
+def test_export_errors_redact_endpoint_credentials(
+    exporter_cls: type[_Exporter],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install(monkeypatch, exporter_cls)
+
+    with pytest.raises(OTLPExportError) as exc_info:
+        OTLPExporter().export([_step()], "http://bob:otlpsecret@collector.test:4318/v1/traces", timeout=3.0)
+
+    assert "http://bob:****@collector.test:4318/v1/traces" in str(exc_info.value)
+    assert "otlpsecret" not in str(exc_info.value)
+    assert exporter_cls.instances[0].endpoint == "http://bob:otlpsecret@collector.test:4318/v1/traces"
 
 
 def test_ensure_otel_available_explains_missing_extra(monkeypatch: pytest.MonkeyPatch) -> None:

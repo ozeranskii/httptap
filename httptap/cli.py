@@ -9,13 +9,14 @@ import argparse
 import ipaddress
 import logging
 import math
+import re
 import signal
 import socket
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
-from urllib.parse import urlparse, urlsplit
+from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -59,7 +60,7 @@ from .slo import (
     parse_slo_spec,
     select_step_for_evaluation,
 )
-from .utils import create_ssl_context, read_request_data, redact_url_credentials, validate_url
+from .utils import create_ssl_context, read_request_data, redact_url_credentials, url_validation_error, validate_url
 
 # Exit codes (aligned with sysexits.h conventions where possible)
 # Fall back to canonical numeric equivalents when running on platforms
@@ -73,6 +74,7 @@ EXIT_HTTP_FAILURE = EXIT_CODE_HTTP_FAILURE
 MAX_PORT = 65535
 EXIT_TOO_MANY_REDIRECTS = EXIT_CODE_TOO_MANY_REDIRECTS
 EXIT_EXPORT_ERROR = EXIT_CODE_CANTCREAT
+PROXY_SCHEMES = frozenset({"http", "https", "socks5", "socks5h"})
 
 
 # Global console for error messages
@@ -144,6 +146,31 @@ def _parse_http_method(value: str) -> HTTPMethod:
         raise argparse.ArgumentTypeError(msg) from exc
 
 
+# RFC 9110 section 5.6.2 token characters.
+_HEADER_NAME_RE = re.compile(r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+")
+# Visible ASCII, space and tab. obs-text (0x80-0xFF) is excluded because httpx
+# encodes str header values as ASCII.
+_HEADER_VALUE_RE = re.compile(r"[\t\x20-\x7e]*")
+_HEADER_CONTROL_RE = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
+
+
+def _validate_header(name: str, value: str) -> None:
+    """Reject header names and values that cannot be sent as given.
+
+    The value itself is never echoed: it may carry a credential.
+    """
+    if not _HEADER_NAME_RE.fullmatch(name):
+        msg = f"Invalid header name {name!r}: must be an HTTP token (letters, digits and !#$%&'*+-.^_`|~)"
+        raise ValueError(msg)
+    if _HEADER_VALUE_RE.fullmatch(value):
+        return
+    if _HEADER_CONTROL_RE.search(value):
+        msg = f"Invalid value for header {name!r}: control characters such as CR, LF or NUL are not allowed"
+    else:
+        msg = f"Invalid value for header {name!r}: only ASCII characters are supported"
+    raise ValueError(msg)
+
+
 def _parse_headers(values: Sequence[str] | None) -> dict[str, str]:
     """Convert --header inputs into a case-preserving mapping."""
     if not values:
@@ -161,6 +188,7 @@ def _parse_headers(values: Sequence[str] | None) -> dict[str, str]:
         if not name:
             msg = f"Header name cannot be empty: '{item}'"
             raise ValueError(msg)
+        _validate_header(name, value)
         lower = name.lower()
         key = canonical.get(lower, name)
         canonical.setdefault(lower, key)
@@ -812,15 +840,16 @@ def _validate_connection_arguments(args: argparse.Namespace) -> bool:
         # curl treats a scheme-less proxy as plain HTTP.
         args.proxy = f"http://{args.proxy}"
 
-    if args.proxy and urlparse(args.proxy).scheme.lower() not in {
-        "http",
-        "https",
-        "socks5",
-        "socks5h",
-    }:
+    proxy_error = url_validation_error(args.proxy, PROXY_SCHEMES) if args.proxy else None
+    if proxy_error is not None:
+        error_text = Text()
+        error_text.append("Invalid proxy URL: ", style="bold red")
+        error_text.append(f"'{redact_url_credentials(args.proxy)}'", style="yellow")
+        error_text.append(f"\n{proxy_error}", style="red")
+        error_text.append("\n\nProxy URL must use http://, https://, socks5://, or socks5h://.", style="red")
         console.print(
             Panel(
-                "[red]Proxy URL must use http://, https://, socks5://, or socks5h://.[/red]",
+                error_text,
                 title="[bold red]❌ Validation Error[/bold red]",
                 border_style="red",
                 padding=(1, 2),
