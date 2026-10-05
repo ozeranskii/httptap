@@ -364,7 +364,7 @@ httptap https://httpbin.io/status/200
 Every httptap request follows these phases:
 
 1. **DNS Resolution** - Domain name lookup
-2. **TCP Connect** - Establish TCP connection
+2. **TCP Connect** - Establish TCP connection (through an HTTP CONNECT proxy: connect to the proxy and open the tunnel)
 3. **TLS Handshake** - Negotiate secure connection (HTTPS only)
 4. **Server Wait** - Time between request sent and first response byte
 5. **Body Transfer** - Download response body
@@ -383,7 +383,7 @@ The default rich output displays a waterfall table with:
 ### Timing Breakdown
 
 - **DNS (ms)** - Time to resolve domain to IP address
-- **Connect (ms)** - Time to establish TCP connection
+- **Connect (ms)** - Time to establish TCP connection; through an HTTP CONNECT proxy it also covers the CONNECT round-trip, so the tunnel setup is not counted as server wait
 - **TLS (ms)** - Time for TLS handshake (HTTPS only)
 - **TTFB (ms)** - Time to first byte (includes server processing)
 - **Transfer (ms)** - Time to download response body

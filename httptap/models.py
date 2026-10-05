@@ -42,7 +42,8 @@ class TimingMetrics:
 
     Attributes:
         dns_ms: DNS resolution time.
-        connect_ms: TCP connection establishment time.
+        connect_ms: Connection establishment time. Through an HTTP CONNECT
+            proxy this covers TCP to the proxy and the tunnel setup.
         tls_ms: TLS handshake time (0 for HTTP).
         ttfb_ms: Time to first byte (headers received).
         total_ms: Total request time from start to finish.

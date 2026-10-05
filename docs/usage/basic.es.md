@@ -364,7 +364,7 @@ httptap https://httpbin.io/status/200
 Cada solicitud de httptap sigue estas fases:
 
 1. **Resolución DNS** - Búsqueda del nombre de dominio
-2. **Conexión TCP** - Establecer la conexión TCP
+2. **Conexión TCP** - Establecer la conexión TCP (a través de un proxy HTTP CONNECT: conectar con el proxy y abrir el túnel)
 3. **Negociación TLS** - Negociar la conexión segura (solo HTTPS)
 4. **Espera del servidor** - Tiempo entre el envío de la solicitud y el primer byte de la respuesta
 5. **Transferencia del cuerpo** - Descargar el cuerpo de la respuesta
@@ -383,7 +383,7 @@ La salida rich por defecto muestra una tabla de cascada con:
 ### Desglose de tiempos
 
 - **DNS (ms)** - Tiempo para resolver el dominio a una dirección IP
-- **Connect (ms)** - Tiempo para establecer la conexión TCP
+- **Connect (ms)** - Tiempo para establecer la conexión TCP; a través de un proxy HTTP CONNECT también incluye el viaje de ida y vuelta de CONNECT, de modo que el establecimiento del túnel no se cuenta como espera del servidor
 - **TLS (ms)** - Tiempo de la negociación TLS (solo HTTPS)
 - **TTFB (ms)** - Tiempo hasta el primer byte (incluye el procesamiento del servidor)
 - **Transfer (ms)** - Tiempo para descargar el cuerpo de la respuesta
