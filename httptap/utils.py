@@ -73,8 +73,8 @@ def mask_sensitive_value(value: str, show_chars: int = 4) -> str:
     return f"{value[:show_chars]}{MASK_PATTERN}{value[-show_chars:]}"
 
 
-# RFC 3986, appendix B: the optional scheme and the authority that follows "//".
-_URL_AUTHORITY_RE = re.compile(r"^(?P<prefix>(?:[^:/?#]+:)?//)(?P<authority>[^/?#]*)")
+# RFC 3986, appendix B: the optional scheme followed by "//" that precedes the authority.
+_URL_AUTHORITY_PREFIX_RE = re.compile(r"(?:[^:/?#]+:)?//")
 
 
 def redact_url_credentials(url: str) -> str:
@@ -100,16 +100,18 @@ def redact_url_credentials(url: str) -> str:
         'http://proxy:3128'
 
     """
-    match = _URL_AUTHORITY_RE.match(url)
-    if match is None:
-        return url
-    userinfo, separator, hostport = match["authority"].rpartition("@")
+    # Without a "//" prefix the leading segment is taken as the authority, so
+    # scheme-less proxy values such as ``user:pass@host:3128`` are masked too.
+    prefix = _URL_AUTHORITY_PREFIX_RE.match(url)
+    start = prefix.end() if prefix else 0
+    end = next((index for index in range(start, len(url)) if url[index] in "/?#"), len(url))
+    userinfo, separator, hostport = url[start:end].rpartition("@")
     if not separator:
         return url
 
     username, has_password, _ = userinfo.partition(":")
     masked = f"{username}:{MASK_PATTERN}" if has_password else MASK_PATTERN
-    return f"{match['prefix']}{masked}@{hostport}{url[match.end() :]}"
+    return f"{url[:start]}{masked}@{hostport}{url[end:]}"
 
 
 def sanitize_headers(headers: Mapping[str, str]) -> dict[str, str]:
