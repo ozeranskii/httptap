@@ -183,7 +183,7 @@ jobs:
   build:
     name: Build Package
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     needs: prepare
     permissions:
       contents: read # Required for repository checkout
@@ -229,6 +229,17 @@ jobs:
 
       - name: Smoke test wheel
         run: uv run --isolated --no-project --with dist/*.whl httptap --version
+
+      - name: Install the wheel with the otel extra
+        run: |
+          uv venv "$RUNNER_TEMP/httptap-wheel"
+          uv pip install --python "$RUNNER_TEMP/httptap-wheel" "$(echo dist/httptap-*.whl)[otel]"
+
+      - name: Install end-to-end test dependencies
+        run: uv sync --locked --no-dev --no-install-project --group test --group e2e
+
+      - name: Run end-to-end tests against the wheel
+        run: uv run --no-sync pytest tests/e2e --no-cov -n auto --httptap "$RUNNER_TEMP/httptap-wheel/bin/httptap"
 
       - name: Upload dist artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

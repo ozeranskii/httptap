@@ -97,6 +97,7 @@ dev = [
     {include-group = "typing"},
     {include-group = "test"},
     {include-group = "precommit"},
+    {include-group = "e2e"},
 ]
 
 typing = [
@@ -144,6 +145,11 @@ ci = [
 precommit = [
     "pre-commit>=4.6.2",
 ]
+e2e = [
+    "cryptography>=50.0.2",
+    "opentelemetry-proto>=1.45.0",
+    "pytest-xdist>=3.8.0",
+]
 
 [tool.ruff]
 target-version = "py311"
@@ -178,6 +184,9 @@ indent-style = "space"
     "S101",  # Use of `assert` detected (allowed in tests)
     "ERA001"  # Found commented-out code (allowed in tests)
 ]
+"tests/e2e/**/*.py" = [
+    "S105",  # Fake credentials are planted on purpose to check that httptap redacts them
+]
 
 [tool.mypy]
 python_version = "3.11"
@@ -186,6 +195,9 @@ warn_unreachable = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# pytest's defaults plus tests/e2e: the end-to-end suite drives an installed
+# httptap executable and only runs when its path is given explicitly.
+norecursedirs = ["*.egg", ".*", "_darcs", "build", "CVS", "dist", "node_modules", "venv", "{arch}", "tests/e2e"]
 filterwarnings = ["error"]
 addopts = [
     "--strict-markers",

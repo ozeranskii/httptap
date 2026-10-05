@@ -232,7 +232,7 @@ jobs:
   container-build:
     name: Container Build (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    timeout-minutes: 25
     needs:
       - lint
       - changes
@@ -273,6 +273,28 @@ jobs:
           OUTPUT=$(docker run --rm --platform="$PLATFORM" httptap:ci-smoke --version)
           echo "$OUTPUT"
           echo "$OUTPUT" | grep -E '^httptap [0-9]+\.[0-9]+\.[0-9]+'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version-file: uv.lock
+          enable-cache: false
+
+      - name: Install end-to-end test dependencies
+        run: uv sync --locked --no-dev --no-install-project --group test --group e2e
+
+      # Host networking puts the container on the runner's loopback (127.0.0.1
+      # and ::1), so the loopback-only tests run as well. The shared directory
+      # is mounted at the same path and the container runs as the runner user,
+      # because the suite keeps it private (0700). --pull never pins the run to
+      # the image loaded above.
+      - name: Run end-to-end tests against the image
+        run: |
+          SHARED="$RUNNER_TEMP/httptap-e2e"
+          mkdir -p "$SHARED"
+          uv run --no-sync pytest tests/e2e --no-cov -n auto \
+            --shared-dir "$SHARED" --bind-host 127.0.0.1 \
+            --httptap "docker run --rm --pull never --network host -v $SHARED:$SHARED --user $(id -u):$(id -g) httptap:ci-smoke"
 
   test-lowest:
     name: Test / lowest direct dependencies
@@ -328,6 +350,43 @@ jobs:
       - name: Run OTLP tests against the real SDK
         run: uv run --no-sync pytest tests/test_otlp_sdk.py --no-cov
 
+  # Black-box run of the CLI from the built wheel, so packaging mistakes
+  # (missing modules, entry point, extras) fail here and not after a release.
+  test-e2e:
+    name: Test / end-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version-file: uv.lock
+          enable-cache: false
+
+      - name: Build package
+        run: uv build
+
+      - name: Install the wheel with the otel extra
+        run: |
+          uv venv "$RUNNER_TEMP/httptap-wheel"
+          uv pip install --python "$RUNNER_TEMP/httptap-wheel" "$(echo dist/httptap-*.whl)[otel]"
+
+      # The project itself stays out of this environment: the suite only runs
+      # the wheel's httptap executable.
+      - name: Install test dependencies
+        run: uv sync --locked --no-dev --no-install-project --group test --group e2e
+
+      - name: Run end-to-end tests
+        run: uv run --no-sync pytest tests/e2e --no-cov -n auto --httptap "$RUNNER_TEMP/httptap-wheel/bin/httptap"
+
   all-checks-pass:
     name: All Checks Passed
     if: ${{ !cancelled() }}
@@ -338,6 +397,7 @@ jobs:
       - test
       - test-lowest
       - test-otel
+      - test-e2e
       - build
       - container-build
     runs-on: ubuntu-latest
@@ -350,6 +410,7 @@ jobs:
           echo "test: $TEST_RESULT"
           echo "test-lowest: $TEST_LOWEST_RESULT"
           echo "test-otel: $TEST_OTEL_RESULT"
+          echo "test-e2e: $TEST_E2E_RESULT"
           echo "build: $BUILD_RESULT"
           echo "container-build: $CONTAINER_BUILD_RESULT"
 
@@ -366,6 +427,7 @@ jobs:
              ! gated_ok "$TEST_RESULT" || \
              ! gated_ok "$TEST_LOWEST_RESULT" || \
              ! gated_ok "$TEST_OTEL_RESULT" || \
+             ! gated_ok "$TEST_E2E_RESULT" || \
              ! gated_ok "$BUILD_RESULT" || \
              ! gated_ok "$CONTAINER_BUILD_RESULT"; then
             echo "One or more checks failed"
@@ -380,5 +442,6 @@ jobs:
           TEST_RESULT: ${{ needs.test.result }}
           TEST_LOWEST_RESULT: ${{ needs.test-lowest.result }}
           TEST_OTEL_RESULT: ${{ needs.test-otel.result }}
+          TEST_E2E_RESULT: ${{ needs.test-e2e.result }}
           BUILD_RESULT: ${{ needs.build.result }}
           CONTAINER_BUILD_RESULT: ${{ needs.container-build.result }}

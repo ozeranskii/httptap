@@ -35,6 +35,8 @@ repos:
       - id: name-tests-test
         args:
           - --pytest-test-first
+        # Support modules of the end-to-end harness, not test modules.
+        exclude: ^tests/e2e/(certs|harness|servers)\.py$
   - repo: https://github.com/google/yamlfmt
     rev: v0.21.0
     hooks:

@@ -817,6 +817,12 @@ uv run ruff format .
 
 The test suite does not need outbound network access: HTTP calls are mocked with `pytest-httpx`, and TLS and proxy tests use local servers.
 
+The end-to-end tests in `tests/e2e` run the `httptap` CLI as a subprocess against local HTTP, TLS, proxy and OTLP servers, so they need no outbound network access either. A plain `uv run pytest` skips them; run them with:
+
+```shell
+uv run --extra otel pytest tests/e2e --no-cov -n auto
+```
+
 ---
 
 ## Contributing

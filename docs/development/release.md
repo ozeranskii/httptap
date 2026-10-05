@@ -82,8 +82,14 @@ The release process is triggered manually via GitHub Actions.
    uv sync --locked --no-dev --group test
    uv run --no-sync pytest  # Full test suite
    uv build  # Create wheel and sdist
+   uv venv "$RUNNER_TEMP/httptap-wheel"
+   uv pip install --python "$RUNNER_TEMP/httptap-wheel" "$(echo dist/httptap-*.whl)[otel]"
+   uv sync --locked --no-dev --no-install-project --group test --group e2e
+   uv run --no-sync pytest tests/e2e --no-cov -n auto --httptap "$RUNNER_TEMP/httptap-wheel/bin/httptap"
    ```
-   Runs on the unpushed release tag from the bundle.
+   Runs on the unpushed release tag from the bundle. The end-to-end suite then runs the CLI from the
+   built wheel, installed with the `otel` extra, so a packaging mistake fails the release before
+   anything is attested or uploaded.
 
 6. **Push Commit and Tag**
    ```bash
@@ -135,6 +141,7 @@ The release workflow is defined in `.github/workflows/release.yml`:
 - Checks out the unpushed release tag from the bundle
 - Runs full test suite
 - Builds wheel and sdist
+- Runs the end-to-end suite (`tests/e2e`) against the built wheel with the `otel` extra
 - Generates SBOM in CycloneDX and SPDX JSON formats via [Syft](https://github.com/anchore/syft)
 - Fails if a `fixed` statement in `.vex/httptap.openvex.json` does not list the release, then copies the document into the `sbom/` directory as `httptap-X.Y.Z.openvex.json`
 - Generates a gzipped `man(1)` page with [argparse-manpage](https://github.com/praiskup/argparse-manpage)

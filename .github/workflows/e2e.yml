@@ -1,0 +1,86 @@
+name: E2E matrix
+
+# The CI end-to-end job covers one Linux interpreter on every pull request;
+# this workflow runs the suite against the built wheel on every OS and on the
+# GIL and free-threaded interpreters.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "tests/e2e/**"
+      - ".github/workflows/e2e.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+
+permissions:
+  contents: read
+
+# A new push supersedes a pull request's run; scheduled and manual runs get
+# their own group (see ci.yml).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  e2e:
+    name: E2E / Python ${{ matrix.python }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        # uv resolves a bare "3.14" to a free-threaded build when one is
+        # installed, so the GIL build is requested explicitly.
+        python:
+          - "3.11"
+          - "3.13"
+          - "3.14+gil"
+          - "3.14t"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version-file: uv.lock
+          enable-cache: false
+
+      - name: Build package
+        run: uv build
+
+      - name: Install the wheel with the otel extra
+        env:
+          PYTHON: ${{ matrix.python }}
+        run: |
+          uv venv --python "$PYTHON" "$RUNNER_TEMP/httptap-wheel"
+          uv pip install --python "$RUNNER_TEMP/httptap-wheel" "$(echo dist/httptap-*.whl)[otel]"
+
+      # The project itself stays out of this environment: the suite only runs
+      # the wheel's httptap executable.
+      - name: Install test dependencies
+        run: uv sync --locked --no-dev --no-install-project --group test --group e2e
+
+      - name: Run end-to-end tests
+        run: |-
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            httptap="$RUNNER_TEMP/httptap-wheel/Scripts/httptap.exe"
+          else
+            httptap="$RUNNER_TEMP/httptap-wheel/bin/httptap"
+          fi
+          "$httptap" --version
+          uv run --no-sync pytest tests/e2e --no-cov -n auto --httptap "$httptap"

@@ -772,6 +772,13 @@ uv run ruff format .
 
 测试套件不需要外网访问：HTTP 调用通过 `pytest-httpx` 模拟，TLS 和代理测试使用本地服务器。
 
+`tests/e2e` 中的端到端测试以子进程方式运行 `httptap` CLI，对接本地的 HTTP、TLS、代理和 OTLP 服务器，因此同样不需要外网访问。
+普通的 `uv run pytest` 不会运行它们，请使用：
+
+```shell
+uv run --extra otel pytest tests/e2e --no-cov -n auto
+```
+
 ---
 
 ## 贡献

@@ -121,6 +121,20 @@ Los benchmarks cubren funciones de cómputo puro a través de los módulos de mo
 
 Usa `--codspeed-mode=walltime` para comprobar una optimización localmente sin esperar a CI; toma aproximadamente dos segundos por benchmark. Los números de tiempo real son inherentemente ruidosos en hardware compartido, así que CI se basa en `simulation` en su lugar: trata los resultados locales de walltime como una señal directional, no como el valor que reportará CI.
 
+### Ejecutar las pruebas de extremo a extremo
+
+La suite de `tests/e2e` ejecuta la CLI `httptap` como subproceso contra servidores locales HTTP, TLS, de proxy, SOCKS5 y OTLP. Un simple `uv run pytest` no la recoge; pasa el directorio explícitamente:
+
+```bash
+# Contra el código fuente (el extra otel es necesario para las pruebas de OTLP)
+uv run --extra otel pytest tests/e2e --no-cov -n auto
+
+# Contra otra compilación, como un wheel instalado
+uv run pytest tests/e2e --no-cov -n auto --httptap /path/to/venv/bin/httptap
+```
+
+CI la ejecuta contra el wheel compilado y contra la imagen de contenedor, y el flujo diario **E2E matrix** la repite en Linux, macOS y Windows con Python 3.11, 3.13, 3.14 y 3.14t. Consulta [tests/e2e/README.md](https://github.com/ozeranskii/httptap/blob/main/tests/e2e/README.md) para ejecutarla contra una imagen de Docker y para ver todas las opciones.
+
 ### Ejecutar localmente
 
 Prueba tus cambios:

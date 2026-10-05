@@ -828,6 +828,14 @@ uv run ruff format .
 テストスイートは外向きのネットワークアクセスを必要としません。HTTP 呼び出しは `pytest-httpx` でモックされ、
 TLS とプロキシのテストはローカルサーバーを使用します。
 
+`tests/e2e` のエンドツーエンドテストは `httptap` CLI をサブプロセスとして起動し、ローカルの HTTP、TLS、プロキシ、OTLP
+サーバーに対して実行するため、こちらも外向きのネットワークアクセスを必要としません。通常の `uv run pytest` では実行されないため、
+次のコマンドで実行します。
+
+```shell
+uv run --extra otel pytest tests/e2e --no-cov -n auto
+```
+
 ---
 
 ## コントリビュート

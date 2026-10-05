@@ -81,8 +81,13 @@ description: httptap 基于 GitHub Actions 的自动化发布流程。
    uv sync --locked --no-dev --group test
    uv run --no-sync pytest  # Full test suite
    uv build  # Create wheel and sdist
+   uv venv "$RUNNER_TEMP/httptap-wheel"
+   uv pip install --python "$RUNNER_TEMP/httptap-wheel" "$(echo dist/httptap-*.whl)[otel]"
+   uv sync --locked --no-dev --no-install-project --group test --group e2e
+   uv run --no-sync pytest tests/e2e --no-cov -n auto --httptap "$RUNNER_TEMP/httptap-wheel/bin/httptap"
    ```
-   基于 bundle 中尚未推送的发布标签运行。
+   基于 bundle 中尚未推送的发布标签运行。随后，端到端测试套件针对以 `otel` extra 安装的已构建 wheel 运行 CLI，
+   因此打包错误会在任何内容被证明或上传之前使发布失败。
 
 6. **推送提交与标签**
    ```bash
@@ -132,6 +137,7 @@ description: httptap 基于 GitHub Actions 的自动化发布流程。
 - 从 bundle 中检出尚未推送的发布标签
 - 运行完整测试套件
 - 构建 wheel 和 sdist
+- 针对以 `otel` extra 安装的已构建 wheel 运行端到端测试套件（`tests/e2e`）
 - 通过 [Syft](https://github.com/anchore/syft) 以 CycloneDX 和 SPDX JSON 格式生成 SBOM
 - 如果 `.vex/httptap.openvex.json` 中有 `fixed` 声明未列出本次发布则失败，随后将该文档复制到 `sbom/` 目录，命名为 `httptap-X.Y.Z.openvex.json`
 - 使用 [argparse-manpage](https://github.com/praiskup/argparse-manpage) 生成经过 gzip 压缩的 `man(1)` 手册页
