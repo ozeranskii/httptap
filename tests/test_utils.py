@@ -78,6 +78,10 @@ class TestRedactUrlCredentials:
             ("socks5://token@gateway:1080", "socks5://****@gateway:1080"),
             ("http://proxy:3128", "http://proxy:3128"),
             ("http://proxy:3128/path?q=a@b", "http://proxy:3128/path?q=a@b"),
+            ("http://user:secret@[::1", "http://user:****@[::1"),
+            ("http://user:secret@host:99999/x", "http://user:****@host:99999/x"),
+            ("//user:secret@host/x", "//user:****@host/x"),
+            ("/relative/path?next=user:secret@host", "/relative/path?next=user:secret@host"),
         ],
     )
     def test_redact_url_credentials(self, url: str, expected: str) -> None:

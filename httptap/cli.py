@@ -15,7 +15,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
-from urllib.parse import urlparse, urlsplit
+from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -59,7 +59,7 @@ from .slo import (
     parse_slo_spec,
     select_step_for_evaluation,
 )
-from .utils import create_ssl_context, read_request_data, redact_url_credentials, validate_url
+from .utils import create_ssl_context, read_request_data, redact_url_credentials, url_validation_error, validate_url
 
 # Exit codes (aligned with sysexits.h conventions where possible)
 # Fall back to canonical numeric equivalents when running on platforms
@@ -73,6 +73,7 @@ EXIT_HTTP_FAILURE = EXIT_CODE_HTTP_FAILURE
 MAX_PORT = 65535
 EXIT_TOO_MANY_REDIRECTS = EXIT_CODE_TOO_MANY_REDIRECTS
 EXIT_EXPORT_ERROR = EXIT_CODE_CANTCREAT
+PROXY_SCHEMES = frozenset({"http", "https", "socks5", "socks5h"})
 
 
 # Global console for error messages
@@ -812,15 +813,16 @@ def _validate_connection_arguments(args: argparse.Namespace) -> bool:
         # curl treats a scheme-less proxy as plain HTTP.
         args.proxy = f"http://{args.proxy}"
 
-    if args.proxy and urlparse(args.proxy).scheme.lower() not in {
-        "http",
-        "https",
-        "socks5",
-        "socks5h",
-    }:
+    proxy_error = url_validation_error(args.proxy, PROXY_SCHEMES) if args.proxy else None
+    if proxy_error is not None:
+        error_text = Text()
+        error_text.append("Invalid proxy URL: ", style="bold red")
+        error_text.append(f"'{redact_url_credentials(args.proxy)}'", style="yellow")
+        error_text.append(f"\n{proxy_error}", style="red")
+        error_text.append("\n\nProxy URL must use http://, https://, socks5://, or socks5h://.", style="red")
         console.print(
             Panel(
-                "[red]Proxy URL must use http://, https://, socks5://, or socks5h://.[/red]",
+                error_text,
                 title="[bold red]❌ Validation Error[/bold red]",
                 border_style="red",
                 padding=(1, 2),

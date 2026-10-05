@@ -9,11 +9,11 @@ import json
 import re
 import socket
 import ssl
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 __all__ = [
     "MASK_PATTERN",
@@ -28,6 +28,7 @@ __all__ = [
     "read_request_data",
     "redact_url_credentials",
     "sanitize_headers",
+    "url_validation_error",
     "validate_url",
 ]
 
@@ -66,8 +67,16 @@ def mask_sensitive_value(value: str, show_chars: int = 4) -> str:
     return f"{value[:show_chars]}{MASK_PATTERN}{value[-show_chars:]}"
 
 
+# RFC 3986, appendix B: the optional scheme and the authority that follows "//".
+_URL_AUTHORITY_RE = re.compile(r"^(?P<prefix>(?:[^:/?#]+:)?//)(?P<authority>[^/?#]*)")
+
+
 def redact_url_credentials(url: str) -> str:
     """Mask the password (or a bare token) in the userinfo part of a URL.
+
+    The authority is located textually rather than with ``urlsplit`` so that
+    malformed URLs (an unterminated IPv6 literal, an invalid port) are still
+    redacted instead of raising, which matters when they are echoed in errors.
 
     Args:
         url: URL that may contain ``user:password@`` credentials.
@@ -85,14 +94,16 @@ def redact_url_credentials(url: str) -> str:
         'http://proxy:3128'
 
     """
-    parts = urlsplit(url)
-    userinfo, separator, hostport = parts.netloc.rpartition("@")
+    match = _URL_AUTHORITY_RE.match(url)
+    if match is None:
+        return url
+    userinfo, separator, hostport = match["authority"].rpartition("@")
     if not separator:
         return url
 
     username, has_password, _ = userinfo.partition(":")
     masked = f"{username}:{MASK_PATTERN}" if has_password else MASK_PATTERN
-    return urlunsplit(parts._replace(netloc=f"{masked}@{hostport}"))
+    return f"{match['prefix']}{masked}@{hostport}{url[match.end() :]}"
 
 
 def sanitize_headers(headers: Mapping[str, str]) -> dict[str, str]:
@@ -364,18 +375,41 @@ def validate_url(url: str) -> bool:
     """
     if _WHITESPACE_RE.search(url):
         return False
+    return url_validation_error(url, {"http", "https"}) is None
 
+
+def url_validation_error(url: str, schemes: Collection[str]) -> str | None:
+    """Explain why ``url`` is not an absolute URL usable for a connection.
+
+    Args:
+        url: URL string to check.
+        schemes: Accepted lowercase schemes.
+
+    Returns:
+        A short reason (malformed authority, unsupported scheme, missing host,
+        invalid port), or ``None`` when the URL is usable.
+
+    Examples:
+        >>> url_validation_error("http://127.0.0.1:99999/", {"http"})
+        'Port out of range 0-65535'
+        >>> url_validation_error("ftp://example.com/", {"http", "https"})
+        "unsupported scheme 'ftp'"
+        >>> url_validation_error("https://example.com/", {"http", "https"}) is None
+        True
+
+    """
     try:
         parts = urlsplit(url)
-    except ValueError:
-        # Malformed authority, e.g. an unterminated IPv6 literal.
-        return False
-
-    if parts.scheme not in {"http", "https"} or not parts.hostname:
-        return False
-
-    try:
         # ``port`` is parsed lazily and raises for non-numeric or out-of-range values.
-        return parts.port != 0
-    except ValueError:
-        return False
+        port = parts.port
+    except ValueError as exc:
+        # Malformed authority, e.g. an unterminated IPv6 literal.
+        return str(exc)
+
+    if parts.scheme not in schemes:
+        return f"unsupported scheme {parts.scheme!r}" if parts.scheme else "missing scheme"
+    if not parts.hostname:
+        return "missing host"
+    if port == 0:
+        return "port must be between 1 and 65535"
+    return None

@@ -739,10 +739,46 @@ def test_validate_arguments_rejects_invalid_proxy_scheme(
 
 
 @pytest.mark.parametrize(
+    ("proxy", "reason"),
+    [
+        ("http://user:s3cret@[::1", "Invalid IPv6 URL"),
+        ("http://user:s3cret@127.0.0.1:99999", "Port out of range"),
+        ("http://user:s3cret@127.0.0.1:0", "port must be between 1 and 65535"),
+        ("user:s3cret@127.0.0.1:abc", "Port could not be cast"),
+        ("socks5://user:s3cret@:1080", "missing host"),
+    ],
+)
+def test_validate_arguments_rejects_malformed_proxy_url(
+    proxy: str,
+    reason: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        json=None,
+        ignore_ssl=False,
+        ca_bundle=None,
+        proxy=proxy,
+        slo=None,
+    )
+
+    assert validate_arguments(args) is False
+    err = capsys.readouterr().err
+    assert "Invalid proxy URL" in err
+    assert reason in err
+    assert "user:****@" in err
+    assert "s3cret" not in err
+
+
+@pytest.mark.parametrize(
     ("argv", "error"),
     [
         (["--cacert", "missing-ca-bundle.pem", "https://example.test"], "CA bundle file does not exist"),
         (["--proxy", "foo://bar", "https://example.test"], "Proxy URL must use"),
+        (["--proxy", "http://[::1", "https://example.test"], "Invalid proxy URL"),
+        (["--proxy", "http://127.0.0.1:99999", "https://example.test"], "Invalid proxy URL"),
         (["--timeout", "nan", "https://example.test"], "Invalid timeout"),
     ],
 )
