@@ -16,7 +16,7 @@ httptap [OPTIONS] URL
 
 ## Options
 
-> **Curl compatibility:** Common curl flags are accepted as aliases. Swap `curl` for `httptap` and keep using familiar options like `-X/--request`, `-L/--location`, `-m/--max-time`, `-k/--insecure`, `-x`, and `--http1.1`. This is not a full curl clone—stick to the overlapping flags listed here.
+> **Curl compatibility:** Common curl flags are accepted as aliases. Swap `curl` for `httptap` and keep using familiar options like `-X/--request`, `-L/--location`, `-m/--max-time`, `-k/--insecure`, `-x`, and `--http1.1`; `-f/--fail`, `-4/--ipv4`, `-6/--ipv6`, and `--resolve` use the same names as in curl. This is not a full curl clone—stick to the overlapping flags listed here.
 
 ### Request Options
 
@@ -97,6 +97,9 @@ httptap --follow https://httpbin.io/redirect/3
 ```
 
 By default, httptap does not follow redirects and will stop at the first redirect response (3xx status code).
+
+If the response is still a redirect after 10 followed redirects, httptap stops, prints a warning, marks that step with
+`redirect_limit_reached: true` in the JSON export, and exits with code `47`.
 
 When following redirects, httptap applies the same rules as curl and browsers:
 

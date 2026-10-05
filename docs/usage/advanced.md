@@ -29,6 +29,13 @@ analyzer = HTTPTapAnalyzer(dns_resolver=CustomDNSResolver())
 steps = analyzer.analyze_url("https://httpbin.io")
 ```
 
+Because this subclass overrides only `resolve()`, httptap calls it rather than the inherited
+`resolve_all()`, so every host resolves to a single address and there is no fallback to the
+next address when a connection fails. Override `resolve_all()` as well to keep that fallback;
+see [Address fallback with `resolve_all()`](../api/interfaces.md#address-fallback-with-resolve_all).
+Raise `DNSResolutionError` from a custom resolver when a name cannot be resolved, so the
+failure is reported as a network error rather than an internal one.
+
 ## Custom TLS Inspection
 
 Implement custom TLS inspection logic to extract additional certificate information.
@@ -190,10 +197,14 @@ CLI output will show `TLS CA: custom bundle` to indicate the non-system trust st
 
 For fully customized behavior you can provide your own request executor.
 Executors receive all parameters packaged inside `RequestOptions`, so new
-flags added by httptap remain backward compatible.
+flags added by httptap remain backward compatible. Forward every field your
+transport supports; dropping one silently changes the request (for example,
+ignoring `method` and `content` turns a `POST` into a body-less `GET`, and
+ignoring `proxy` or `ca_bundle_path` drops the `--proxy` or `--cacert` setting).
 
 ```python
 from httptap import HTTPTapAnalyzer, RequestExecutor, RequestOptions, RequestOutcome
+from httptap.http_client import make_request
 
 
 class RecordingExecutor(RequestExecutor):
@@ -203,17 +214,20 @@ class RecordingExecutor(RequestExecutor):
     def execute(self, options: RequestOptions) -> RequestOutcome:
         self.last_options = options
         # Call the built-in client (or your preferred HTTP library)
-        from httptap.http_client import make_request
-
         timing, network, response = make_request(
             options.url,
             options.timeout,
+            deadline=options.deadline,
+            method=options.method,
+            content=options.content,
             http2=options.http2,
             verify_ssl=options.verify_ssl,
+            ca_bundle_path=options.ca_bundle_path,
+            proxy=options.proxy,
+            noproxy=options.noproxy,
             dns_resolver=options.dns_resolver,
             tls_inspector=options.tls_inspector,
             timing_collector=options.timing_collector,
-            force_new_connection=options.force_new_connection,
             headers=options.headers,
         )
         return RequestOutcome(timing=timing, network=network, response=response)
@@ -224,6 +238,13 @@ analyzer = HTTPTapAnalyzer(request_executor=executor)
 analyzer.analyze_url("https://httpbin.io/get", headers={"X-Debug": "1"})
 print(executor.last_options.headers)  # {'X-Debug': '1'}
 ```
+
+`force_new_connection` is deprecated and ignored, so it is not forwarded. To
+wrap the default behavior instead of re-implementing it, delegate to
+`HTTPClientRequestExecutor().execute(options)`. Raise
+`httptap.http_client.HTTPClientError` for transport failures so the analyzer
+records them as network errors (exit code `75`) with partial data; any other
+exception is reported as an internal error (exit code `70`).
 
 ## Custom Visualization
 

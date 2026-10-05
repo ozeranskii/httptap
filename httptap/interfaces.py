@@ -105,6 +105,12 @@ class DNSResolver(Protocol):
     This protocol defines the interface for DNS resolvers that can translate
     hostnames to IP addresses with timing measurements.
 
+    A resolver may also define ``resolve_all(host, port, timeout)`` returning
+    every address as ``(ip, family)`` pairs; httptap then tries them in order
+    and falls back to the next one when a connection fails. It is used only
+    when declared on the class that defines ``resolve`` or a subclass of it,
+    so a subclass that overrides just ``resolve`` keeps working.
+
     Examples:
         >>> class CustomDNSResolver:
         ...     def resolve(
@@ -128,8 +134,9 @@ class DNSResolver(Protocol):
             ip_family should be one of: 'IPv4', 'IPv6', or 'AF_<num>'.
 
         Raises:
-            Exception: If hostname cannot be resolved. Implementations should
-                define specific exception types for DNS failures.
+            DNSResolutionError: If the hostname cannot be resolved. httptap
+                reports it as a network error (exit code 75); any other
+                exception is treated as an internal error (exit code 70).
 
         Note:
             Implementations should try multiple resolution methods

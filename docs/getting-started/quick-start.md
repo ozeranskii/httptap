@@ -34,7 +34,7 @@ httptap --data '{"name": "John Doe", "email": "john@example.com"}' https://httpb
     When `--data` is provided without `--method`, httptap automatically switches to POST (similar to curl).
 
 !!! tip "Curl-compatible flags"
-    The most common curl flags work unchanged. Use `-X/--request` for the HTTP method, `-L/--location` to follow redirects, `-m/--max-time` for timeouts, `-k/--insecure` to disable certificate verification, `-x` for proxies, and `--http1.1` to force HTTP/1.1 (equivalent to `--no-http2`). Not every curl option is supported, so stick to these shared flags when swapping commands.
+    The most common curl flags work unchanged. Use `-X/--request` for the HTTP method, `-L/--location` to follow redirects, `-m/--max-time` for timeouts, `-k/--insecure` to disable certificate verification, `-x` for proxies, and `--http1.1` to force HTTP/1.1 (equivalent to `--no-http2`). `-f/--fail`, `-4/--ipv4`, `-6/--ipv6`, and `--resolve HOST:PORT:ADDR` use the same names as in curl. Not every curl option is supported, so stick to these shared flags when swapping commands.
 
 Load data from a file:
 
@@ -148,6 +148,8 @@ The JSON file will contain:
 - Full redirect chain (if `--follow` is used)
 - SLO evaluation (if `--slo` is supplied)
 
+Use `--json -` to write the JSON to stdout instead of a file, for example to pipe it into `jq`.
+
 ## SLO Threshold Checking
 
 Gate CI jobs, cron probes, or Kubernetes readiness checks on per-phase
@@ -158,7 +160,8 @@ httptap --slo total=500,ttfb=200 https://httpbin.io/get
 ```
 
 Exit code is `0` when every budget passes and `4` when any threshold
-is violated. The full waterfall is still rendered so you can see *why*
+is violated. Thresholds can also be read from a file with one `KEY=MS`
+entry per line: `--slo-file slo.txt`. The full waterfall is still rendered so you can see *why*
 the check failed.
 
 !!! tip "Supported SLO keys"
