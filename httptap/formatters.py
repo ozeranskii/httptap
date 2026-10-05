@@ -4,6 +4,7 @@ This module provides formatters for converting metrics and data
 into human-readable formats with Rich markup support.
 """
 
+import re
 from urllib.parse import quote
 
 from rich.markup import escape
@@ -218,6 +219,10 @@ def format_bytes_human(num_bytes: int) -> str:
     return f"{size_kib / BYTES_PER_KIB:.1f} MB"
 
 
+_METRIC_VALUE_SAFE_CHARS = ".,-*:+/@[]"
+_METRIC_VALUE_SAFE_RE = re.compile(r"[A-Za-z0-9_.~,\-*:+/@\[\]]*")
+
+
 def format_metric_value(value: object) -> str:
     """Escape a value for a ``key=value`` token of the ``--metrics-only`` output.
 
@@ -225,7 +230,11 @@ def format_metric_value(value: object) -> str:
     percent-encoded; URLs, timestamps, IPv6 addresses and ``*`` wildcards stay
     readable.
     """
-    return quote(str(value), safe=".,-*:+/@[]")
+    text = str(value)
+    # Nearly every value is already safe; skip ``quote`` on the hot path.
+    if _METRIC_VALUE_SAFE_RE.fullmatch(text):
+        return text
+    return quote(text, safe=_METRIC_VALUE_SAFE_CHARS)
 
 
 def format_metrics_line(
