@@ -10,10 +10,13 @@ import os
 import re
 import socket
 import ssl
+import sys
 from collections.abc import Collection, Mapping
 from contextlib import suppress
 from datetime import UTC, datetime
+from functools import cache
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import SplitResult, urlsplit
 
 __all__ = [
@@ -226,7 +229,92 @@ def format_address_family(family: int) -> str:
     return f"AF_{family}"
 
 
-def create_ssl_context(*, verify_ssl: bool, ca_bundle_path: str | None = None) -> ssl.SSLContext:
+class _BracketedNameSSLContext(ssl.SSLContext):
+    """Client context that accepts a bracketed IPv6 literal as ``server_hostname``.
+
+    Used when an IPv6 literal target is reached through an HTTP proxy: the
+    request host is bracketed so that httpcore sends a valid ``CONNECT
+    [::1]:443``, and httpcore then passes that same bracketed host as the TLS
+    server name. Removing the brackets here makes ``ssl`` treat it as an IP
+    address again (no SNI, matched against IP subjectAltNames).
+    """
+
+    def wrap_socket(  # noqa: PLR0913, PLR0917 - mirrors ssl.SSLContext.wrap_socket
+        self,
+        sock: socket.socket,
+        server_side: bool = False,  # noqa: FBT001, FBT002
+        do_handshake_on_connect: bool = True,  # noqa: FBT001, FBT002
+        suppress_ragged_eofs: bool = True,  # noqa: FBT001, FBT002
+        server_hostname: str | bytes | None = None,
+        session: ssl.SSLSession | None = None,
+    ) -> ssl.SSLSocket:
+        return super().wrap_socket(
+            sock,
+            server_side=server_side,
+            do_handshake_on_connect=do_handshake_on_connect,
+            suppress_ragged_eofs=suppress_ragged_eofs,
+            server_hostname=_unbracket(server_hostname),
+            session=session,
+        )
+
+    def wrap_bio(
+        self,
+        incoming: ssl.MemoryBIO,
+        outgoing: ssl.MemoryBIO,
+        server_side: bool = False,  # noqa: FBT001, FBT002
+        server_hostname: str | bytes | None = None,
+        session: ssl.SSLSession | None = None,
+    ) -> ssl.SSLObject:
+        return super().wrap_bio(
+            incoming,
+            outgoing,
+            server_side=server_side,
+            server_hostname=_unbracket(server_hostname),
+            session=session,
+        )
+
+
+def _unbracket(server_hostname: str | bytes | None) -> str | bytes | None:
+    if isinstance(server_hostname, str) and server_hostname.startswith("[") and server_hostname.endswith("]"):
+        return server_hostname[1:-1]
+    return server_hostname
+
+
+class _ClientSettings(NamedTuple):
+    options: ssl.Options
+    verify_flags: ssl.VerifyFlags
+    minimum_version: ssl.TLSVersion
+    maximum_version: ssl.TLSVersion
+
+
+@cache
+def _default_client_settings() -> _ClientSettings:
+    """Settings of ``ssl.create_default_context()``; they vary by Python version and OpenSSL build."""
+    template = ssl.create_default_context()
+    return _ClientSettings(template.options, template.verify_flags, template.minimum_version, template.maximum_version)
+
+
+def _default_context_accepting_bracketed_names() -> ssl.SSLContext:
+    """Return the equivalent of ``ssl.create_default_context()`` as a :class:`_BracketedNameSSLContext`."""
+    context = _BracketedNameSSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    settings = _default_client_settings()
+    context.options = settings.options
+    context.verify_flags = settings.verify_flags
+    context.minimum_version = settings.minimum_version
+    context.maximum_version = settings.maximum_version
+    context.load_default_certs(ssl.Purpose.SERVER_AUTH)
+    keylog_file = os.environ.get("SSLKEYLOGFILE")
+    if keylog_file and not sys.flags.ignore_environment:
+        context.keylog_filename = keylog_file
+    return context
+
+
+def create_ssl_context(
+    *,
+    verify_ssl: bool,
+    ca_bundle_path: str | None = None,
+    accept_bracketed_server_names: bool = False,
+) -> ssl.SSLContext:
     """Return an SSL context honoring the requested verification policy.
 
     Args:
@@ -234,12 +322,18 @@ def create_ssl_context(*, verify_ssl: bool, ca_bundle_path: str | None = None) -
             security defaults.
         ca_bundle_path: Path to custom CA certificate bundle file (PEM format).
             Only used when verify_ssl is True. If None, uses system CA bundle.
+        accept_bracketed_server_names: Strip the brackets of an IPv6 literal
+            passed as the TLS server name, for IPv6 targets behind HTTP proxies.
 
     Returns:
         Configured ``ssl.SSLContext`` instance.
     """
     if verify_ssl:
-        context = ssl.create_default_context()
+        context = (
+            _default_context_accepting_bracketed_names()
+            if accept_bracketed_server_names
+            else ssl.create_default_context()
+        )
 
         if ca_bundle_path:
             try:
@@ -251,7 +345,8 @@ def create_ssl_context(*, verify_ssl: bool, ca_bundle_path: str | None = None) -
         return context
 
     # For legacy mode create a mutable context allowing older protocols.
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context_class = _BracketedNameSSLContext if accept_bracketed_server_names else ssl.SSLContext
+    context = context_class(ssl.PROTOCOL_TLS_CLIENT)
 
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE

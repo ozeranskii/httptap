@@ -7,7 +7,7 @@ import threading
 import time
 from contextlib import suppress
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn, Self, cast
 
 import httpcore
 import httpx
@@ -24,6 +24,7 @@ from httptap.http_client import (
     USER_AGENT,
     HTTPClientError,
     TraceCollector,
+    _BracketedProxyTargets,
     _build_timing_metrics,
     _build_user_agent,
     _consume_response_body,
@@ -125,7 +126,7 @@ def patch_transport(
         created.append(transport)
         return transport
 
-    mocker.patch("httptap.http_client.httpx.HTTPTransport", side_effect=build)
+    mocker.patch("httptap.http_client._HTTPTransport", side_effect=build)
     return created
 
 
@@ -719,6 +720,7 @@ class TestIPv6LiteralThroughRemoteDNSProxy:
         assert response.status == 204
         assert network.ip is None
         assert network.proxy_url == f"http://127.0.0.1:{proxy_port}"
+        assert received[0].startswith(b"GET http://[::1]:8081/path HTTP/1.1\r\n")
         assert b"\r\nHost: [::1]:8081\r\n" in received[0]
 
     @pytest.mark.parametrize(
@@ -738,6 +740,70 @@ class TestIPv6LiteralThroughRemoteDNSProxy:
         assert str(request.url) == "https://[2001:db8::1]:8443/x"
         assert request.extensions["sni_hostname"] == "2001:db8::1"
         assert request.headers["Host"] == "[2001:db8::1]:8443"
+
+
+class _RecordingPool:
+    def __init__(self) -> None:
+        self.urls: list[bytes] = []
+        self.events: list[str] = []
+
+    def handle_request(self, request: httpcore.Request) -> httpcore.Response:
+        self.urls.append(bytes(request.url))
+        return httpcore.Response(204)
+
+    def close(self) -> None:
+        self.events.append("close")
+
+    def __enter__(self) -> Self:
+        self.events.append("enter")
+        return self
+
+    def __exit__(self, *_exc_info: object) -> None:
+        self.events.append("exit")
+
+
+class TestBracketedProxyTargets:
+    """Only bare IPv6 hosts are bracketed before the proxy pool builds its request line."""
+
+    @pytest.mark.parametrize(
+        ("url", "expected"),
+        [
+            ("http://[2001:db8::1]:8080/a?b", b"http://[2001:db8::1]:8080/a?b"),
+            ("http://203.0.113.10:8080/a", b"http://203.0.113.10:8080/a"),
+            ("https://example.test/", b"https://example.test:443/"),
+        ],
+    )
+    def test_request_url_reaching_the_pool(self, url: str, expected: bytes) -> None:
+        pool = _RecordingPool()
+        wrapper = _BracketedProxyTargets(cast("httpcore.HTTPProxy", pool))
+
+        wrapper.handle_request(_httpcore_request(url))
+
+        assert pool.urls == [expected]
+
+    def test_delegates_lifecycle_to_the_pool(self) -> None:
+        pool = _RecordingPool()
+        wrapper = _BracketedProxyTargets(cast("httpcore.HTTPProxy", pool))
+
+        with wrapper as entered:
+            assert entered is wrapper
+        wrapper.close()
+
+        assert pool.events == ["enter", "exit", "close"]
+
+
+def _httpcore_request(url: str) -> httpcore.Request:
+    """Build the httpcore request httpx would hand to its pool (host without brackets)."""
+    parsed = httpx.URL(url)
+    return httpcore.Request(
+        b"GET",
+        httpcore.URL(
+            scheme=parsed.raw_scheme,
+            host=parsed.raw_host,
+            port=parsed.port or (443 if parsed.scheme == "https" else 80),
+            target=parsed.raw_path,
+        ),
+    )
 
 
 class _OneAddressFailsResolver:
@@ -1050,7 +1116,7 @@ class TestProxyURLValidation:
 
     def test_client_construction_failure_is_a_client_error(self, mocker: pytest_mock.MockerFixture) -> None:
         mocker.patch(
-            "httptap.http_client.httpx.HTTPTransport",
+            "httptap.http_client._HTTPTransport",
             side_effect=ImportError("Using SOCKS proxy, but the 'socksio' package is not installed."),
         )
 
