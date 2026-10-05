@@ -16,9 +16,11 @@ description: httptap 基于 GitHub Actions 的自动化发布流程。
 
 在创建发布之前，请确保：
 
-1. **GitHub Environments** —— 在仓库设置中已配置 `release`、`testpypi` 和 `pypi` 环境
+1. **GitHub Environments** —— 在仓库设置中已配置 `release`、`testpypi` 和 `pypi` 环境，
+   且均只允许从 `main` 部署；`pypi` 设有必需的审核人
 2. **PyPI Trusted Publishing** —— 已为 PyPI 和 TestPyPI 配置（OIDC，无需令牌）
-3. **Deploy Key** —— 具有写入权限的 SSH deploy key（用于绕过分支保护）
+3. **Deploy Key** —— 具有写入权限的 SSH deploy key，仅作为 `release` 环境的 `DEPLOY_KEY` secret 保存，
+   并被允许绕过 `main` 的分支保护以及保护 `refs/tags/v*` 的标签规则集
 4. **GHCR access** —— release 任务上的 `packages: write` 权限（按工作流授予）
 5. **所有测试通过** —— main 分支上的 CI 必须为绿色
 
@@ -76,19 +78,18 @@ description: httptap 基于 GitHub Actions 的自动化发布流程。
 
 5. **构建**
    ```bash
-   uv sync --locked --group test
-   uv run pytest  # Full test suite
+   uv sync --locked --no-dev --group test
+   uv run --no-sync pytest  # Full test suite
    uv build  # Create wheel and sdist
    ```
    基于 bundle 中尚未推送的发布标签运行。
 
 6. **推送提交与标签**
    ```bash
-   git push origin "v0.2.0^{commit}:refs/heads/main"
-   git push origin v0.2.0
+   git push --atomic origin "v0.2.0^{commit}:refs/heads/main" refs/tags/v0.2.0:refs/tags/v0.2.0
    ```
-   仅在构建和证明成功后执行。推送仅允许 fast-forward，因此如果发布期间
-   `main` 有新的提交，工作流会在此处停止，不会发布任何内容。
+   仅在构建和证明成功后执行。推送仅允许 fast-forward 且是原子的，因此如果发布期间
+   `main` 有新的提交，分支和标签都不会更新，工作流会在此处停止，不会发布任何内容。
 
 7. **发布到 TestPyPI**
     - 先通过 OIDC Trusted Publishing 上传到 TestPyPI，附带 PEP 740
@@ -99,6 +100,7 @@ description: httptap 基于 GitHub Actions 的自动化发布流程。
     - 上传 wheel 和源码分发包，附带 PEP 740 证明
 
 9. **发布容器镜像到 GHCR**
+    - 仅在发布到 PyPI 之后运行，因此会等待 `pypi` 的审核
     - 构建多架构（linux/amd64、linux/arm64）镜像
     - 推送到 `ghcr.io/ozeranskii/httptap`，带有 `{version}`、`{major}.{minor}`、
       `{major}` 和 `latest` 标签
@@ -121,6 +123,7 @@ description: httptap 基于 GitHub Actions 的自动化发布流程。
 - 配置 Python 和 uv
 - 更新 pyproject.toml 中的版本
 - 生成变更日志
+- 将本次发布加入 `.vex/httptap.openvex.json` 中 `fixed` 声明的产品列表，并递增文档版本
 - 在本地创建已签名的发布提交和标签
 - 将其作为 `release-bundle` 产物上传；不推送任何内容
 
@@ -130,15 +133,16 @@ description: httptap 基于 GitHub Actions 的自动化发布流程。
 - 运行完整测试套件
 - 构建 wheel 和 sdist
 - 通过 [Syft](https://github.com/anchore/syft) 以 CycloneDX 和 SPDX JSON 格式生成 SBOM
-- 将带版本号的 OpenVEX 文档从 `.vex/httptap.openvex.json` 复制到 `sbom/` 目录，命名为 `httptap-X.Y.Z.openvex.json`
+- 如果 `.vex/httptap.openvex.json` 中有 `fixed` 声明未列出本次发布则失败，随后将该文档复制到 `sbom/` 目录，命名为 `httptap-X.Y.Z.openvex.json`
 - 使用 [argparse-manpage](https://github.com/praiskup/argparse-manpage) 生成经过 gzip 压缩的 `man(1)` 手册页
 - 分别上传 `dist/`、`sbom/` 和 `man/` 产物
 
 #### 3. 推送发布提交与标签
 
 - 仅在构建和来源证明成功后运行
-- 唯一拥有 `contents: write` 权限和 deploy key 的任务（`release` 环境）
-- 将 `main` fast-forward 到发布提交并推送标签；如果发布期间 `main`
+- 唯一写入 git 仓库的任务；它使用 `release` 环境的 deploy key 通过 SSH 推送，
+  因此其工作流令牌是只读的（`contents: read`）
+- 将 `main` fast-forward 到发布提交，并与标签一起在一次原子推送中完成；如果发布期间 `main`
   有新的提交，则失败且不发布任何内容
 
 #### 4. 发布到 TestPyPI
@@ -153,13 +157,14 @@ description: httptap 基于 GitHub Actions 的自动化发布流程。
 
 #### 6. 发布容器镜像到 GHCR
 
-- 仅在发布提交和标签推送完成后运行
+- 仅在发布到 PyPI 之后运行，因此在 `pypi` 环境审核之前不会向 GHCR 发布任何内容
 - 使用 Buildx + QEMU 构建多架构镜像
 - 使用 cosign（无密钥 Sigstore OIDC）签名
 - 附加 SLSA 构建来源证明
 
 #### 7. 创建 GitHub Release
 
+- 唯一拥有 `contents: write` 权限的任务，用于创建 release
 - 下载 `dist/`、`sbom/` 和 `man/` 产物
 - 创建带有变更日志说明的 GitHub release
 - 附上 wheel、sdist、SBOM（`*.cdx.json`、`*.spdx.json`）、VEX（`*.openvex.json`）和 man 手册页
@@ -223,8 +228,9 @@ httptap 遵循 [语义化版本控制](https://semver.org/)：
 如果因分支保护导致推送失败：
 
 1. 验证 deploy key 具有写入权限
-2. 检查 deploy key 是否在分支保护规则的绕过列表中
+2. 检查 deploy key 是否在分支保护规则和 `refs/tags/v*` 标签规则集的绕过列表中
 3. 确保工作流检出中已配置 `ssh-key`
+4. 检查 `DEPLOY_KEY` 是否为 `release` 环境的 secret，以及工作流是否从该环境唯一允许的分支 `main` 运行
 
 ### 变更日志为空
 

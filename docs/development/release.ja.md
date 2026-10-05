@@ -14,9 +14,9 @@ description: httptap の自動化された GitHub Actions リリースプロセ�
 
 リリースを作成する前に、以下を確認してください:
 
-1. **GitHub Environments** - リポジトリ設定で `release`、`testpypi`、および `pypi` 環境が設定されている
+1. **GitHub Environments** - リポジトリ設定で `release`、`testpypi`、および `pypi` 環境が設定されており、いずれも `main` からのデプロイのみを許可している。`pypi` には必須レビュアーが設定されている
 2. **PyPI Trusted Publishing** - PyPI と TestPyPI の両方に設定されている（OIDC、トークンなし）
-3. **Deploy Key** - 書き込みアクセス権を持つ SSH デプロイキー（ブランチ保護をバイパスするため）
+3. **Deploy Key** - 書き込みアクセス権を持つ SSH デプロイキー。`release` 環境のシークレット `DEPLOY_KEY` としてのみ保存され、`main` のブランチ保護と `refs/tags/v*` を保護するタグルールセットをバイパスできる
 4. **GHCR アクセス** - リリースジョブでの `packages: write` 権限（ワークフローごとに付与）
 5. **すべてのテストが通過** - main ブランチで CI がグリーンでなければならない
 
@@ -71,18 +71,17 @@ description: httptap の自動化された GitHub Actions リリースプロセ�
 
 5. **ビルド**
    ```bash
-   uv sync --locked --group test
-   uv run pytest  # Full test suite
+   uv sync --locked --no-dev --group test
+   uv run --no-sync pytest  # Full test suite
    uv build  # Create wheel and sdist
    ```
    バンドルから取得した、まだプッシュされていないリリースタグ上で実行される。
 
 6. **コミットとタグのプッシュ**
    ```bash
-   git push origin "v0.2.0^{commit}:refs/heads/main"
-   git push origin v0.2.0
+   git push --atomic origin "v0.2.0^{commit}:refs/heads/main" refs/tags/v0.2.0:refs/tags/v0.2.0
    ```
-   ビルドと証明が成功した後にのみ行われる。プッシュは fast-forward のみであるため、リリース中に `main` が進んでいた場合、ワークフローは何かが公開される前にここで停止する。
+   ビルドと証明が成功した後にのみ行われる。プッシュは fast-forward のみかつアトミックであるため、リリース中に `main` が進んでいた場合、ブランチもタグも更新されず、ワークフローは何かが公開される前にここで停止する。
 
 7. **TestPyPI への公開**
     - 本番プッシュの前のスモークテストとして、PEP 740 の証明書とともに OIDC Trusted Publishing を介してまず TestPyPI にアップロードする。
@@ -92,6 +91,7 @@ description: httptap の自動化された GitHub Actions リリースプロセ�
     - PEP 740 の証明書とともに wheel とソース配布物をアップロードする
 
 9. **コンテナイメージの GHCR への公開**
+    - PyPI への公開後にのみ実行されるため、`pypi` のレビューを待つ
     - マルチアーキテクチャ（linux/amd64、linux/arm64）イメージをビルドする
     - `{version}`、`{major}.{minor}`、`{major}`、および `latest` タグとともに `ghcr.io/ozeranskii/httptap` にプッシュする
     - cosign（鍵なし Sigstore）でイメージに署名する
@@ -113,6 +113,7 @@ description: httptap の自動化された GitHub Actions リリースプロセ�
 - Python と uv を設定する
 - pyproject.toml のバージョンを更新する
 - 変更履歴を生成する
+- `.vex/httptap.openvex.json` の `fixed` ステートメントにリリースを追加し、文書のバージョンを上げる
 - 署名済みのリリースコミットとタグをローカルで作成する
 - それらを `release-bundle` 成果物としてアップロードする。何もプッシュしない
 
@@ -122,15 +123,15 @@ description: httptap の自動化された GitHub Actions リリースプロセ�
 - 完全なテストスイートを実行する
 - wheel と sdist をビルドする
 - [Syft](https://github.com/anchore/syft) を介して CycloneDX および SPDX JSON 形式の SBOM を生成する
-- バージョン管理された OpenVEX 文書を `.vex/httptap.openvex.json` から `sbom/` ディレクトリに `httptap-X.Y.Z.openvex.json` としてコピーする
+- `.vex/httptap.openvex.json` の `fixed` ステートメントにリリースが含まれていなければ失敗し、その後文書を `sbom/` ディレクトリに `httptap-X.Y.Z.openvex.json` としてコピーする
 - [argparse-manpage](https://github.com/praiskup/argparse-manpage) を介して gzip 圧縮された `man(1)` ページを生成する
 - `dist/`、`sbom/`、および `man/` の成果物を個別にアップロードする
 
 #### 3. Push Release Commit and Tag
 
 - ビルドとプロベナンスの証明が成功した後にのみ実行される
-- `contents: write` とデプロイキー（`release` 環境）を持つ唯一のジョブである
-- `main` をリリースコミットまで fast-forward し、タグをプッシュする。リリース中に `main` が進んでいた場合は、何も公開せずに失敗する
+- git リポジトリに書き込む唯一のジョブである。`release` 環境のデプロイキーを使って SSH でプッシュするため、ワークフロートークンは読み取り専用（`contents: read`）である
+- `main` をリリースコミットまで fast-forward し、タグとともに 1 回のアトミックなプッシュで送る。リリース中に `main` が進んでいた場合は、何も公開せずに失敗する
 
 #### 4. Publish to TestPyPI
 
@@ -144,13 +145,14 @@ description: httptap の自動化された GitHub Actions リリースプロセ�
 
 #### 6. Publish container image to GHCR
 
-- リリースコミットとタグがプッシュされた後にのみ実行される
+- PyPI への公開後にのみ実行されるため、`pypi` 環境のレビュー前に GHCR へ何も公開されない
 - Buildx + QEMU でマルチアーキテクチャイメージをビルドする
 - cosign（鍵なし Sigstore OIDC）で署名する
 - SLSA ビルドプロベナンスを添付する
 
 #### 7. Create GitHub Release
 
+- `contents: write` を持つ唯一のジョブであり、リリースの作成に必要とする
 - `dist/`、`sbom/`、および `man/` の成果物をダウンロードする
 - 変更履歴のノートとともに GitHub リリースを作成する
 - wheel、sdist、SBOM（`*.cdx.json`、`*.spdx.json`）、VEX（`*.openvex.json`）、および man ページを添付する
@@ -214,8 +216,9 @@ httptap は [Semantic Versioning](https://semver.org/) に従います:
 ブランチ保護が原因でプッシュが失敗する場合:
 
 1. デプロイキーが書き込みアクセス権を持っていることを検証する
-2. デプロイキーがブランチ保護ルールのバイパスリストにあることを確認する
+2. デプロイキーがブランチ保護ルールと `refs/tags/v*` のタグルールセットのバイパスリストにあることを確認する
 3. ワークフローのチェックアウトで `ssh-key` が設定されていることを確認する
+4. `DEPLOY_KEY` が `release` 環境のシークレットであり、ワークフローが環境で許可された唯一のブランチである `main` から実行されたことを確認する
 
 ### 変更履歴が空
 
