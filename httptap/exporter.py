@@ -6,15 +6,20 @@ starting with JSON export capability.
 
 import json
 from collections.abc import Sequence
+from datetime import datetime
 from pathlib import Path
 from typing import Any, TypedDict
 
 from rich.console import Console
 from rich.markup import escape
 
+from ._pkgmeta import get_package_info
 from .interfaces import Exporter
 from .models import StepMetrics
 from .slo import SLOResult
+from .utils import UTC
+
+JSON_SCHEMA_VERSION = 1
 
 
 class SummaryExport(TypedDict, total=False):
@@ -31,6 +36,9 @@ class SummaryExport(TypedDict, total=False):
 class ExportPayload(TypedDict):
     """Payload structure persisted to the JSON report."""
 
+    schema_version: int
+    httptap_version: str
+    timestamp: str
     initial_url: str
     total_steps: int
     steps: list[dict[str, Any]]
@@ -106,6 +114,9 @@ class JSONExporter(Exporter):
 
         """
         return {
+            "schema_version": JSON_SCHEMA_VERSION,
+            "httptap_version": get_package_info().version,
+            "timestamp": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
             "initial_url": initial_url,
             "total_steps": len(steps),
             "steps": [step.to_dict() for step in steps],

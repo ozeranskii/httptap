@@ -542,6 +542,9 @@ The redirect summary includes a total row:
 
 ```json
 {
+  "schema_version": 1,
+  "httptap_version": "0.6.3",
+  "timestamp": "2026-09-18T08:00:00Z",
   "initial_url": "https://httpbin.io/redirect/2",
   "total_steps": 3,
   "steps": [
