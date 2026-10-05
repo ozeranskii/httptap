@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import socket
 import ssl
+import sys
 import threading
 import time
 from contextlib import suppress
 from datetime import datetime, timedelta
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import TYPE_CHECKING
 
 import pytest
@@ -26,6 +27,12 @@ if TYPE_CHECKING:
 
 
 class _OkHandler(BaseHTTPRequestHandler):
+    timeout = 5.0
+
+    def setup(self) -> None:
+        super().setup()
+        self.connection.do_handshake()
+
     def do_GET(self) -> None:
         body = b"ok"
         self.send_response(200)
@@ -35,6 +42,30 @@ class _OkHandler(BaseHTTPRequestHandler):
 
     def log_message(self, *_args: object) -> None:
         """Keep the test output free of per-request access logs."""
+
+
+class _TLSServer(ThreadingHTTPServer):
+    """Serves each connection on its own thread, TLS handshake included.
+
+    Wrapping the listening socket would run the handshake inside ``accept()``
+    on the serving thread, so one stalled client (such as the certificate
+    probe) would block every later connection.
+    """
+
+    def __init__(self, context: ssl.SSLContext) -> None:
+        super().__init__(("127.0.0.1", 0), _OkHandler)
+        self.context = context
+
+    def get_request(self) -> tuple[socket.socket, tuple[str, int]]:
+        connection, address = super().get_request()
+        return self.context.wrap_socket(connection, server_side=True, do_handshake_on_connect=False), address
+
+    def handle_error(
+        self, request: socket.socket | tuple[bytes, socket.socket], client_address: tuple[str, int]
+    ) -> None:
+        """Ignore clients that hang up mid-handshake; anything else is still reported."""
+        if not isinstance(sys.exc_info()[1], OSError):
+            super().handle_error(request, client_address)
 
 
 @pytest.fixture
@@ -67,8 +98,7 @@ def self_signed_server(tmp_path: Path) -> Iterator[int]:
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(cert_path, key_path)
-    server = HTTPServer(("127.0.0.1", 0), _OkHandler)
-    server.socket = context.wrap_socket(server.socket, server_side=True)
+    server = _TLSServer(context)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -96,6 +126,19 @@ def test_insecure_request_reports_peer_certificate(self_signed_server: int) -> N
     assert network.cert_serial == "C0FFEE"
     assert network.cert_days_left is not None
     assert network.cert_days_left > 0
+
+
+def test_request_succeeds_while_another_client_stalls_the_handshake(self_signed_server: int) -> None:
+    """A connection that never sends a ClientHello does not hold up the request."""
+    with socket.create_connection(("127.0.0.1", self_signed_server)):
+        _timing, _network, response = make_request(
+            f"https://127.0.0.1:{self_signed_server}/",
+            timeout=5.0,
+            verify_ssl=False,
+            http2=False,
+        )
+
+    assert response.status == 200
 
 
 _TUNNEL_DELAY_SECONDS = 0.2
