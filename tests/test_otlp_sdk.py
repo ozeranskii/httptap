@@ -29,8 +29,8 @@ class _Collector(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
-    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
-        del format, args
+    def log_message(self, *_args: object) -> None:
+        """Keep the test output free of per-request access logs."""
 
 
 @pytest.fixture
