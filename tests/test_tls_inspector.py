@@ -236,6 +236,26 @@ class TestExtractCertificateInfo:
         # Empty dict is falsy, should return None
         assert cert_info is None
 
+    def test_certificate_info_from_der_without_subject_alt_names(self) -> None:
+        """A DER certificate without a SAN extension yields an empty SAN list."""
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "no-san.example")])
+        certificate = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(subject)
+            .public_key(private_key.public_key())
+            .serial_number(1)
+            .not_valid_before(datetime(2025, 1, 1, tzinfo=UTC))
+            .not_valid_after(datetime(2026, 1, 1, tzinfo=UTC))
+            .sign(private_key, hashes.SHA256())
+        )
+
+        cert_info = CertificateInfo.from_der(certificate.public_bytes(serialization.Encoding.DER))
+
+        assert cert_info.common_name == "no-san.example"
+        assert cert_info.subject_alt_names == []
+
     def test_extract_certificate_info_reads_der_when_verification_is_disabled(self) -> None:
         """Test that binary certificates are parsed when the dict is empty."""
         private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -256,7 +276,7 @@ class TestExtractCertificateInfo:
         )
         cert_der = certificate.public_bytes(serialization.Encoding.DER)
         mock_ssl_socket = MagicMock(spec=ssl.SSLSocket)
-        mock_ssl_socket.getpeercert.side_effect = lambda binary_form=False: cert_der if binary_form else {}
+        mock_ssl_socket.getpeercert.side_effect = lambda binary_form=False, /: cert_der if binary_form else {}
 
         cert_info = extract_certificate_info(mock_ssl_socket)
 

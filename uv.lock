@@ -893,7 +893,7 @@ typing = [
 [package.metadata]
 requires-dist = [
     { name = "argcomplete", marker = "extra == 'completion'", specifier = ">=3.7.2" },
-    { name = "cryptography", specifier = ">=50.0.1" },
+    { name = "cryptography", specifier = ">=42.0.0" },
     { name = "dnspython", specifier = ">=2.8.0" },
     { name = "httpx", extras = ["http2", "socks"], specifier = ">=0.28.1" },
     { name = "rich", specifier = ">=14.3.2" },

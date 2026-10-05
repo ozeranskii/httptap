@@ -39,19 +39,23 @@ class SSLObjectLike(Protocol):
     def cipher(self) -> tuple[Any, ...] | None:
         """Return the active cipher suite description."""
 
+    # ``binary_form`` is positional-only: the low-level ``_ssl._SSLSocket``
+    # returned by httpcore's sync backend rejects it as a keyword argument.
     @overload
     def getpeercert(
         self,
         binary_form: Literal[False] = False,  # noqa: FBT002
+        /,
     ) -> Mapping[str, Any] | None: ...
 
     @overload
-    def getpeercert(self, binary_form: Literal[True]) -> bytes | None: ...
+    def getpeercert(self, binary_form: Literal[True], /) -> bytes | None: ...
 
     @overload
     def getpeercert(
         self,
         binary_form: bool,  # noqa: FBT001
+        /,
     ) -> Mapping[str, Any] | bytes | None: ...
 
 
@@ -269,7 +273,7 @@ def extract_certificate_info(ssl_object: SSLObjectLike) -> CertificateInfo | Non
         if cert_dict:
             return CertificateInfo(dict(cert_dict))
 
-        cert_der = ssl_object.getpeercert(binary_form=True)
+        cert_der = ssl_object.getpeercert(True)  # noqa: FBT003
         return CertificateInfo.from_der(cert_der) if isinstance(cert_der, bytes) and cert_der else None
     except Exception as e:
         msg = f"Failed to extract certificate info: {e}"

@@ -539,7 +539,7 @@ class FakeSSLObject:
             raise AttributeError(msg)
         return self._cipher
 
-    def getpeercert(self, binary_form: bool = False) -> dict[str, Any] | bytes | None:  # noqa: FBT001, FBT002
+    def getpeercert(self, binary_form: bool = False, /) -> dict[str, Any] | bytes | None:  # noqa: FBT001, FBT002
         return self._cert_der if binary_form else self._cert
 
 
