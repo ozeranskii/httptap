@@ -46,7 +46,7 @@ def test_exporter_writes_expected_payload(tmp_path: PathType) -> None:
     assert data["schema_version"] == 1
     assert data["httptap_version"] == get_package_info().version
     assert data["timestamp"].endswith("Z")
-    timestamp = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
+    timestamp = datetime.fromisoformat(data["timestamp"])
     assert timestamp.utcoffset() == timedelta(0)
     assert data["initial_url"] == "https://example.test"
     assert data["total_steps"] == 2

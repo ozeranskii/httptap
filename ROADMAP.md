@@ -94,10 +94,10 @@ See [SECURITY.md](SECURITY.md) for the currently supported minor series.
 ## Python Support
 
 The project targets the Python versions currently labelled as supported by
-the [Python release calendar](https://devguide.python.org/versions/) plus
-the current pre-release series (3.10–3.15 at the time of writing). Older
-Python versions are dropped only at major releases and only when required
-by a dependency.
+the [Python release calendar](https://devguide.python.org/versions/)
+(3.11–3.15 at the time of writing, including the free-threaded builds).
+A Python version is dropped in the first minor release after it reaches
+end of life; Python 3.10 (end of life in October 2026) was dropped in 0.7.0.
 
 ## How to Propose a Change
 

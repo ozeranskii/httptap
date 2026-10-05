@@ -119,7 +119,7 @@ httptap --data '{"name": "John"}' https://httpbin.io/post
 
 ## 环境要求
 
-- Python 3.10-3.15
+- Python 3.11-3.15
 - macOS、Linux 或 Windows
 - 除标准网络能力外无系统依赖
 

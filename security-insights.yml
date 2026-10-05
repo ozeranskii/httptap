@@ -168,5 +168,5 @@ repository:
     env-dependencies-policy:
       policy-url: https://github.com/ozeranskii/httptap/blob/main/CONTRIBUTING.md
       comment: |-
-        Runtime is Python >= 3.10 managed by uv; all build-time tools
+        Runtime is Python >= 3.11 managed by uv; all build-time tools
         are pinned in pyproject.toml under [dependency-groups].

@@ -122,7 +122,7 @@ Follow HTTP redirects and see timing breakdown for each step in the chain with `
 
 ## Requirements
 
-- Python 3.10-3.15
+- Python 3.11-3.15
 - macOS, Linux, or Windows
 - No system dependencies beyond standard networking
 

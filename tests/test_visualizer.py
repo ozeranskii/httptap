@@ -4,14 +4,9 @@ from __future__ import annotations
 
 import sys
 from io import StringIO
-from typing import TYPE_CHECKING, no_type_check
+from typing import TYPE_CHECKING, Self, no_type_check
 
 from rich.console import Console
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
 
 from httptap.models import StepMetrics, TimingMetrics
 from httptap.visualizer import WaterfallVisualizer

@@ -45,7 +45,7 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
               ▼
    ┌─────────────────────┐
    │ httptap process     │   trusted
-   │ (Python 3.10+)      │
+   │ (Python 3.11+)      │
    └──────────┬──────────┘
               │  TLS/HTTP  ◄─── untrusted: network, proxy, remote host
               ▼

@@ -8,7 +8,7 @@ description: Install httptap with uvx, Homebrew, PyPI, a container, or from sour
 
 Before installing httptap, ensure you have:
 
-- **Python 3.10-3.15** (CPython recommended)
+- **Python 3.11-3.15** (CPython recommended)
 - **pip** or **uv** package manager
 - **macOS, Linux, or Windows** operating system
 

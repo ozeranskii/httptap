@@ -45,7 +45,7 @@ httptap はコマンドラインの診断ツールです。開発者は単一の
               ▼
    ┌─────────────────────┐
    │ httptap process     │   trusted
-   │ (Python 3.10+)      │
+   │ (Python 3.11+)      │
    └──────────┬──────────┘
               │  TLS/HTTP  ◄─── untrusted: network, proxy, remote host
               ▼

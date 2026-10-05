@@ -14,7 +14,7 @@ httptap へのコントリビュートを歓迎します！このガイドは始
 
 ### 前提条件
 
-- Python 3.10 以上（CPython）
+- Python 3.11 以上（CPython）
 - [uv](https://github.com/astral-sh/uv) パッケージマネージャー
 - Git
 

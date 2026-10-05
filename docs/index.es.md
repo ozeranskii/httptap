@@ -122,7 +122,7 @@ Sigue las redirecciones HTTP y consulta el desglose de la temporización de cada
 
 ## Requisitos
 
-- Python 3.10-3.15
+- Python 3.11-3.15
 - macOS, Linux o Windows
 - Sin dependencies del sistema más allá de la red estándar
 

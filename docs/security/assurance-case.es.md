@@ -55,7 +55,7 @@ Cada una se asigna a arguments de apoyo en las secciones siguientes.
               ▼
    ┌─────────────────────┐
    │ httptap process     │   trusted
-   │ (Python 3.10+)      │
+   │ (Python 3.11+)      │
    └──────────┬──────────┘
               │  TLS/HTTP  ◄─── untrusted: network, proxy, remote host
               ▼

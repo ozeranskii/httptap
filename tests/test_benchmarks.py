@@ -8,7 +8,7 @@ performance over time.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 import pytest
@@ -217,7 +217,7 @@ def test_bench_validate_url_invalid(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="utils")
 def test_bench_calculate_days_until(benchmark: BenchmarkFixture) -> None:
-    target = datetime.now(timezone.utc) + timedelta(days=120)
+    target = datetime.now(UTC) + timedelta(days=120)
     benchmark(calculate_days_until, target)
 
 
