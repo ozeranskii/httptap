@@ -764,13 +764,15 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         # proxy is set. A direct socket probe would bypass the proxy and could
         # reach a different backend, so it must never run while a proxy is used.
         if is_https and network_info.tls_version is None and effective_proxy_url is None:
-            try:
-                _merge_tls_info(
-                    network_info, tls_inspector.inspect(wire_host, port, remaining_timeout(request_deadline))
-                )
-            except TLSInspectionError:
-                # TLS inspection is non-fatal, but it must not hide a spent budget.
-                remaining_timeout(request_deadline)
+            # The probe is optional metadata: with no budget left it is skipped
+            # rather than turning a completed response into a timeout.
+            probe_timeout = request_deadline - time.monotonic()
+            if probe_timeout > 0:
+                with suppress(TLSInspectionError):
+                    _merge_tls_info(
+                        network_info,
+                        _probe_tls(tls_inspector, wire_host, port, probe_timeout, connect_host=network_info.ip),
+                    )
 
     except httpx.TimeoutException as exc:
         if time.monotonic() >= request_deadline:
@@ -801,6 +803,25 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         raise
 
     return timing, network_info, response_info
+
+
+def _probe_tls(
+    tls_inspector: TLSInspector,
+    host: str,
+    port: int,
+    timeout: float,
+    *,
+    connect_host: str | None,
+) -> NetworkInfo:
+    """Run the fallback TLS probe against the address the request used.
+
+    The built-in inspector can dial ``connect_host`` while keeping ``host`` for
+    SNI, so ``--resolve``, ``-4``/``-6`` and injected resolvers are honoured.
+    Custom inspectors keep the plain ``TLSInspector`` protocol.
+    """
+    if isinstance(tls_inspector, SocketTLSInspector) and connect_host:
+        return tls_inspector.inspect(host, port, timeout, connect_host=connect_host)
+    return tls_inspector.inspect(host, port, timeout)
 
 
 def _merge_tls_info(network_info: NetworkInfo, tls_info: NetworkInfo) -> None:
