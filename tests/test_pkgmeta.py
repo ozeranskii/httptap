@@ -20,6 +20,10 @@ class _DummyMetadata:
     def get(self, key: str, default: object = None) -> object:
         return self._data.get(key, default)
 
+    def get_all(self, name: str, failobj: object = None) -> object:
+        value = self._data.get(name, failobj)
+        return value if isinstance(value, list) or value is failobj else [value]
+
 
 @pytest.fixture(autouse=True)
 def clear_pkgmeta_cache() -> Iterator[None]:
@@ -102,5 +106,35 @@ def test_get_package_info_returns_defaults_when_package_missing(
 
     assert info.version == "0.0.0"
     assert info.author == "Sergei Ozeranskii"
+    assert info.homepage == "https://github.com/ozeranskii/httptap"
+    assert info.license == "Apache-2.0"
+
+
+def _install_metadata(monkeypatch: pytest.MonkeyPatch, values: dict[str, object]) -> None:
+    monkeypatch.setattr(importlib_metadata, "version", lambda _: "1.2.3")
+    monkeypatch.setattr(importlib_metadata, "metadata", lambda _: _DummyMetadata(values))
+
+
+def test_get_package_info_reads_core_metadata_2_4(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install_metadata(
+        monkeypatch,
+        {
+            "Author": "Example Author",
+            "License-Expression": "MIT",
+            "Project-URL": ["Documentation, https://docs.example.test", "Homepage, https://example.test"],
+        },
+    )
+
+    info = _pkgmeta.get_package_info()
+
+    assert info.license == "MIT"
+    assert info.homepage == "https://example.test"
+
+
+def test_get_package_info_falls_back_without_homepage_project_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install_metadata(monkeypatch, {"Project-URL": ["Issues, https://example.test/issues"]})
+
+    info = _pkgmeta.get_package_info()
+
     assert info.homepage == "https://github.com/ozeranskii/httptap"
     assert info.license == "Apache-2.0"
