@@ -61,6 +61,16 @@ La opción explícita `-x/--proxy` siempre prevalece sobre las variables de ento
 3. Que el host de destino no coincide con `NO_PROXY`. Comprueba el campo `proxy_source`
    en la exportación JSON; si indica `NO_PROXY`, tu host está excluido.
 
+### `Invalid proxy URL`
+
+Un valor de `-x/--proxy` mal formado (un esquema no admitido, falta el host, un
+puerto no válido o fuera de rango, un literal IPv6 sin cerrar) se rechaza con
+la salida `64` antes de realizar ninguna solicitud. El mismo problema en
+`HTTP_PROXY`, `HTTPS_PROXY` o `ALL_PROXY` hace fallar la solicitud con un error
+de red (salida `75`) que nombra la variable. Ambos errores muestran la URL con
+la contraseña enmascarada. Un valor sin esquema, como `proxy.local:3128`, es
+válido y se trata como `http://`.
+
 ### Referencia de patrones de `NO_PROXY`
 
 - Host y sus subdominios: `api.internal.example` (también coincide con
@@ -108,6 +118,14 @@ tu servidor DNS; las solicitudes posteriores dan en la caché (a menudo por deba
 Para omitir las cachés, proporciona un resolutor personalizado a través de la API de Python o vacía la
 caché local (p. ej., `sudo dscacheutil -flushcache` en macOS, `resolvectl flush-caches`
 en systemd).
+
+### `connect_ms` es mucho mayor que el tiempo de ida y vuelta
+
+Cuando un host se resuelve en varias direcciones, httptap las prueba en orden y
+pasa a la siguiente cuando falla una conexión. El tiempo dedicado a los intentos
+fallidos se incluye en `connect_ms` y `total_ms`, como hace `time_connect` de
+curl, mientras que `ip` muestra la dirección que respondió. Usa `--resolve` para
+medir una sola dirección.
 
 ### Cada paso de redirección muestra `connect_ms` y `tls_ms` completos
 

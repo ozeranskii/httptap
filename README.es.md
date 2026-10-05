@@ -368,6 +368,9 @@ httptap \
   https://httpbin.io/bearer
 ```
 
+Los nombres de cabecera deben ser tokens HTTP y los valores ASCII imprimible (se admiten espacios y tabuladores). Todo lo
+demás, como CR/LF o texto no ASCII, se rechaza con el código de salida `64` antes de realizar ninguna solicitud.
+
 ### Redirecciones y exportación a JSON
 
 Sigue las cadenas de redirección y vuelca las métricas a JSON:
@@ -375,6 +378,10 @@ Sigue las cadenas de redirección y vuelca las métricas a JSON:
 ```shell
 httptap --follow --json out/report.json https://httpbin.io/redirect/2
 ```
+
+Una redirección a una URL que no se puede solicitar (puerto no válido, falta el host, esquema no HTTP) termina la cadena
+con un paso fallido, `Invalid redirect target: …`, y el código de salida `75`. Las credenciales de las URL `Location` se
+enmascaran en la salida y en la exportación JSON.
 
 ### Modos de salida
 
@@ -436,7 +443,9 @@ httptap --proxy "" https://httpbin.io/get
 
 La salida y la exportación a JSON incluyen el URI del proxy y su origen para que
 puedas confirmar qué ruta se usó (p. ej., `(from arg --proxy)`,
-`(from env HTTPS_PROXY)`, `(bypassed by env no_proxy)`).
+`(from env HTTPS_PROXY)`, `(bypassed by env no_proxy)`). Las credenciales del proxy
+se enmascaran (`http://user:****@proxy:3128`). Un valor de `--proxy` mal formado se
+rechaza con el código de salida `64`.
 
 ---
 
@@ -505,6 +514,9 @@ exportación a JSON. Las variables de color no tienen equivalente en la CLI.
 > (desactiva el entorno) → exclusión `NO_PROXY` (conexión directa) → la variable que
 > coincide con el esquema de la URL (`HTTPS_PROXY` o `HTTP_PROXY`) → `ALL_PROXY` →
 > conexión directa. Las variables en minúsculas tienen prioridad sobre las mayúsculas.
+> Una variable de proxy sin esquema (`proxy.local:3128`) se trata como
+> `http://`; una que no es una URL de proxy válida hace fallar la solicitud con
+> un error de red (código de salida `75`).
 
 ---
 

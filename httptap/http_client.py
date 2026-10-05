@@ -4,8 +4,9 @@ This module provides an HTTP client that captures precise timing information
 for each phase of the request: DNS resolution, TCP connection, TLS handshake,
 time to first byte, and body transfer.
 
-The timing collection uses httpx's event hooks and low-level trace callbacks
-to capture accurate measurements at each phase boundary. When precise timing
+The timing collection uses httpcore trace callbacks (passed through the httpx
+``trace`` request extension) to capture accurate measurements at each phase
+boundary. When precise timing
 is unavailable (e.g., connection pooling or HTTP/2 multiplexing), the module
 falls back to estimated timing based on heuristics.
 
@@ -18,15 +19,17 @@ Key Features:
 
 Implementation Notes:
     The module uses a two-stage approach for timing:
-    1. Primary: httpx EventHooks for precise low-level events
-    2. Fallback: Estimation using fixed ratios when hooks unavailable
+    1. Primary: httpcore trace events for precise low-level timings
+    2. Fallback: Estimation using fixed ratios when trace data is unavailable
 
     For HTTPS, when precise connect/TLS timing is unavailable, we estimate
     from the time between DNS completion and TTFB (the connection phase):
     - TCP Connect: 30% of connection_phase_time
     - TLS Handshake: 70% of connection_phase_time
 
-    Where connection_phase_time = TTFB_total - DNS_time
+    Where connection_phase_time = TTFB_total - DNS_time - failed_attempts_time
+    (time spent on resolved addresses that failed before the one that answered,
+    which is counted as connect time).
 
     These ratios (30%/70%) are conservative estimates based on typical
     network conditions where TLS handshake dominates connection time.
@@ -678,17 +681,20 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     It handles:
     - Manual DNS resolution with timing
     - HTTP/1.1 and HTTP/2 support
-    - Precise timing collection via httpx traces
+    - Precise timing collection via httpcore trace events
+    - Fallback across resolved addresses
     - TLS certificate inspection (from the live connection)
     - Response header and body parsing
 
     Args:
         url: Target URL to request. Must be valid HTTP/HTTPS URL with scheme.
-        timeout: Maximum time to wait for complete response in seconds.
-            Applies to the entire request including DNS, connection, and transfer.
+        timeout: Total time budget for the request in seconds, covering DNS,
+            connection and transfer. Only used when ``deadline`` is not given.
         deadline: Optional ``time.monotonic()`` deadline shared by a redirect
-            chain. Defaults to ``timeout`` seconds from now; every phase (DNS,
-            connect, body transfer, TLS probe) is bounded by it.
+            chain. Defaults to ``timeout`` seconds from now. Every phase (DNS,
+            connect, body transfer, TLS probe) is bounded by it, and a watchdog
+            shuts the connection down when it passes, so a server that stalls
+            or trickles the response cannot keep the request alive.
         method: HTTP method to use (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS).
             Defaults to GET.
         content: Optional request body as bytes. Typically used with POST, PUT, PATCH.
@@ -700,6 +706,8 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         ca_bundle_path: Path to custom CA certificate bundle (PEM format).
             Only used when verify_ssl is True. If None, uses system CA bundle.
         proxy: Optional proxy URL or mapping (supports http/https/socks5/socks5h).
+            Proxy URLs taken from the environment without a scheme are treated
+            as ``http://``.
         noproxy: When True, ignore proxy environment variables and connect
             directly. Triggered by --proxy "".
         dns_resolver: Custom DNS resolver implementation.
@@ -708,8 +716,8 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             fallback probe (see Notes). Defaults to SocketTLSInspector.
         timing_collector: Custom timing collector implementation.
             Defaults to PerfCounterTimingCollector.
-        force_new_connection: Deprecated and ignored. A fresh ``httpx.Client``
-            (and therefore a fresh connection) is created for every request, so
+        force_new_connection: Deprecated and ignored. A fresh transport (and
+            therefore a fresh connection) is created for every request, so
             connection pooling is never used. Accepted only for backward
             compatibility; passing a value emits a ``DeprecationWarning``.
         headers: Optional HTTP headers applied to the request. User-supplied
@@ -722,9 +730,11 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             - response_info: Status, headers, body size, parsed date.
 
     Raises:
-        HTTPClientError: If request fails at any phase (DNS, connect,
-            TLS handshake, timeout, or HTTP error). The exception message
-            contains details about the failure.
+        HTTPClientError: If the URL or the effective proxy URL is invalid, the
+            transport cannot be set up, or the request fails at any phase (DNS,
+            connect, TLS handshake, timeout or total deadline). The exception
+            message contains details about the failure. HTTP error statuses
+            (4xx/5xx) are returned in ``response_info``, not raised.
 
     Examples:
         Basic request:
@@ -750,7 +760,22 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         to capture accurate DNS timing, then connects to the resolved address
         while keeping the original hostname for SNI and the Host header. With
         a remote-DNS proxy (``http``, ``https``, ``socks5h``) local resolution
-        is skipped and the proxy resolves the hostname.
+        is skipped and the proxy resolves the hostname. Internationalized names
+        are resolved in their IDNA 2008 A-label form, the same name sent in the
+        Host header and SNI.
+
+        When the resolver returns several addresses (via ``resolve_all``), they
+        are tried in order; a connection failure or timeout moves on to the
+        next one, and with a local-DNS ``socks5`` proxy so does the proxy's
+        refusal to connect to that address. TLS errors and failures of the
+        proxy itself are not retried. Time spent on the failed attempts is part
+        of ``connect_ms`` and ``total_ms``, as with curl's ``time_connect``.
+
+        The request is built with the client and sent on the transport
+        directly, so no redirect is prepared or followed: a 3xx response is
+        returned as received, even when its ``Location`` cannot be parsed.
+        Credentials in the URL are sent as a Basic ``Authorization`` header
+        unless ``headers`` already contains one.
 
         For HTTPS requests, TLS version, cipher and certificate details are read
         from the live connection that served the response. Only when that
@@ -761,9 +786,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         collects the certificate details for the error report; it never uses
         a custom ``tls_inspector``.
 
-        By default a new connection is used for every request: httptap creates
-        a short-lived ``httpx.Client`` per call, so connection pooling never
-        applies and connect/TLS timing is always fresh.
+        A new connection is used for every request: httptap creates a
+        short-lived ``httpx.HTTPTransport`` per call, so connection pooling
+        never applies and connect/TLS timing is always fresh.
 
     """
     if force_new_connection is not None:

@@ -206,6 +206,8 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
 
 以 `_ms` 结尾的计时值单位为毫秒。请求和响应体大小的单位为字节。响应大小（`bytes`、`final_bytes`）统计的是线路上实际接收到的响应体，即 `Content-Encoding` 解码之前的大小，与 curl 的 `size_download` 一致。证书和响应中的日期在可用时为 ISO 8601/RFC 3339 时间戳。嵌套的 `steps` 和 `summary` 结构请参见上面的示例。
 
+凭证会被遮蔽：步骤的 `url`、`response.location`、`Location` 和 `Content-Location` 响应头以及 `network.proxy_url` 中 userinfo 部分的密码（或单独的令牌）会被替换为 `****`，`Authorization`、`Set-Cookie` 等敏感请求头也会被遮蔽。
+
 使用了 `--cacert` 时 `network.tls_custom_ca` 为 `true`，否则为 `false`。当 `--follow` 在某个步骤上因达到 10 次重定向上限而停止时，该步骤的`redirect_limit_reached` 为 `true`；这样的步骤也会计入 `summary.errors`。
 
 ### 特性

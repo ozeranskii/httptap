@@ -174,6 +174,10 @@ httptap supports four proxy protocols, each with different DNS resolution behavi
 
 The `h` suffix in `socks5h` stands for "hostname" (a curl convention). With `socks5h://`, the hostname is sent to the proxy which resolves it. With `socks5://`, the client resolves DNS locally and sends the IP to the proxy.
 
+With `socks5://`, when the host resolves to several addresses and the proxy reports that it cannot connect to one of
+them, httptap tries the next address. Failures to reach or authenticate with the proxy itself are not retried, since
+they would repeat for every address. IPv6 literal targets (`https://[2001:db8::1]/`) work with every proxy type.
+
 ### Environment Variable Proxies
 
 When no `--proxy` flag is provided, httptap checks environment variables:
@@ -184,6 +188,10 @@ When no `--proxy` flag is provided, httptap checks environment variables:
 4. `all_proxy` / `ALL_PROXY` - Fallback proxy for all protocols
 
 The `--proxy` flag always takes precedence over environment variables.
+
+A variable without a scheme (`proxy.internal:3128`) is treated as an `http://` proxy, as curl does. If the selected
+variable does not hold a valid proxy URL (an unsupported scheme, a missing host, an invalid port), the request fails
+with a network error (exit code `75`) that names the variable and shows the URL with its password masked.
 
 **NO_PROXY patterns:**
 

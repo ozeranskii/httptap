@@ -51,6 +51,9 @@ httptap --data '{"name": "John", "email": "john@example.com"}' https://httpbin.i
 httptap --data @payload.json https://httpbin.io/post
 ```
 
+Inline data is sent as the exact bytes of the argument, like curl; on POSIX systems this includes arguments that are not
+valid UTF-8.
+
 **Auto-detection:**
 - Content-Type is automatically detected (JSON, XML, plain text)
 - File extension is checked first (.json, .xml, .txt)
@@ -86,6 +89,11 @@ httptap \
   https://httpbin.io/bearer
 ```
 
+Header names must be HTTP tokens (letters, digits and `` !#$%&'*+-.^_`|~ ``), and values may contain only printable
+ASCII characters, spaces and tabs. A header that breaks these rules, such as a name with a space, a value with CR, LF or
+another control character, or a non-ASCII value (httpx sends header values as ASCII), is rejected with exit code `64`
+before any request is made. The error names the header but never prints its value.
+
 #### `-L, --location, --follow`
 
 Follow HTTP redirects and show timing for each step in the chain (max 10 redirects).
@@ -106,9 +114,21 @@ When following redirects, httptap applies the same rules as curl and browsers:
 - `Authorization`, `Cookie` and `Proxy-Authorization` headers are sent only to the original origin (scheme, host and port). Once a redirect points to a different origin, they are dropped for the rest of the chain; an `http` → `https` upgrade on the same host with default ports (80 → 443) keeps them.
 - `303 See Other`, and `301`/`302` after a `POST`, switch the next request to `GET` without a body. `307` and `308` keep the method and body.
 
+If the `Location` of a redirect cannot be requested (an invalid or out-of-range port, a missing host, a scheme other than
+`http`/`https`, a malformed IPv6 literal), the `3xx` step is kept and the chain ends with a failed step for that target
+with the error `Invalid redirect target: …`, and httptap exits with code `75`. Without `--follow`, the `3xx` response is
+reported as received, whatever its `Location`.
+
+Credentials in a `Location` URL (`https://user:password@host/`) are masked in the output and JSON export
+(`https://user:****@host/`), but the real URL is followed.
+
 #### `-m, --max-time, --timeout SECONDS`
 
 Abort the request chain if total elapsed time exceeds the specified number of seconds.
+
+The limit is a hard deadline for the whole chain, redirects included: DNS, connecting, waiting for the response and
+reading the body all share it, and a server that stalls or keeps trickling bytes is cut off when it passes. The step
+then fails with `Request timeout: total deadline exceeded` and httptap exits with code `75`.
 
 *Curl-compatible aliases:* `-m`, `--max-time`.
 
@@ -154,6 +174,10 @@ httptap --resolve api.example.com:443:203.0.113.10 https://api.example.com/healt
 httptap --resolve api.example.com:443:[2001:db8::10] https://api.example.com/health
 ```
 
+Internationalized hostnames match in either form: an entry for `bücher.example` also applies to
+`https://xn--bcher-kva.example/`, and the other way round. httptap resolves such names in their IDNA 2008 form
+(`xn--…`), the same name it sends in the `Host` header and TLS SNI.
+
 `--resolve` applies to direct connections and local-DNS SOCKS5 proxies. HTTP,
 HTTPS, and SOCKS5H proxies resolve the target remotely, so combining them with
 `--resolve` is rejected, the same as for `-4`/`-6`.
@@ -194,6 +218,10 @@ httptap --proxy "" https://httpbin.io/get
 The `--proxy` flag takes precedence over environment variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`). Use `--proxy ""` to ignore all proxy environment variables and connect directly. See [Advanced Features](advanced.md#using-proxies) for details on proxy protocols, DNS resolution, and environment variable configuration.
 
 Credentials in the proxy URL (`http://user:password@proxy:3128`), including ones taken from environment variables, are used for the connection but masked in the output and JSON export (`http://user:****@proxy:3128`).
+
+A proxy given without a scheme (`proxy.local:3128`) is treated as `http://`, as in curl. A malformed proxy URL (an
+unsupported scheme, a missing host, an invalid or out-of-range port, an unterminated IPv6 literal) is rejected with exit
+code `64` before any request is made; the error shows the URL with its password masked.
 
 #### `--cacert, --ca-bundle PATH`
 
@@ -387,7 +415,7 @@ The default rich output displays a waterfall table with:
 ### Timing Breakdown
 
 - **DNS (ms)** - Time to resolve domain to IP address
-- **Connect (ms)** - Time to establish TCP connection; through an HTTP CONNECT proxy it also covers the CONNECT round-trip, so the tunnel setup is not counted as server wait
+- **Connect (ms)** - Time to establish TCP connection; through an HTTP CONNECT proxy it also covers the CONNECT round-trip, so the tunnel setup is not counted as server wait. When the host has several addresses and the first ones fail, the time spent on them is also counted here and in Total (like curl's `time_connect`)
 - **TLS (ms)** - Time for TLS handshake (HTTPS only)
 - **TTFB (ms)** - Time to first byte (includes server processing)
 - **Transfer (ms)** - Time to download response body

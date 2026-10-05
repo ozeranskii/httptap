@@ -378,6 +378,8 @@ httptap \
   https://httpbin.io/bearer
 ```
 
+ヘッダー名は HTTP トークン、値は印字可能な ASCII（スペースとタブは可）でなければなりません。CR/LF や非 ASCII テキストなど、それ以外のものはリクエストを送信する前に終了コード `64` で拒否されます。
+
 ### リダイレクトと JSON エクスポート
 
 リダイレクトチェーンを追跡し、メトリクスを JSON にダンプします：
@@ -385,6 +387,8 @@ httptap \
 ```shell
 httptap --follow --json out/report.json https://httpbin.io/redirect/2
 ```
+
+リクエストできない URL（無効なポート、ホストの欠落、HTTP 以外のスキーム）へのリダイレクトは、失敗ステップ `Invalid redirect target: …` と終了コード `75` でチェーンを終了します。`Location` URL の認証情報は出力と JSON エクスポートでマスクされます。
 
 ### 出力モード
 
@@ -449,7 +453,7 @@ httptap --proxy "" https://httpbin.io/get
 ```
 
 出力と JSON エクスポートにはプロキシ URI とその送信元が含まれるため、どの経路が使用されたかを確認できます
-（例：`(from arg --proxy)`、`(from env HTTPS_PROXY)`、`(bypassed by env no_proxy)`）。
+（例：`(from arg --proxy)`、`(from env HTTPS_PROXY)`、`(bypassed by env no_proxy)`）。プロキシの認証情報はマスクされます（`http://user:****@proxy:3128`）。不正な `--proxy` の値は終了コード `64` で拒否されます。
 
 ---
 
@@ -513,6 +517,8 @@ httptap は実行時に次の環境変数を読み取ります。プロキシ関
 > プロキシ設定の優先順位：明示的な `-x/--proxy` または `--proxy ""`（環境変数を無効化）→
 > `NO_PROXY` による除外（直接接続）→ URL スキームに一致する変数（`HTTPS_PROXY` または `HTTP_PROXY`）→
 > `ALL_PROXY` → 直接接続。小文字の変数は大文字の変数より優先されます。
+> スキームのないプロキシ変数（`proxy.local:3128`）は `http://` として扱われます。
+> 有効なプロキシ URL でない場合、リクエストはネットワークエラー（終了コード `75`）で失敗します。
 
 ---
 

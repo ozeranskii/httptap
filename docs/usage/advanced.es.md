@@ -173,6 +173,8 @@ httptap admite cuatro protocolos de proxy, cada uno con un comportamiento de res
 
 El sufijo `h` en `socks5h` significa "hostname" (una convención de curl). Con `socks5h://`, el nombre de host se envía al proxy, que lo resuelve. Con `socks5://`, el cliente resuelve el DNS localmente y envía la IP al proxy.
 
+Con `socks5://`, cuando el host se resuelve en varias direcciones y el proxy informa de que no puede conectarse a una de ellas, httptap prueba la siguiente dirección. Los fallos al alcanzar el propio proxy o al autenticarse en él no se reintentan, ya que se repetirían para cada dirección. Los destinos con un literal IPv6 (`https://[2001:db8::1]/`) funcionan con todos los tipos de proxy.
+
 ### Proxies por variables de entorno
 
 Cuando no se proporciona el flag `--proxy`, httptap comprueba las variables de entorno:
@@ -183,6 +185,8 @@ Cuando no se proporciona el flag `--proxy`, httptap comprueba las variables de e
 4. `all_proxy` / `ALL_PROXY` - Proxy alternativo para todos los protocolos
 
 El flag `--proxy` siempre tiene prioridad sobre las variables de entorno.
+
+Una variable sin esquema (`proxy.internal:3128`) se trata como un proxy `http://`, igual que en curl. Si la variable seleccionada no contiene una URL de proxy válida (un esquema no admitido, falta el host, un puerto no válido), la solicitud falla con un error de red (código de salida `75`) que nombra la variable y muestra la URL con la contraseña enmascarada.
 
 **Patrones de NO_PROXY:**
 

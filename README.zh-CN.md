@@ -355,6 +355,8 @@ httptap \
   https://httpbin.io/bearer
 ```
 
+请求头名称必须是 HTTP token，值必须是可打印 ASCII（允许空格和制表符）。其他内容（如 CR/LF 或非 ASCII 文本）会在发出任何请求之前以退出码 `64` 被拒绝。
+
 ### 重定向与 JSON 导出
 
 跟随重定向链并将指标导出为 JSON：
@@ -362,6 +364,8 @@ httptap \
 ```shell
 httptap --follow --json out/report.json https://httpbin.io/redirect/2
 ```
+
+重定向到无法请求的 URL（端口无效、缺少主机、非 HTTP 协议）时，重定向链以失败步骤 `Invalid redirect target: …` 结束，退出码为 `75`。`Location` URL 中的凭证在输出和 JSON 导出中会被遮蔽。
 
 ### 输出模式
 
@@ -417,7 +421,7 @@ httptap --proxy "" https://httpbin.io/get
 ```
 
 输出与 JSON 导出会包含代理 URI 及其来源，以便你确认实际使用的路径（例如 `(from arg --proxy)`、
-`(from env HTTPS_PROXY)`、`(bypassed by env no_proxy)`）。
+`(from env HTTPS_PROXY)`、`(bypassed by env no_proxy)`）。代理凭证会被遮蔽（`http://user:****@proxy:3128`）。格式错误的 `--proxy` 值会以退出码 `64` 被拒绝。
 
 ---
 
@@ -474,6 +478,7 @@ httptap 在运行时会读取以下环境变量。代理相关变量可通过 `-
 > 代理配置的优先级：显式 `-x/--proxy` 或 `--proxy ""`（禁用环境变量） →
 > `NO_PROXY` 排除（直连） → 与 URL 协议匹配的变量（`HTTPS_PROXY` 或 `HTTP_PROXY`） →
 > `ALL_PROXY` → 直连。小写变量优先于大写变量。
+> 不带协议的代理变量（`proxy.local:3128`）会被视为 `http://`；不是有效代理 URL 的变量会使请求以网络错误（退出码 `75`）失败。
 
 ---
 

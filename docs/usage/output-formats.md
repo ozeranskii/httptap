@@ -219,6 +219,11 @@ are bytes. Response sizes (`bytes`, `final_bytes`) count the body as received on
 the wire, before `Content-Encoding` decoding, like curl's `size_download`. Certificate and response dates are ISO 8601/RFC 3339 timestamps when
 available. See the example above for the nested `steps` and `summary` structure.
 
+Credentials are masked: the password (or a bare token) in the userinfo of step `url`s,
+`response.location`, the `Location` and `Content-Location` headers, and
+`network.proxy_url` is replaced with `****`, and sensitive headers such as
+`Authorization` and `Set-Cookie` are masked as well.
+
 `network.tls_custom_ca` is `true` when `--cacert` was used and `false` otherwise. A step's
 `redirect_limit_reached` is `true` when `--follow` stopped at the 10-redirect
 limit on that step; such a step also counts toward `summary.errors`.

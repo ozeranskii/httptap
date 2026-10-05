@@ -51,6 +51,8 @@ httptap --data '{"name": "John", "email": "john@example.com"}' https://httpbin.i
 httptap --data @payload.json https://httpbin.io/post
 ```
 
+Los datos en línea se envían con los bytes exactos del argumento, como en curl; en sistemas POSIX esto incluye argumentos que no son UTF-8 válido.
+
 **Detección automática:**
 - El Content-Type se detecta automáticamente (JSON, XML, texto plano)
 - Primero se comprueba la extensión del archivo (.json, .xml, .txt)
@@ -86,6 +88,8 @@ httptap \
   https://httpbin.io/bearer
 ```
 
+Los nombres de cabecera deben ser tokens HTTP (letras, dígitos y `` !#$%&'*+-.^_`|~ ``) y los valores solo pueden contener caracteres ASCII imprimibles, espacios y tabuladores. Una cabecera que incumpla estas reglas, como un nombre con un espacio, un valor con CR, LF u otro carácter de control, o un valor no ASCII (httpx envía los valores de las cabeceras como ASCII), se rechaza con el código de salida `64` antes de realizar ninguna solicitud. El error indica la cabecera, pero nunca muestra su valor.
+
 #### `-L, --location, --follow`
 
 Sigue las redirecciones HTTP y muestra la temporización de cada paso de la cadena (máximo 10 redirecciones).
@@ -106,9 +110,15 @@ Al seguir redirecciones, httptap aplica las mismas reglas que curl y los navegad
 - Las cabeceras `Authorization`, `Cookie` y `Proxy-Authorization` solo se envían al origen original (esquema, host y puerto). En cuanto una redirección apunta a otro origen, se descartan para el resto de la cadena; una actualización de `http` a `https` en el mismo host con los puertos por defecto (80 → 443) las conserva.
 - `303 See Other`, y `301`/`302` tras un `POST`, cambian la siguiente solicitud a `GET` sin cuerpo. `307` y `308` conservan el método y el cuerpo.
 
+Si el `Location` de una redirección no se puede solicitar (un puerto no válido o fuera de rango, falta el host, un esquema distinto de `http`/`https`, un literal IPv6 mal formado), se conserva el paso `3xx` y la cadena termina con un paso fallido para ese destino con el error `Invalid redirect target: …`, y httptap sale con el código `75`. Sin `--follow`, la respuesta `3xx` se muestra tal como se recibió, sea cual sea su `Location`.
+
+Las credenciales de una URL `Location` (`https://user:password@host/`) se enmascaran en la salida y en la exportación JSON (`https://user:****@host/`), pero se sigue la URL real.
+
 #### `-m, --max-time, --timeout SECONDS`
 
 Aborta la cadena de solicitudes si el tiempo total transcurrido supera el número de segundos especificado.
+
+El límite es un plazo estricto para toda la cadena, redirecciones incluidas: la resolución DNS, la conexión, la espera de la respuesta y la lectura del cuerpo lo comparten, y un servidor que se detiene o sigue enviando bytes con cuentagotas se corta cuando vence. El paso falla entonces con `Request timeout: total deadline exceeded` y httptap sale con el código `75`.
 
 *Alias compatibles con curl:* `-m`, `--max-time`.
 
@@ -154,6 +164,8 @@ httptap --resolve api.example.com:443:203.0.113.10 https://api.example.com/healt
 httptap --resolve api.example.com:443:[2001:db8::10] https://api.example.com/health
 ```
 
+Los nombres de host internacionalizados coinciden en cualquiera de sus formas: una entrada para `bücher.example` también se aplica a `https://xn--bcher-kva.example/`, y viceversa. httptap resuelve estos nombres en su forma IDNA 2008 (`xn--…`), el mismo nombre que envía en la cabecera `Host` y en el SNI de TLS.
+
 `--resolve` se aplica a las conexiones directas y a los proxies SOCKS5 con DNS local. Los proxies
 HTTP, HTTPS y SOCKS5H resuelven el destino de forma remota, por lo que combinarlos con
 `--resolve` se rechaza, igual que con `-4`/`-6`.
@@ -194,6 +206,8 @@ httptap --proxy "" https://httpbin.io/get
 El flag `--proxy` tiene prioridad sobre las variables de entorno (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`). Usa `--proxy ""` para ignorar todas las variables de entorno de proxy y conectar directamente. Consulta [Funciones avanzadas](advanced.md#using-proxies) para más detalles sobre los protocolos de proxy, la resolución DNS y la configuración mediante variables de entorno.
 
 Las credenciales de la URL del proxy (`http://user:password@proxy:3128`), incluidas las que proceden de variables de entorno, se usan para la conexión pero se enmascaran en la salida y en la exportación JSON (`http://user:****@proxy:3128`).
+
+Un proxy indicado sin esquema (`proxy.local:3128`) se trata como `http://`, igual que en curl. Una URL de proxy mal formada (un esquema no admitido, falta el host, un puerto no válido o fuera de rango, un literal IPv6 sin cerrar) se rechaza con el código de salida `64` antes de realizar ninguna solicitud; el error muestra la URL con la contraseña enmascarada.
 
 #### `--cacert, --ca-bundle PATH`
 
@@ -387,7 +401,7 @@ La salida rich por defecto muestra una tabla de cascada con:
 ### Desglose de tiempos
 
 - **DNS (ms)** - Tiempo para resolver el dominio a una dirección IP
-- **Connect (ms)** - Tiempo para establecer la conexión TCP; a través de un proxy HTTP CONNECT también incluye el viaje de ida y vuelta de CONNECT, de modo que el establecimiento del túnel no se cuenta como espera del servidor
+- **Connect (ms)** - Tiempo para establecer la conexión TCP; a través de un proxy HTTP CONNECT también incluye el viaje de ida y vuelta de CONNECT, de modo que el establecimiento del túnel no se cuenta como espera del servidor. Cuando el host tiene varias direcciones y las primeras fallan, el tiempo dedicado a ellas también se cuenta aquí y en Total (como `time_connect` de curl)
 - **TLS (ms)** - Tiempo de la negociación TLS (solo HTTPS)
 - **TTFB (ms)** - Tiempo hasta el primer byte (incluye el procesamiento del servidor)
 - **Transfer (ms)** - Tiempo para descargar el cuerpo de la respuesta

@@ -220,6 +220,10 @@ cuerpo tal como se recibe por la red, antes de decodificar `Content-Encoding`, c
 curl. Las fechas del certificado y de la respuesta son marcas de tiempo ISO 8601/RFC 3339 cuando
 están disponibles. Consulta el ejemplo anterior para ver la estructura anidada de `steps` y `summary`.
 
+Las credenciales se enmascaran: la contraseña (o un token suelto) de la parte userinfo de las `url` de los pasos,
+`response.location`, las cabeceras `Location` y `Content-Location`, y `network.proxy_url` se sustituye por `****`, y
+las cabeceras sensibles como `Authorization` y `Set-Cookie` también se enmascaran.
+
 `network.tls_custom_ca` es `true` cuando se usó `--cacert` y `false` en caso contrario. El campo
 `redirect_limit_reached` de un paso es `true` cuando `--follow` se detuvo en el límite de 10
 redirecciones en ese paso; ese paso también cuenta en `summary.errors`.

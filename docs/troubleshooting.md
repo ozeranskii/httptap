@@ -61,6 +61,15 @@ The explicit `-x/--proxy` flag always wins over environment variables. Check:
 3. The target host isn't matched by `NO_PROXY`. Check the `proxy_source` field
    in the JSON export; if it says `NO_PROXY`, your host is excluded.
 
+### `Invalid proxy URL`
+
+A malformed `-x/--proxy` value (an unsupported scheme, a missing host, an invalid
+or out-of-range port, an unterminated IPv6 literal) is rejected with exit `64`
+before any request is made. The same problem in `HTTP_PROXY`, `HTTPS_PROXY` or
+`ALL_PROXY` fails the request with a network error (exit `75`) that names the
+variable. Both errors show the URL with its password masked. A value without a
+scheme, such as `proxy.local:3128`, is valid and treated as `http://`.
+
 ### `NO_PROXY` pattern reference
 
 - Host and its subdomains: `api.internal.example` (also matches
@@ -108,6 +117,14 @@ your DNS server; subsequent requests hit the cache (often sub-millisecond).
 To bypass caches, supply a custom resolver via the Python API or flush the
 local cache (e.g., `sudo dscacheutil -flushcache` on macOS, `resolvectl flush-caches`
 on systemd).
+
+### `connect_ms` is much higher than the round-trip time
+
+When a host resolves to several addresses, httptap tries them in order and moves
+to the next one when a connection fails. The time spent on the failed attempts
+is included in `connect_ms` and `total_ms`, as curl's `time_connect` does, while
+`ip` shows the address that answered. Use `--resolve` to measure a single
+address.
 
 ### Every redirect step shows full `connect_ms` and `tls_ms`
 

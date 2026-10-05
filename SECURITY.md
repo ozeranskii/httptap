@@ -206,8 +206,11 @@ Sensitive headers are automatically masked in terminal output and JSON export
 - `Set-Cookie`
 - `Api-Key`, `X-API-Key`
 
-Credentials in proxy URLs are masked as well (`http://user:****@proxy:3128`),
-while the real credentials are still used for the connection.
+Credentials in URLs are masked as well (`http://user:****@proxy:3128`): in
+the target and proxy URLs, in the `Location` and `Content-Location` response
+headers and the redirect target shown, and in the `--otlp` endpoint when an
+export failure is reported. The real credentials are still used for the
+connection.
 
 ### 2. **Redirect Credential Scoping**
 
@@ -230,9 +233,12 @@ See [GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisor
 
 ### 5. **Input Validation**
 
-- URL validation prevents malformed requests
-- Header validation prevents injection attacks
-- Timeout controls prevent resource exhaustion
+- URL validation prevents malformed requests; proxy URLs (`-x/--proxy`) and
+  redirect targets are checked the same way before they are used
+- Header names must be RFC 9110 tokens and values printable ASCII, so CR/LF
+  and other control characters cannot inject headers (exit code `64`)
+- `-m/--max-time` is a hard deadline for the whole run: a server that stalls
+  or trickles bytes is cut off when it passes
 
 ## Known Security Considerations
 

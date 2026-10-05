@@ -207,6 +207,8 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
 
 `_ms` で終わるタイミング値の単位はミリ秒です。リクエストおよびレスポンスのボディサイズの単位はバイトです。レスポンスサイズ（`bytes`、`final_bytes`）は、curl の `size_download` と同様に、`Content-Encoding` のデコード前にネットワーク上で受信したボディをカウントします。証明書とレスポンスの日付は、利用可能な場合 ISO 8601/RFC 3339 形式のタイムスタンプになります。ネストされた `steps` と `summary` の構造については上記の例を参照してください。
 
+認証情報はマスクされます。ステップの `url`、`response.location`、`Location` および `Content-Location` ヘッダー、`network.proxy_url` の userinfo に含まれるパスワード（または単独のトークン）は `****` に置き換えられ、`Authorization` や `Set-Cookie` などの機密ヘッダーもマスクされます。
+
 `network.tls_custom_ca` は `--cacert` を使用した場合は `true`、それ以外の場合は `false` です。ステップの `redirect_limit_reached` は、そのステップで `--follow` が 10 回のリダイレクト上限に達して停止した場合に `true` になります。そのようなステップは `summary.errors` にもカウントされます。
 
 ### 機能

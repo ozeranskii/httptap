@@ -39,6 +39,10 @@ httptap 仅会在不校验证书的情况下重试一次诊断性 TLS 握手，�
 2. 协议方案与目标匹配——`HTTPS_PROXY` 用于 `https://` URL，`HTTP_PROXY` 用于 `http://`。
 3. 目标主机未被 `NO_PROXY` 匹配。检查 JSON 导出中的 `proxy_source` 字段；如果它显示 `NO_PROXY`，说明你的主机被排除了。
 
+### `Invalid proxy URL`
+
+格式错误的 `-x/--proxy` 值（不支持的协议、缺少主机、端口无效或超出范围、未闭合的 IPv6 字面量）会在发出任何请求之前以退出码 `64` 被拒绝。如果 `HTTP_PROXY`、`HTTPS_PROXY` 或 `ALL_PROXY` 存在同样的问题，请求会以指出该变量的网络错误（退出码 `75`）失败。两种错误显示的 URL 都会遮蔽密码。不带协议的值（如 `proxy.local:3128`）是有效的，会被视为 `http://`。
+
 ### `NO_PROXY` 模式参考
 
 - 主机及其子域名：`api.internal.example`（也匹配 `v1.api.internal.example`）
@@ -72,6 +76,10 @@ httptap 通常从 `httpcore` 的 trace 钩子获取各阶段计时。当这些�
 ### 为什么连续两次运行显示的 `dns_ms` 差异巨大？
 
 系统解析器会缓存条目。第一次请求要支付到你 DNS 服务器的完整 RTT；后续请求则命中缓存（往往是亚毫秒级）。若要绕过缓存，请通过 Python API 提供自定义解析器，或刷新本地缓存（例如 macOS 上的 `sudo dscacheutil -flushcache`，systemd 上的 `resolvectl flush-caches`）。
+
+### `connect_ms` 远高于往返时间
+
+当主机解析出多个地址时，httptap 会按顺序尝试，连接失败时转到下一个地址。失败尝试所花的时间会计入 `connect_ms` 和 `total_ms`（与 curl 的 `time_connect` 相同），而 `ip` 显示的是实际响应的地址。使用 `--resolve` 可以只测量单个地址。
 
 ### 每个重定向步骤都显示完整的 `connect_ms` 和 `tls_ms`
 
