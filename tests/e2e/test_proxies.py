@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import socket
+import sys
 import uuid
 from typing import TYPE_CHECKING
 
@@ -168,6 +169,10 @@ def test_env_proxy(run: RunCommand, servers: Servers, certs: CertSet, var: str, 
     assert step["proxy_from"].lower() == f"env:{var}".lower()
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows environment variable names are case-insensitive; both spellings cannot coexist",
+)
 def test_env_proxy_lowercase_wins(run: RunCommand, servers: Servers) -> None:
     good = servers.proxy_url(servers.proxy)
     bad = f"http://{servers.host}:{servers.dead.port}"
@@ -181,7 +186,8 @@ def test_env_proxy_json_source(run: RunCommand, servers: Servers) -> None:
     res = run(["--json", "-", _named_http(servers)], env={"HTTP_PROXY": proxy}).expect(EXIT_OK)
     net = res.json()["steps"][0]["network"]
     assert net["proxy_url"] == proxy
-    assert "HTTP_PROXY" in (net["proxy_source"] or "")
+    # Windows reports the name in the spelling httptap looked it up with.
+    assert (net["proxy_source"] or "").upper() == "HTTP_PROXY"
 
 
 @pytest.mark.parametrize("no_proxy_value", ["{host}", "*", "other.example,{host}", " {host} , other.example"])
