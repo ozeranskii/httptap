@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from io import StringIO
 from typing import TYPE_CHECKING
 
@@ -11,6 +11,7 @@ from httptap.formatters import format_compact_line, format_metrics_line
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
 from httptap.render import OutputRenderer
 from httptap.slo import SLOResult, SLOViolation
+from httptap.utils import UTC
 from httptap.visualizer import WaterfallVisualizer
 
 if TYPE_CHECKING:
