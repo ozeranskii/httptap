@@ -119,6 +119,22 @@ class HTTPClientError(Exception):
     """
 
 
+_DEADLINE_EXCEEDED = "Request timeout: total deadline exceeded"
+
+
+def remaining_timeout(deadline: float) -> float:
+    """Return the seconds left before a ``time.monotonic()`` deadline.
+
+    Raises:
+        HTTPClientError: If the deadline has already passed.
+
+    """
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise HTTPClientError(_DEADLINE_EXCEEDED)
+    return remaining
+
+
 def _build_timing_metrics(
     timing_collector: TimingCollector,
     *,
@@ -190,8 +206,12 @@ def _populate_response_metadata(
     response_info.headers = sanitize_headers(dict(response.headers))
 
 
-def _consume_response_body(response: httpx.Response) -> int:
-    """Read the encoded response body to completion and return its wire size."""
+def _consume_response_body(response: httpx.Response, deadline: float | None = None) -> int:
+    """Read the encoded response body to completion and return its wire size.
+
+    With ``deadline`` set, every received chunk is checked against it, so a
+    body that keeps trickling in cannot outlive the total request budget.
+    """
     if response.is_stream_consumed:
         # In-memory responses (e.g. mock transports) arrive already read; the
         # raw stream is gone, so the decoded content is the only size left.
@@ -200,6 +220,8 @@ def _consume_response_body(response: httpx.Response) -> int:
     total_bytes = 0
     for chunk in response.iter_raw():
         total_bytes += len(chunk)
+        if deadline is not None:
+            remaining_timeout(deadline)
     return total_bytes
 
 
@@ -420,6 +442,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     url: str,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
     *,
+    deadline: float | None = None,
     method: HTTPMethod = HTTPMethod.GET,
     content: bytes | None = None,
     http2: bool = True,
@@ -450,6 +473,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         url: Target URL to request. Must be valid HTTP/HTTPS URL with scheme.
         timeout: Maximum time to wait for complete response in seconds.
             Applies to the entire request including DNS, connection, and transfer.
+        deadline: Optional ``time.monotonic()`` deadline shared by a redirect
+            chain. Defaults to ``timeout`` seconds from now; every phase (DNS,
+            connect, body transfer, TLS probe) is bounded by it.
         method: HTTP method to use (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS).
             Defaults to GET.
         content: Optional request body as bytes. Typically used with POST, PUT, PATCH.
@@ -541,9 +567,10 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     network_info.tls_verified = verify_ssl
     network_info.tls_custom_ca = bool(ca_bundle_path) if verify_ssl else False
     response_info = ResponseInfo()
-    request_deadline = time.perf_counter() + timeout
+    request_deadline = deadline if deadline is not None else time.monotonic() + timeout
 
     try:
+        remaining_timeout(request_deadline)
         parsed_url = urlsplit(url)
         source_url = httpx.URL(url)
         host = parsed_url.hostname
@@ -589,9 +616,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                 # protocol only requires resolve(), so custom resolvers keep working.
                 resolve_all = getattr(dns_resolver, "resolve_all", None)
                 if callable(resolve_all):
-                    addresses, _dns_ms = resolve_all(host, port, timeout)
+                    addresses, _dns_ms = resolve_all(host, port, remaining_timeout(request_deadline))
                 else:
-                    ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, timeout)
+                    ip, ip_family, _dns_ms = dns_resolver.resolve(host, port, remaining_timeout(request_deadline))
                     addresses = [(ip, ip_family)]
             except DNSResolutionError as e:
                 raise HTTPClientError(str(e)) from e
@@ -628,12 +655,12 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                 stream_kwargs["auth"] = (source_url.username, source_url.password)
 
             for index, (ip, ip_family) in enumerate(addresses):  # pragma: no branch - exits via break or raise
-                remaining_timeout = request_deadline - time.perf_counter()
-                if remaining_timeout <= 0:
+                attempt_timeout = request_deadline - time.monotonic()
+                if attempt_timeout <= 0:
                     msg = "Request timeout exhausted before connection could be established"
                     raise httpx.ConnectTimeout(msg)
                 addresses_left = len(addresses) - index
-                client.timeout = httpx.Timeout(remaining_timeout, connect=remaining_timeout / addresses_left)
+                client.timeout = httpx.Timeout(attempt_timeout, connect=attempt_timeout / addresses_left)
                 request_target = f"[{ip}]" if ip_family == "IPv6" else ip
                 request_url = urlunsplit(
                     (parsed_url.scheme, f"{request_target}:{port}", parsed_url.path, parsed_url.query, "")
@@ -659,7 +686,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                         network_info.http_version = network_info.http_version or _normalize_http_version(
                             response.http_version
                         )
-                        response_info.bytes = _consume_response_body(response)
+                        response_info.bytes = _consume_response_body(response, request_deadline)
                         break
                 except httpx.ConnectError as exc:
                     if _has_tls_error(exc) or index == len(addresses) - 1:
@@ -682,7 +709,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         # reach a different backend, so it must never run while a proxy is used.
         if is_https and network_info.tls_version is None and effective_proxy_url is None:
             try:
-                tls_info = tls_inspector.inspect(host, port, timeout)
+                tls_info = tls_inspector.inspect(host, port, remaining_timeout(request_deadline))
                 # Merge TLS metadata (preserve IP/family already set from DNS).
                 network_info.tls_version = tls_info.tls_version
                 network_info.tls_cipher = tls_info.tls_cipher
@@ -694,10 +721,12 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
                 network_info.cert_not_before = tls_info.cert_not_before
                 network_info.cert_not_after = tls_info.cert_not_after
             except TLSInspectionError:
-                # TLS inspection is non-fatal, continue without it
-                pass
+                # TLS inspection is non-fatal, but it must not hide a spent budget.
+                remaining_timeout(request_deadline)
 
     except httpx.TimeoutException as exc:
+        if time.monotonic() >= request_deadline:
+            raise HTTPClientError(_DEADLINE_EXCEEDED) from exc
         msg = f"Request timeout: {exc}"
         raise HTTPClientError(msg) from exc
     except httpx.RequestError as exc:
