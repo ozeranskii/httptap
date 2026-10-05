@@ -250,6 +250,42 @@ jq '.steps[0].network.cert_days_left' output.json
 jq 'select(.summary.errors > 0)' output.json
 ```
 
+## Prometheus Textfile Export
+
+Write a node_exporter textfile collector report with `--prometheus PATH`:
+
+```bash
+httptap --prometheus /var/lib/node_exporter/httptap.prom https://api.example.com/health
+```
+
+The file is written atomically. Every sample carries a `host` label (hostname
+only) and the redirect-chain `step`, so several probes can share one textfile
+directory. Exported gauges:
+
+| Metric                                  | Extra labels | Meaning                                         |
+| --------------------------------------- | ------------ | ----------------------------------------------- |
+| `httptap_request_success`               |              | `1` if the step completed, `0` on a network/TLS error |
+| `httptap_request_duration_seconds`      | `phase`      | `dns`, `connect`, `tls`, `ttfb`, `wait`, `xfer`, `total` |
+| `httptap_response_status_code`          |              | HTTP status of the step                         |
+| `httptap_response_body_size_bytes`      |              | Response body size on the wire                  |
+| `httptap_last_run_timestamp_seconds`    |              | Unix time the file was written (`host` only)    |
+
+Failed steps export only `httptap_request_success 0`, so an outage never looks
+like a fast response. Paths and query strings are never used as labels.
+
+## OpenTelemetry Export
+
+`--otlp ENDPOINT` sends OTLP/HTTP traces. Install the optional extra first:
+
+```bash
+pip install 'httptap[otel]'
+httptap --otlp http://localhost:4318/v1/traces https://api.example.com/health
+```
+
+Each request step creates an `http.request` span. Its child spans represent
+DNS, connection, TLS, server wait, and transfer phases. The export omits the
+full request URL so query parameters are not sent to the collector.
+
 ## Redirect Chains
 
 When using `--follow`, all output formats include data for each step in the redirect chain.

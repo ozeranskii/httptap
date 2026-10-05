@@ -11,6 +11,7 @@ from httptap._pkgmeta import get_package_info
 from httptap.constants import REDIRECT_LIMIT_NOTE
 from httptap.exporter import JSONExporter
 from httptap.models import NetworkInfo, ResponseInfo, StepMetrics, TimingMetrics
+from httptap.prometheus import PrometheusExporter, _label_value
 from httptap.slo import SLOResult, SLOViolation
 
 PathType = pathlib.Path
@@ -235,3 +236,73 @@ def test_exporter_includes_slo_fail(tmp_path: PathType) -> None:
             "delta_ms": 400.0,
         }
     ]
+
+
+def test_prometheus_exporter_writes_phase_gauges(tmp_path: PathType) -> None:
+    """Prometheus output uses seconds and avoids a URL label."""
+    step = build_step("https://example.test/private?token=secret", 200, 120.5)
+    step.timing.dns_ms = 10.0
+    step.timing.connect_ms = 20.0
+    step.timing.ttfb_ms = 100.0
+    step.timing.calculate_derived()
+    output_path = tmp_path / "metrics" / "httptap.prom"
+
+    PrometheusExporter(Console(record=True)).export([step], str(output_path))
+
+    output = output_path.read_text(encoding="utf-8")
+    assert "# TYPE httptap_request_duration_seconds gauge" in output
+    assert "# TYPE httptap_response_status_code gauge" in output
+    assert 'httptap_request_success{host="example.test",step="1"} 1' in output
+    assert 'httptap_request_duration_seconds{host="example.test",step="1",phase="dns"} 0.01' in output
+    assert 'httptap_response_status_code{host="example.test",step="1"} 200' in output
+    assert 'httptap_last_run_timestamp_seconds{host="example.test"}' in output
+    assert "/private" not in output
+    assert "token" not in output
+
+
+def test_prometheus_failed_step_exports_only_success_gauge() -> None:
+    """A failed request must not look like a fast successful one."""
+    step = build_step("https://down.example.test/", 200, 0.0)
+    step.error = "Request failed: connection refused"
+
+    output = PrometheusExporter._render([step], now=1700000000.0)
+
+    assert 'httptap_request_success{host="down.example.test",step="1"} 0' in output
+    assert "httptap_request_duration_seconds{" not in output
+    assert "httptap_response_status_code{" not in output
+    assert 'httptap_last_run_timestamp_seconds{host="down.example.test"} 1700000000.000' in output
+
+
+def test_prometheus_render_without_steps_has_only_metadata() -> None:
+    output = PrometheusExporter._render([])
+
+    assert "{" not in output
+    assert output.startswith("# HELP httptap_request_success")
+
+
+def test_prometheus_status_omitted_when_unknown() -> None:
+    step = build_step("https://example.test/", 200, 1.0)
+    step.response.status = None
+
+    assert "httptap_response_status_code{" not in PrometheusExporter._render([step], now=0.0)
+
+
+def test_prometheus_label_values_are_escaped() -> None:
+    assert _label_value('a"b\\c\nd') == 'a\\"b\\\\c\\nd'
+
+
+def test_prometheus_write_failure_removes_temporary_file(tmp_path: PathType, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail_replace(_self: PathType, _target: PathType) -> None:
+        message = "read-only target"
+        raise OSError(message)
+
+    monkeypatch.setattr(pathlib.Path, "replace", fail_replace)
+    output_path = tmp_path / "httptap.prom"
+
+    with pytest.raises(OSError, match="read-only target"):
+        PrometheusExporter(Console(record=True)).export(
+            [build_step("https://example.test/", 200, 1.0)],
+            str(output_path),
+        )
+
+    assert list(tmp_path.iterdir()) == []
