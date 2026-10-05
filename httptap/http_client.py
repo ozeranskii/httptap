@@ -792,8 +792,9 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
         if not host:
             msg = "Invalid URL: missing hostname"
             raise HTTPClientError(msg)  # noqa: TRY301
-        # IDNA-2008 A-label form for everything sent on the wire (Host, SNI);
-        # DNS and --resolve keys keep the hostname as the user wrote it.
+        # IDNA 2008 A-label form for DNS, Host and SNI alike: given a Unicode
+        # name, getaddrinfo would apply IDNA 2003, which maps some names
+        # (faß.de -> fass.de) to a different domain than the one in Host/SNI.
         wire_host = source_url.raw_host.decode("ascii")
 
         # Determine effective proxy and DNS resolution strategy.
@@ -832,7 +833,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             # Local DNS: resolve hostname before connecting
             timing_collector.mark_dns_start()
             try:
-                addresses = _resolve_addresses(dns_resolver, host, port, remaining_timeout(request_deadline))
+                addresses = _resolve_addresses(dns_resolver, wire_host, port, remaining_timeout(request_deadline))
             except DNSResolutionError as e:
                 raise HTTPClientError(str(e), network_info=network_info) from e
             finally:

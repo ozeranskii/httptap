@@ -555,10 +555,20 @@ class TestResolveAddresses:
     ("url", "pinned", "expected"),
     [
         ("http://bücher.test:8080/", ("bücher.test", 8080), ("xn--bcher-kva.test:8080", "xn--bcher-kva.test")),
+        (
+            "http://bücher.test:8080/",
+            ("xn--bcher-kva.test", 8080),
+            ("xn--bcher-kva.test:8080", "xn--bcher-kva.test"),
+        ),
+        (
+            "http://xn--bcher-kva.test:8080/",
+            ("Bücher.test", 8080),
+            ("xn--bcher-kva.test:8080", "xn--bcher-kva.test"),
+        ),
         ("http://Example.TEST/", ("example.test", 80), ("example.test", "example.test")),
         ("http://[2001:db8::1]:8080/", ("2001:db8::1", 8080), ("[2001:db8::1]:8080", "2001:db8::1")),
     ],
-    ids=["idn", "ascii", "ipv6"],
+    ids=["idn", "idn-a-label-resolve", "a-label-url-u-label-resolve", "ascii", "ipv6"],
 )
 def test_make_request_sends_wire_form_of_host(
     httpx_mock: pytest_httpx.HTTPXMock,
@@ -566,7 +576,7 @@ def test_make_request_sends_wire_form_of_host(
     pinned: tuple[str, int],
     expected: tuple[str, str],
 ) -> None:
-    """Host and SNI use the IDNA A-label while --resolve keys keep the user's spelling."""
+    """Host and SNI use the IDNA A-label, and --resolve keys match it in either spelling."""
     expected_host, expected_sni = expected
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -584,6 +594,22 @@ def test_make_request_sends_wire_form_of_host(
     )
 
     assert response.status == 200
+
+
+def test_make_request_resolves_the_idna2008_a_label() -> None:
+    """DNS is asked for the same name that Host and SNI carry, not an IDNA 2003 spelling."""
+    resolved: list[str] = []
+
+    class SpyResolver:
+        def resolve(self, host: str, _port: int, _timeout: float) -> tuple[str, str, float]:
+            resolved.append(host)
+            message = "stop after resolution"
+            raise DNSResolutionError(message)
+
+    with pytest.raises(HTTPClientError, match="stop after resolution"):
+        make_request("https://faß.de/", dns_resolver=SpyResolver())
+
+    assert resolved == ["xn--fa-hia.de"]
 
 
 class TestErrorsCarryNetworkInfo:
