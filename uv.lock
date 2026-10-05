@@ -837,7 +837,7 @@ requires-dist = [
     { name = "argcomplete", marker = "extra == 'completion'", specifier = ">=3.7.2" },
     { name = "dnspython", specifier = ">=2.8.0" },
     { name = "httpx", extras = ["http2", "socks"], specifier = ">=0.28.1" },
-    { name = "rich", specifier = ">=15.0.0" },
+    { name = "rich", specifier = ">=14.3.2" },
 ]
 provides-extras = ["completion"]
 
