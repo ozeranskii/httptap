@@ -211,6 +211,8 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
 
 `network.tls_custom_ca` は `--cacert` を使用した場合は `true`、それ以外の場合は `false` です。ステップの `redirect_limit_reached` は、そのステップで `--follow` が 10 回のリダイレクト上限に達して停止した場合に `true` になります。そのようなステップは `summary.errors` にもカウントされます。
 
+`error` を持つステップは、それまでに受信したレスポンスを保持します。失敗の前にステータス行とヘッダーが届いていた場合（たとえばボディが `-m/--max-time` を超えて停止した場合）、`response.status`、`response.headers`、`response.bytes`（それまでに受信したボディのバイト数）が設定されます。ステータス行より前に失敗したステップでは `response.status` は `null` です。終了コードはネットワークエラーのコード（`75`）のままです。
+
 ### 機能
 
 - 全フェーズの**完全なデータエクスポート**

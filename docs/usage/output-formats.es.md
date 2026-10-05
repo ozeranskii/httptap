@@ -228,6 +228,13 @@ las cabeceras sensibles como `Authorization` y `Set-Cookie` también se enmascar
 `redirect_limit_reached` de un paso es `true` cuando `--follow` se detuvo en el límite de 10
 redirecciones en ese paso; ese paso también cuenta en `summary.errors`.
 
+Un paso con `error` conserva la respuesta que ya había recibido: si la línea de
+estado y las cabeceras llegaron antes del fallo (por ejemplo, el cuerpo se
+detuvo más allá de `-m/--max-time`), se rellenan `response.status`,
+`response.headers` y `response.bytes` (los bytes del cuerpo recibidos hasta
+ese momento). Un paso que falló antes de la línea de estado tiene
+`response.status: null`. El código de salida sigue siendo el de error de red (`75`).
+
 ### Características
 
 - **Exportación completa de datos** de todas las fases

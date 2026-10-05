@@ -871,6 +871,34 @@ def test_failed_step_keeps_partial_network_info_and_proxy() -> None:
     assert step.proxied_via == "http://proxy.test:3128"
 
 
+class _StalledBodyExecutor:
+    def execute(self, options: RequestOptions) -> RequestOutcome:
+        del options
+        received = ResponseInfo(
+            status=200,
+            bytes=1,
+            location="http://alice:topsecret@example.test/next",
+            headers={"content-length": "100"},
+        )
+        message = "Request timeout: total deadline exceeded"
+        raise HTTPClientError(message, network_info=NetworkInfo(ip="203.0.113.7"), response_info=received)
+
+
+def test_failed_step_keeps_the_response_received_before_the_failure() -> None:
+    """A body that stalls after the headers still reports the status, headers and bytes received."""
+    analyzer = HTTPTapAnalyzer(request_executor=_StalledBodyExecutor(), follow_redirects=True)
+
+    steps = analyzer.analyze_url("http://example.test/")
+
+    assert len(steps) == 1
+    step = steps[0]
+    assert step.error_kind == "network"
+    assert step.response.status == 200
+    assert step.response.bytes == 1
+    assert step.response.headers == {"content-length": "100"}
+    assert step.response.location == "http://alice:****@example.test/next"
+
+
 def test_failed_step_falls_back_to_configured_proxy() -> None:
     analyzer = HTTPTapAnalyzer(
         request_executor=_FailingExecutor(NetworkInfo()),

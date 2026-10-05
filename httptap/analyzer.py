@@ -383,6 +383,8 @@ class HTTPTapAnalyzer:
             if e.network_info is not None:
                 step.network = e.network_info
                 step.proxied_via = self._proxied_via(e.network_info)
+            if e.response_info is not None:
+                step.response = e.response_info
             step.note = f"Step {step_number}: Request failed"
 
         except Exception as exc:  # noqa: BLE001

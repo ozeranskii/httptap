@@ -210,6 +210,8 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
 
 使用了 `--cacert` 时 `network.tls_custom_ca` 为 `true`，否则为 `false`。当 `--follow` 在某个步骤上因达到 10 次重定向上限而停止时，该步骤的`redirect_limit_reached` 为 `true`；这样的步骤也会计入 `summary.errors`。
 
+带有 `error` 的步骤会保留失败前已收到的响应：如果状态行和响应头在失败前已经到达（例如响应体在 `-m/--max-time` 之后停滞），则会填充 `response.status`、`response.headers` 和 `response.bytes`（此前已收到的响应体字节数）。在状态行之前就失败的步骤，其 `response.status` 为 `null`。退出码仍然是网络错误码（`75`）。
+
 ### 特性
 
 - **所有阶段的完整数据导出**

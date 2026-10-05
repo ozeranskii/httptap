@@ -228,6 +228,13 @@ Credentials are masked: the password (or a bare token) in the userinfo of step `
 `redirect_limit_reached` is `true` when `--follow` stopped at the 10-redirect
 limit on that step; such a step also counts toward `summary.errors`.
 
+A step with an `error` keeps the response it had already received: if the
+status line and headers arrived before the failure (for example, the body
+stalled past `-m/--max-time`), `response.status`, `response.headers` and
+`response.bytes` (the body bytes received so far) are filled in. A step that
+failed before the status line has `response.status: null`. The exit code is
+still the network error code (`75`).
+
 ### Features
 
 - **Complete data export** of all phases
