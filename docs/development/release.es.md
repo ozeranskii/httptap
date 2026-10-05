@@ -63,16 +63,17 @@ El proceso de publicación se activa manualmente mediante GitHub Actions.
    ```
    Genera el registro de cambios a partir de los conventional commits
 
-4. **Commit y etiqueta firmados**
+4. **Commit y etiqueta firmados (solo en local)**
    ```bash
    git commit -S -m "chore: release v0.2.0"
    git tag -s v0.2.0 -m "Release v0.2.0"
-   git push origin HEAD
-   git push origin v0.2.0
+   git bundle create release.bundle "^$GITHUB_SHA" HEAD refs/tags/v0.2.0
    ```
    Firma sin claves de Sigstore mediante [gitsign](https://github.com/sigstore/gitsign):
    se emite un certificado Fulcio de corta duración a través de la identidad OIDC
    del flujo de trabajo, de modo que no se requieren claves GPG de larga duración.
+   Todavía no se envía nada: el commit y la etiqueta pasan a los siguientes jobs
+   como un artefacto de git bundle.
 
 5. **Compilación**
    ```bash
@@ -80,23 +81,33 @@ El proceso de publicación se activa manualmente mediante GitHub Actions.
    uv run pytest  # Full test suite
    uv build  # Create wheel and sdist
    ```
+   Se ejecuta sobre la etiqueta de publicación no enviada procedente del bundle.
 
-6. **Publicación en TestPyPI**
+6. **Envío del commit y la etiqueta**
+   ```bash
+   git push origin "v0.2.0^{commit}:refs/heads/main"
+   git push origin v0.2.0
+   ```
+   Solo después de que la compilación y la atestación tengan éxito. El envío es
+   únicamente fast-forward, así que si `main` avanzó durante la publicación, el
+   flujo de trabajo se detiene aquí, antes de publicar nada.
+
+7. **Publicación en TestPyPI**
     - Sube primero a TestPyPI mediante OIDC Trusted Publishing, con atestaciones
       PEP 740, como prueba de humo antes del envío de producción.
 
-7. **Publicación en PyPI**
+8. **Publicación en PyPI**
     - Usa OIDC Trusted Publishing (no se requieren tokens)
     - Sube el wheel y la distribución de código fuente con atestaciones PEP 740
 
-8. **Publicación de la imagen de contenedor en GHCR**
+9. **Publicación de la imagen de contenedor en GHCR**
     - Compila una imagen multiarquitectura (linux/amd64, linux/arm64)
     - Envía a `ghcr.io/ozeranskii/httptap` con las etiquetas `{version}`, `{major}.{minor}`,
       `{major}` y `latest`
     - Firma la imagen con cosign (Sigstore sin claves)
     - Adjunta procedencia de compilación SLSA mediante `actions/attest-build-provenance`
 
-9. **GitHub Release**
+10. **GitHub Release**
     - Crea la publicación con notas generadas
     - Adjunta los artefactos de compilación, los SBOM, el VEX y la página de manual
 
@@ -108,16 +119,16 @@ El flujo de trabajo de publicación está definido en `.github/workflows/release
 
 #### 1. Preparar la publicación
 
-- Extrae el código con la clave de despliegue
+- Extrae el código (solo lectura, sin clave de despliegue)
 - Configura Python y uv
 - Actualiza la versión en pyproject.toml
 - Genera el registro de cambios
-- Have commit y push de los cambios
-- Crea y envía la etiqueta de git
+- Crea localmente el commit y la etiqueta de publicación firmados
+- Los sube como artefacto `release-bundle`; no se envía nada
 
 #### 2. Compilar el paquete
 
-- Extrae la versión etiquetada
+- Extrae la etiqueta de publicación no enviada desde el bundle
 - Ejecuta el conjunto de pruebas completo
 - Compila el wheel y el sdist
 - Genera el SBOM en formatos JSON CycloneDX y SPDX mediante [Syft](https://github.com/anchore/syft)
@@ -125,23 +136,31 @@ El flujo de trabajo de publicación está definido en `.github/workflows/release
 - Genera una página `man(1)` comprimida con gzip usando [argparse-manpage](https://github.com/praiskup/argparse-manpage)
 - Sube los artefactos `dist/`, `sbom/` y `man/` por separado
 
-#### 3. Publicar en TestPyPI
+#### 3. Enviar el commit y la etiqueta de publicación
+
+- Se ejecuta solo después de que la compilación y la atestación de procedencia tengan éxito
+- Es el único job con `contents: write` y la clave de despliegue (entorno `release`)
+- Avanza `main` mediante fast-forward hasta el commit de publicación y envía la etiqueta;
+  falla sin publicar nada si `main` avanzó durante la publicación
+
+#### 4. Publicar en TestPyPI
 
 - Descarga los artefactos `dist/`
 - Publica mediante TestPyPI OIDC Trusted Publishing con atestaciones PEP 740
 
-#### 4. Publicar en PyPI
+#### 5. Publicar en PyPI
 
 - Se ejecuta solo después de que TestPyPI tenga éxito
 - Publica usando Trusted Publishing con atestaciones PEP 740
 
-#### 5. Publicar la imagen de contenedor en GHCR
+#### 6. Publicar la imagen de contenedor en GHCR
 
+- Se ejecuta solo después de que se hayan enviado el commit y la etiqueta de publicación
 - Compila una imagen multiarquitectura con Buildx + QEMU
 - Firma con cosign (Sigstore OIDC sin claves)
 - Adjunta procedencia de compilación SLSA
 
-#### 6. Crear la GitHub Release
+#### 7. Crear la GitHub Release
 
 - Descarga los artefactos `dist/`, `sbom/` y `man/`
 - Crea la publicación de GitHub con las notas del registro de cambios

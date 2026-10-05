@@ -28,13 +28,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Creates the signed release commit and tag locally and hands them on as a
+  # git bundle. Nothing is pushed until the build job has tested that exact
+  # tree (see push-release), so a failing release leaves no tag on main and
+  # publishes nothing.
   prepare:
     name: Prepare Release
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: release
     permissions:
-      contents: write # Required for git push and tag creation
+      contents: read # Required for repository checkout
       id-token: write # Required for gitsign keyless Sigstore OIDC signing
     outputs:
       tag: ${{ steps.version.outputs.tag }}
@@ -46,8 +49,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          ssh-key: ${{ secrets.DEPLOY_KEY }}
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Install gitsign (Sigstore keyless git signing)
         uses: chainguard-dev/actions/setup-gitsign@805da2efdffdc42b8afd8880e575a48b471ef544 # v1.6.37
@@ -136,13 +138,25 @@ jobs:
           git add pyproject.toml uv.lock CITATION.cff ${CHANGELOG_FILE}
           git commit -S -m "chore: release v${VERSION}"
 
-      - name: Create and push signed tag
+      - name: Create signed tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: git tag -s "${TAG}" -m "Release ${TAG}"
+
+      - name: Bundle release commit and tag
         env:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
-          git tag -s "${TAG}" -m "Release ${TAG}"
-          git push origin HEAD
-          git push origin "${TAG}"
+          git bundle create release.bundle "^${GITHUB_SHA}" HEAD "refs/tags/${TAG}"
+          git bundle verify release.bundle
+
+      - name: Upload release bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-bundle
+          path: release.bundle
+          retention-days: 1
+          if-no-files-found: error
 
   build:
     name: Build Package
@@ -153,11 +167,25 @@ jobs:
       contents: read # Required for repository checkout
 
     steps:
-      - name: Checkout tag
+      - name: Checkout release base
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.prepare.outputs.tag }}
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Download release bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-bundle
+          path: ${{ runner.temp }}/release
+
+      - name: Check out the unpushed release tag
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+          BUNDLE: ${{ runner.temp }}/release/release.bundle
+        run: |
+          git fetch "${BUNDLE}" "refs/tags/${TAG}:refs/tags/${TAG}"
+          git checkout --detach "${TAG}"
 
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -273,6 +301,44 @@ jobs:
         with:
           subject-path: "dist/*"
 
+  # The only job that writes to the repository. It runs after the release
+  # tree was tested and built, and the push is fast-forward only: if main
+  # moved during the release, it fails before anything is published.
+  push-release:
+    name: Push Release Commit and Tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: release
+    needs:
+      - prepare
+      - build
+      - attest
+    permissions:
+      contents: write # Required to push the release commit and tag
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          persist-credentials: true
+
+      - name: Download release bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-bundle
+          path: ${{ runner.temp }}/release
+
+      - name: Push release commit and tag
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+          BUNDLE: ${{ runner.temp }}/release/release.bundle
+        run: |
+          git fetch "${BUNDLE}" "refs/tags/${TAG}:refs/tags/${TAG}"
+          git push origin "refs/tags/${TAG}^{commit}:refs/heads/${GITHUB_REF_NAME}"
+          git push origin "refs/tags/${TAG}"
+
   publish-testpypi:
     name: Publish to TestPyPI
     runs-on: ubuntu-latest
@@ -281,6 +347,7 @@ jobs:
       - prepare
       - build
       - attest
+      - push-release
     environment:
       name: testpypi
       url: https://test.pypi.org/project/${{ env.PACKAGE_NAME }}/
@@ -334,6 +401,7 @@ jobs:
     timeout-minutes: 20
     needs:
       - prepare
+      - push-release
     permissions:
       contents: read
       packages: write # Push to ghcr.io/<owner>/<repo>
