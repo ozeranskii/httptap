@@ -24,6 +24,8 @@ httptap [OPTIONS] URL
 
 使用する HTTP メソッドを指定します。サポートされるメソッド: GET、POST、PUT、PATCH、DELETE、HEAD、OPTIONS。
 
+メソッドの値は大文字・小文字を区別しません。
+
 *curl 互換エイリアス:* `-X`、`--request`。
 
 ```bash
@@ -125,6 +127,28 @@ httptap --no-http2 https://httpbin.io
 
 *curl 互換エイリアス:* `--http1.1`。
 
+#### `-4, --ipv4` と `-6, --ipv6`
+
+名前解決と接続を IPv4 または IPv6 に制限します。これらのオプションは相互排他です。
+
+```bash
+httptap -4 https://example.com
+httptap --ipv6 https://example.com
+```
+
+HTTP、HTTPS、SOCKS5H プロキシはターゲットのホスト名を自身で名前解決するため、これらのプロキシとは併用できません。
+
+#### `--resolve HOST:PORT:ADDR`
+
+元の `Host` ヘッダーと TLS SNI を維持したまま、ホスト名とポートを特定の IPv4 または IPv6 アドレスに接続します。DNS 切り替え前に特定のバックエンドをテストする場合や、ラウンドロビン DNS レコードをバイパスする場合に便利です。異なるホストとポートの組み合わせに対して、このオプションを複数回指定できます。
+
+```bash
+httptap --resolve api.example.com:443:203.0.113.10 https://api.example.com/health
+httptap --resolve api.example.com:443:[2001:db8::10] https://api.example.com/health
+```
+
+`--resolve` は直接接続とローカル DNS の SOCKS5 プロキシに適用されます。HTTP、HTTPS、SOCKS5H プロキシはターゲットをリモートで名前解決するため、`-4`/`-6` と同様に、これらと `--resolve` の組み合わせは拒否されます。
+
 #### `-k, --insecure, --ignore-ssl`
 
 TLS 証明書の検証を無効にします。自己署名ホストや期限切れの証明書のデバッグに便利です。
@@ -206,11 +230,14 @@ Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=
 
 #### `--json PATH`
 
-完全なリクエストデータを JSON ファイルにエクスポートします。
+完全なリクエストデータを JSON ファイルにエクスポートします。代わりに JSON を標準出力に書き出すには `-` を使用します。その場合、出力をパイプできるように通常のレポートは抑制されます。
 
 ```bash
 httptap --json report.json https://httpbin.io
+httptap --json - https://httpbin.io | jq '.summary'
 ```
+
+ファイルを書き込めない場合、httptap は終了コード `73` で終了します。
 
 JSON ファイルには以下が含まれます:
 
@@ -220,15 +247,43 @@ JSON ファイルには以下が含まれます:
 - 完全なリダイレクトチェーン（`--follow` を使用した場合）
 - SLO 評価（`--slo` を指定した場合）
 
-#### `--slo KEY=MS[,KEY=MS...]`
+#### `--prometheus PATH`
+
+フェーズごとのタイミングを Prometheus の textfile collector 形式で書き出します。所要時間は `host`、`step`、`phase` ラベル付きの `httptap_request_duration_seconds` ゲージとしてエクスポートされ、`httptap_request_success` と `httptap_last_run_timestamp_seconds` も併せて出力されます。パスやクエリ文字列がラベルになることはありません。
+
+```bash
+httptap --prometheus /var/lib/node_exporter/httptap.prom https://httpbin.io/get
+```
+
+#### `--otlp ENDPOINT`
+
+リクエストごとに 1 つの OpenTelemetry スパンと、DNS、接続、TLS、サーバー待機、転送の各フェーズの子スパンをエクスポートします。事前にオプションの依存関係をインストールしてください:
+
+```bash
+pip install 'httptap[otel]'
+httptap --otlp http://localhost:4318/v1/traces https://httpbin.io/get
+```
+
+#### `--slo KEY=MS[,KEY=MS...]`、`--slo-file PATH`
 
 最終的に成功したステップを、フェーズごとのレイテンシ予算と照合してチェックします。違反があった場合でも `httptap` は完全なレポートをレンダリングしますが、終了コード `4` で終了するため、その結果を CI ジョブ、cron プローブ、Kubernetes の readiness チェックのゲートに使用できます。
 
 ```bash
 httptap --slo total=500,ttfb=200 https://httpbin.io/get
+
+# 1 行に 1 つのしきい値。インラインの値はファイルの値を上書きします。
+httptap --slo-file slo.txt --slo total=1000 https://httpbin.io/get
 ```
 
 サポートされるキー: `dns`、`connect`、`tls`、`ttfb`、`wait`、`xfer`、`total`。完全な仕様、終了コードの優先順位、CI/cron のレシピについては、専用の [SLO しきい値チェック](slo.md) ページを参照してください。
+
+#### `-f`、`--fail`
+
+完了したいずれかのリクエストが HTTP `4xx` または `5xx` を返した場合に終了コード `22` で終了します。その場合でも完全なタイミングレポートはレンダリングされ、`--json` の出力も書き込まれます。ネットワークおよび TLS の障害は、より優先度の高い既存の終了コードのままです。
+
+```bash
+httptap --fail https://httpbin.io/status/500
+```
 
 #### `--version`
 

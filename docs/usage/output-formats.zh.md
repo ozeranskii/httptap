@@ -76,6 +76,7 @@ Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=
 - **完整指标**，包括网络详情
 - **一致的结构**，便于提取
 - **无颜色或格式化**字符
+- **转义值**：必要时使用百分号编码，确保每个指标始终是单个 `key=value` 词元。
 
 ### 何时使用
 
@@ -108,10 +109,19 @@ httptap --metrics-only https://httpbin.io/get | \
 httptap --json output.json https://httpbin.io
 ```
 
+将路径设为 `-` 即可把 JSON 写入 stdout（常规报告会被抑制）；状态消息会输出到 stderr：
+
+```bash
+httptap --json - https://httpbin.io | jq '.steps[0].timing'
+```
+
 ### JSON 结构
 
 ```json
 {
+  "schema_version": 1,
+  "httptap_version": "0.6.3",
+  "timestamp": "2026-09-18T08:00:00Z",
   "initial_url": "https://httpbin.io",
   "total_steps": 1,
   "steps": [
@@ -179,6 +189,22 @@ httptap --json output.json https://httpbin.io
 }
 ```
 
+### 字段参考
+
+顶层元数据标识了报告格式及其生成时间。消费方应根据 `schema_version` 选择兼容的解析逻辑。
+
+| Field             | Type    | Description                                                     |
+| ----------------- | ------- | --------------------------------------------------------------- |
+| `schema_version`  | integer | JSON 报告格式的版本。当前版本为 `1`。                           |
+| `httptap_version` | string  | 生成该报告的 httptap 版本。                                     |
+| `timestamp`       | string  | 导出的创建时间，采用 RFC 3339 UTC 格式，例如 `2026-09-18T08:00:00Z`。 |
+| `initial_url`     | string  | 重定向前传给 httptap 的 URL。                                   |
+| `total_steps`     | integer | `steps` 中的条目数。                                            |
+| `steps`           | array   | 每个请求的测量数据，包括每一次被跟随的重定向。                  |
+| `summary`         | object  | 本次导出的汇总值。                                              |
+
+以 `_ms` 结尾的计时值单位为毫秒。请求和响应体大小的单位为字节。响应大小（`bytes`、`final_bytes`）统计的是线路上实际接收到的响应体，即 `Content-Encoding` 解码之前的大小，与 curl 的 `size_download` 一致。证书和响应中的日期在可用时为 ISO 8601/RFC 3339 时间戳。嵌套的 `steps` 和 `summary` 结构请参见上面的示例。
+
 ### 特性
 
 - **所有阶段的完整数据导出**
@@ -212,6 +238,37 @@ jq '.steps[0].network.cert_days_left' output.json
 # 筛选失败的请求
 jq 'select(.summary.errors > 0)' output.json
 ```
+
+## Prometheus Textfile 导出 { #prometheus-textfile-export }
+
+使用 `--prometheus PATH` 写出 node_exporter textfile collector 报告：
+
+```bash
+httptap --prometheus /var/lib/node_exporter/httptap.prom https://api.example.com/health
+```
+
+该文件以原子方式写入。每个样本都带有 `host` 标签（仅主机名）以及重定向链中的 `step`，因此多个探针可以共享同一个 textfile 目录。导出的 gauge：
+
+| Metric                                  | Extra labels | Meaning                                         |
+| --------------------------------------- | ------------ | ----------------------------------------------- |
+| `httptap_request_success`               |              | 步骤完成时为 `1`，发生网络/TLS 错误时为 `0`     |
+| `httptap_request_duration_seconds`      | `phase`      | `dns`、`connect`、`tls`、`ttfb`、`wait`、`xfer`、`total` |
+| `httptap_response_status_code`          |              | 该步骤的 HTTP 状态码                            |
+| `httptap_response_body_size_bytes`      |              | 线路上的响应体大小                              |
+| `httptap_last_run_timestamp_seconds`    |              | 写入该文件时的 Unix 时间（仅带 `host`）         |
+
+失败的步骤只会导出 `httptap_request_success 0`，因此故障绝不会看起来像是一次快速响应。路径和查询字符串绝不会被用作标签。
+
+## OpenTelemetry 导出
+
+`--otlp ENDPOINT` 会发送 OTLP/HTTP trace。请先安装可选的 extra：
+
+```bash
+pip install 'httptap[otel]'
+httptap --otlp http://localhost:4318/v1/traces https://api.example.com/health
+```
+
+每个请求步骤都会创建一个 `http.request` span，其子 span 分别表示 DNS、连接、TLS、服务器等待和传输阶段。导出时会省略完整的请求 URL，因此查询参数不会被发送到 collector。
 
 ## 重定向链
 

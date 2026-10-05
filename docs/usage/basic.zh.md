@@ -24,6 +24,8 @@ httptap [OPTIONS] URL
 
 指定要使用的 HTTP 方法。支持的方法：GET、POST、PUT、PATCH、DELETE、HEAD、OPTIONS。
 
+方法名不区分大小写。
+
 *兼容 curl 的别名：* `-X`、`--request`。
 
 ```bash
@@ -125,6 +127,28 @@ httptap --no-http2 https://httpbin.io
 
 *兼容 curl 的别名：* `--http1.1`。
 
+#### `-4, --ipv4` 和 `-6, --ipv6`
+
+将 DNS 解析和连接限制为 IPv4 或 IPv6。这两个选项互斥。
+
+```bash
+httptap -4 https://example.com
+httptap --ipv6 https://example.com
+```
+
+它们不能与 HTTP、HTTPS 或 SOCKS5H 代理同时使用，因为这些代理会自行解析目标主机名。
+
+#### `--resolve HOST:PORT:ADDR`
+
+将某个主机名和端口连接到指定的 IPv4 或 IPv6 地址，同时保留原始的 `Host` 请求头和 TLS SNI。这适用于在 DNS 切换前测试某一个后端，或绕过轮询（round-robin）DNS 记录。对于不同的主机和端口组合，该选项可重复使用。
+
+```bash
+httptap --resolve api.example.com:443:203.0.113.10 https://api.example.com/health
+httptap --resolve api.example.com:443:[2001:db8::10] https://api.example.com/health
+```
+
+`--resolve` 适用于直连和本地 DNS 解析的 SOCKS5 代理。HTTP、HTTPS 和 SOCKS5H 代理会在远端解析目标，因此将它们与 `--resolve` 组合使用会被拒绝，与 `-4`/`-6` 相同。
+
 #### `-k, --insecure, --ignore-ssl`
 
 禁用 TLS 证书校验。适用于调试自签名主机或已过期的证书。
@@ -206,11 +230,14 @@ Step 1: dns=30.1 connect=97.3 tls=199.0 ttfb=472.2 total=476.0 status=200 bytes=
 
 #### `--json PATH`
 
-将完整的请求数据导出到 JSON 文件。
+将完整的请求数据导出到 JSON 文件。使用 `-` 可改为将 JSON 写入 stdout；此时常规报告会被抑制，以便将输出通过管道传递。
 
 ```bash
 httptap --json report.json https://httpbin.io
+httptap --json - https://httpbin.io | jq '.summary'
 ```
+
+如果文件无法写入，httptap 会以代码 `73` 退出。
 
 该 JSON 文件包含：
 
@@ -220,15 +247,43 @@ httptap --json report.json https://httpbin.io
 - 完整的重定向链（使用 `--follow` 时）
 - SLO 评估（提供 `--slo` 时）
 
-#### `--slo KEY=MS[,KEY=MS...]`
+#### `--prometheus PATH`
+
+以 Prometheus textfile collector 格式写出各阶段计时。持续时间以 `httptap_request_duration_seconds` gauge 导出，带有 `host`、`step` 和 `phase` 标签，同时还会导出 `httptap_request_success` 和 `httptap_last_run_timestamp_seconds`；路径和查询字符串绝不会作为标签。
+
+```bash
+httptap --prometheus /var/lib/node_exporter/httptap.prom https://httpbin.io/get
+```
+
+#### `--otlp ENDPOINT`
+
+为每个请求导出一个 OpenTelemetry span，并为 DNS、连接、TLS、服务器等待和传输阶段导出子 span。请先安装可选依赖：
+
+```bash
+pip install 'httptap[otel]'
+httptap --otlp http://localhost:4318/v1/traces https://httpbin.io/get
+```
+
+#### `--slo KEY=MS[,KEY=MS...]`、`--slo-file PATH`
 
 根据各阶段的延迟预算校验最终成功的步骤。发生违规时 `httptap` 仍会渲染完整报告，但会以代码 `4` 退出，以便该结果可作为 CI 任务、cron 探针或 Kubernetes 就绪检查的门禁。
 
 ```bash
 httptap --slo total=500,ttfb=200 https://httpbin.io/get
+
+# 每行一个阈值；内联值会覆盖文件中的值。
+httptap --slo-file slo.txt --slo total=1000 https://httpbin.io/get
 ```
 
 支持的键：`dns`、`connect`、`tls`、`ttfb`、`wait`、`xfer`、`total`。有关完整规范、退出码优先级以及 CI/cron 实用示例，请参见专门的 [SLO 阈值校验](slo.md) 页面。
+
+#### `-f`, `--fail`
+
+当任一已完成的请求返回 HTTP `4xx` 或 `5xx` 时以代码 `22` 退出，同时仍会渲染完整的计时报告并写出 `--json` 输出。网络和 TLS 故障保持其原有的、优先级更高的退出码。
+
+```bash
+httptap --fail https://httpbin.io/status/500
+```
 
 #### `--version`
 

@@ -1,11 +1,11 @@
 ---
 title: Comprobación de umbrales SLO
-description: Usa --slo para condicionar solicitudes a presupuestos de latencia por fase en CI, cron y comprobaciones de disponibilidad.
+description: Usa --slo o --slo-file para condicionar solicitudes a presupuestos de latencia por fase en CI, cron y comprobaciones de disponibilidad.
 ---
 
 # Comprobación de umbrales SLO
 
-`httptap --slo` comprueba los tiempos medidos frente a presupuestos de latencia
+`httptap --slo` y `--slo-file` comprueban los tiempos medidos frente a presupuestos de latencia
 por fase y sale con un código distinto de cero cuando se supera cualquier presupuesto.
 Esto convierte una única solicitud en una sonda de aprobado/fallido adecuada para
 gates de CI, monitorización sintética basada en cron, comprobaciones de disponibilidad y
@@ -33,6 +33,27 @@ Pasa a `--slo` una lista de pares `KEY=MS` separados por comas:
 - `KEY` es una de las fases de temporización admitidas (sin distinción de mayúsculas/minúsculas).
 - `MS` es un número finito positivo de milisegundos (entero o decimal).
 - Se tolera el espacio en blanco alrededor de las claves y los valores.
+
+### Umbrales desde archivo
+
+Usa `--slo-file PATH` para leer umbrales en UTF-8 desde un archivo, con una entrada `KEY=MS`
+por línea. Las líneas vacías y las que empiezan por `#` se ignoran. Se aplican las mismas
+reglas de validación que para `--slo`.
+
+`slo.txt`:
+
+```text
+# Presupuesto del endpoint de salud
+total=500
+ttfb=200
+```
+
+```shell
+httptap --slo-file slo.txt https://api.example.com/health
+```
+
+`--slo-file` y `--slo` pueden combinarse. Los valores en línea anulan los valores del
+archivo para las claves coincidentes.
 
 ### Claves admitidas
 
@@ -84,12 +105,14 @@ su clave para una salida determinista.
 | Prioridad | Condición                                | Código de salida |
 |:--------:|-----------------------------------------|:---------:|
 | 1        | Arguments inválidos (especificación `--slo` incorrecta) | `64`      |
-| 2        | Fallo de red / TLS en cualquier paso     | `75`      |
-| 3        | Error interno                            | `70`      |
-| 4        | Violación de SLO en el paso final correcto | `4`      |
-| 5        | Éxito                                     | `0`       |
+| 2        | No se pudo escribir el archivo de `--json` | `73`    |
+| 3        | Fallo de red / TLS en cualquier paso     | `75`      |
+| 4        | Respuesta HTTP 4xx/5xx con `--fail`      | `22`      |
+| 5        | Error interno                            | `70`      |
+| 6        | Violación de SLO en el paso final correcto | `4`      |
+| 7        | Éxito                                     | `0`       |
 
-Los errores de red siempre tienen prioridad sobre las violaciones de SLO, de modo que un
+Los errores de red y las respuestas de `--fail` siempre tienen prioridad sobre las violaciones de SLO, de modo que un
 host que falla no se have pasar por una regresión de latencia en un registro de CI.
 
 ## Formatos de salida

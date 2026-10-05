@@ -22,8 +22,10 @@ El servidor presentó un certificado que tu almacén de confianza no reconoce.
 - **Almacén de confianza del sistema desactualizado** — actualiza `ca-certificates` en Linux, o
   refresca `certifi` en tu entorno de Python (`uv pip install --upgrade certifi`).
 
-La exportación JSON muestra `network.tls_verified: false` y, cuando se usa `--cacert`,
-`network.tls_custom_ca: true`.
+httptap reintenta únicamente una negociación TLS de diagnóstico sin verificación e informa
+del CN, los SAN, el emisor, el periodo de validez y la caducidad del certificado presentado en el
+paso fallido. La solicitud en sí sigue fallando la verificación. Las sondas de diagnóstico directas
+se omiten cuando hay un proxy activo, para que httptap no lo eluda.
 
 ### El certificado muestra `cert_days_left: null` o un valor negativo
 
@@ -159,9 +161,9 @@ Comprueba tres cosas:
 
 ### ¿Puede httptap emitir métricas de Prometheus?
 
-No de forma nativa. Usa `--metrics-only` y postprocesa con `awk`/`jq`, o
-analiza la exportación `--json`. Un exportador dedicado está en la hoja de ruta — sigue el
-[gestor de incidencias](https://github.com/ozeranskii/httptap/issues) para novedades.
+Sí. Usa `--prometheus PATH` para escribir un archivo para el textfile collector de node_exporter.
+Consulta [Formatos de salida](usage/output-formats.md#prometheus-textfile-export) para
+los nombres de las métricas y las etiquetas.
 
 ## API de Python
 
@@ -176,10 +178,9 @@ from httptap.constants import HTTPMethod
 
 ### No se llama a mi resolutor personalizado
 
-`HTTPTapAnalyzer` usa el resolutor inyectado solo para la temporización de la búsqueda DNS de diagnóstico.
-La resolución real de la conexión la sigue realizando `httpx`/`httpcore`.
-Para enrutar la conexión real a través de tu resolutor, implementa también un
-`RequestExecutor` personalizado.
+`HTTPTapAnalyzer` usa el resolutor inyectado para las conexiones directas y los proxies SOCKS5
+con DNS local. Los proxies HTTP, HTTPS y SOCKS5H resuelven el destino de forma remota;
+usa un `RequestExecutor` personalizado si necesitas cambiar ese comportamiento.
 
 ---
 
