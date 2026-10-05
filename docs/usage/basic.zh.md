@@ -16,7 +16,7 @@ httptap [OPTIONS] URL
 
 ## 选项
 
-> **兼容 curl：** 常见的 curl 参数可作为别名接受。将 `curl` 替换为 `httptap`，并继续使用你熟悉的选项，如 `-X/--request`、`-L/--location`、`-m/--max-time`、`-k/--insecure`、`-x` 以及 `--http1.1`。这并非完整的 curl 克隆——请只使用此处列出的共有参数。
+> **兼容 curl：** 常见的 curl 参数可作为别名接受。将 `curl` 替换为 `httptap`，并继续使用你熟悉的选项，如 `-X/--request`、`-L/--location`、`-m/--max-time`、`-k/--insecure`、`-x` 以及 `--http1.1`；`-f/--fail`、`-4/--ipv4`、`-6/--ipv6` 和 `--resolve` 与 curl 中的名称相同。这并非完整的 curl 克隆——请只使用此处列出的共有参数。
 
 ### 请求选项
 
@@ -97,6 +97,8 @@ httptap --follow https://httpbin.io/redirect/3
 ```
 
 默认情况下，httptap 不会跟随重定向，会在第一个重定向响应（3xx 状态码）处停止。
+
+如果在跟随 10 次重定向之后响应仍是重定向，httptap 会停止、打印警告、在 JSON 导出中将该步骤标记为`redirect_limit_reached: true`，并以代码 `47` 退出。
 
 跟随重定向时，httptap 采用与 curl 和浏览器相同的规则：
 
@@ -257,7 +259,7 @@ httptap --prometheus /var/lib/node_exporter/httptap.prom https://httpbin.io/get
 
 #### `--otlp ENDPOINT`
 
-为每个请求导出一个 OpenTelemetry span，并为 DNS、连接、TLS、服务器等待和传输阶段导出子 span。请先安装可选依赖：
+将本次运行导出为一条 OpenTelemetry trace：一个根 span、每个请求步骤一个 span，以及 DNS、连接、TLS、服务器等待和传输阶段的子 span。请先安装可选依赖：
 
 ```bash
 pip install 'httptap[otel]'

@@ -14,7 +14,7 @@ participar, se espera que respetes este código.
 
 ## Primeros pasos
 
-### Requisitos previous
+### Requisitos previos
 
 - Python 3.11 o superior (CPython)
 - El gestor de paquetes [uv](https://github.com/astral-sh/uv)
@@ -29,7 +29,7 @@ participar, se espera que respetes este código.
    cd httptap
    ```
 
-2. **Instala las dependencies:**
+2. **Instala las dependencias:**
 
    ```bash
    uv sync
@@ -57,7 +57,7 @@ Ejecuta con cobertura:
 uv run pytest --cov --cov-report=html
 ```
 
-Visualiza el inform de cobertura:
+Visualiza el informe de cobertura:
 
 ```bash
 open htmlcov/index.html  # macOS
@@ -113,7 +113,7 @@ uv run pytest tests/test_benchmarks.py --codspeed
 # Mide el tiempo real localmente, con una tabla de resultados
 uv run pytest tests/test_benchmarks.py --codspeed --codspeed-mode=walltime
 
-# Ejecuta los benchmarks sin CodSpeed (como pruebas normals)
+# Ejecuta los benchmarks sin CodSpeed (como pruebas normales)
 uv run pytest tests/test_benchmarks.py
 ```
 
@@ -223,7 +223,7 @@ def resolve_hostname(host: str, timeout: float = 5.0) -> tuple[str, str]:
 - Escribe pruebas para todas las funcionalidades nuevas
 - Mantén o mejora la cobertura de código
 - Usa nombres de prueba descriptions
-- Simula las dependencies externas (DNS, TLS, HTTP)
+- Simula las dependencias externas (DNS, TLS, HTTP)
 - Prueba tanto los casos de éxito como los de fallo
 
 **Ejemplo:**
@@ -324,17 +324,21 @@ recibir ayuda.
 
 ### Ideas para contribuciones
 
-- **Soporte de HTTP/3** - Extender a la versión más reciente del protocolo
-- **Más formatos de exportación** - CSV, XML, métricas de Prometheus
-- **Visualizaciones adicionales** - Flamegraphs, gráficos
-- **Optimizaciones de rendimiento** - DNS más rápido, agrupación de conexiones
+Siguen los temas dentro del alcance de la
+[hoja de ruta](https://github.com/ozeranskii/httptap/blob/main/ROADMAP.md), que también enumera lo que queda fuera
+del alcance (pruebas de carga, protocolos que no son HTTP como WebSocket o gRPC, una GUI/TUI, un cargador de plugins):
+
+- **Precisión de la temporización** - Mejoras en los ganchos de traza y en las estimaciones de respaldo
+- **Más formatos de exportación** - Nuevos exportadores legibles por máquina motivados por una necesidad concreta (la
+  exportación a Prometheus y OpenTelemetry ya está disponible)
+- **Extensiones de SLO** - Presupuestos relativos frente a una línea base, SLO flexibles frente a estrictos
 - **Más detalles de TLS** - OCSP, análisis de la cadena de certificados
-- **Reporters personalizados** - Notificaciones de Slack, webhook
-- **Protocols adicionales** - Tiempos de WebSocket, gRPC
+- **Soporte de HTTP/3** - Cuando llegue un soporte estable en Python
+- **Documentación** - Ejemplos prácticos, recetas de resolución de problemas, guías de integración
 
 ## Obtener ayuda
 
-- **GitHub Issues** - Reporters de errores y solicitudes de funcionalidades
+- **GitHub Issues** - Informes de errores y solicitudes de funcionalidades
 - **Discussions** - Preguntas y discusión general
 - **Discord** - Chat en tiempo real (próximamente)
 

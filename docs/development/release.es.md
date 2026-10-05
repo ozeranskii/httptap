@@ -12,7 +12,7 @@ Las publicaciones están totalmente automatizadas usando GitHub Actions. El fluj
 la compilación, la firma, la publicación en TestPyPI y PyPI, y el envío de una
 imagen de contenedor firmada a GHCR.
 
-## Requisitos previous
+## Requisitos previos
 
 Antes de crear una publicación, asegúrate de:
 
@@ -269,8 +269,8 @@ Antes de activar la publicación:
 - [ ] Sin errores críticos conocidos
 - [ ] Documentación actualizada
 - [ ] Cambios incompatibles documentados
-- [ ] Guía de migración escrita (para versions mayores)
-- [ ] Dependencies actualizadas
+- [ ] Guía de migración escrita (para versiones mayores)
+- [ ] Dependencias actualizadas
 - [ ] Vulnerabilidades de seguridad atendidas
 
 ## Véase también

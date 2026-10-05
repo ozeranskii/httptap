@@ -19,7 +19,7 @@ contra este archivo.
 
 ## Qué es httptap
 
-httptap es una herramienta de diagnóstico de línea de commandos. Un desarrollador
+httptap es una herramienta de diagnóstico de línea de comandos. Un desarrollador
 proporciona una única URL (y opcionalmente cabeceras, un cuerpo, un proxy, un
 paquete de CA, etc.) y httptap realiza una solicitud HTTP (o una cadena corta de
 redirecciones) y muestra información de tiempos por fase e información de TLS. **No**:
@@ -27,12 +27,15 @@ redirecciones) y muestra información de tiempos por fase e información de TLS.
 - acepta entrada de red de pares no confiables (no es un servidor);
 - gestiona cuentas de usuario, sesiones ni credenciales de larga duración;
 - ejecuta código remoto ni evalúa scripts proporcionados por el servidor;
-- persiste secrets ni datos de usuario más allá de la exportación opcional `--json`.
+- persiste secretos ni datos de usuario más allá del informe opcional `--json` y
+  del textfile de `--prometheus`;
+- envía mediciones a ningún sitio que no sea el collector OTLP que el usuario indica
+  con la opción `--otlp`.
 
 ## Requisitos de seguridad
 
 El proyecto se compromete con las siguientes propiedades de seguridad observables.
-Cada una se asigna a arguments de apoyo en las secciones siguientes.
+Cada una se asigna a argumentos de apoyo en las secciones siguientes.
 
 | # | Requisito | Justificación |
 |---|-------------|-----------|
@@ -42,7 +45,7 @@ Cada una se asigna a arguments de apoyo en las secciones siguientes.
 | SR-4 | La herramienta no ejecuta contenido servido por el host remoto. | Ninguna primitiva de ejecución de código desde el servidor. |
 | SR-5 | Los artefactos de publicación (wheels/sdist de PyPI, imágenes de contenedor, etiquetas de git y commits de publicación) están firmados y su procedencia de compilación es verificable. | Protege a los usuarios de distribuciones manipuladas. |
 | SR-6 | Todos los tokens del flujo de trabajo de CI siguen el menor privilegio y están fijados por SHA. | Reduce la superficie de ataque de la canalización de compilación. |
-| SR-7 | La cadena de suministro (dependencies, GitHub Actions, imágenes de Docker) se supervisa en busca de vulnerabilidades conocidas. | Aplicación oportuna de parches a las debilidades de origen. |
+| SR-7 | La cadena de suministro (dependencias, GitHub Actions, imágenes de Docker) se supervisa en busca de vulnerabilidades conocidas. | Aplicación oportuna de parches a las debilidades de origen. |
 
 ## Límites de confianza
 
@@ -53,10 +56,12 @@ Cada una se asigna a arguments de apoyo en las secciones siguientes.
    └──────────┬──────────┘
               │
               ▼
-   ┌─────────────────────┐
-   │ httptap process     │   trusted
-   │ (Python 3.11+)      │
-   └──────────┬──────────┘
+   ┌─────────────────────┐  --json, --prometheus  ┌─────────────────────┐
+   │ httptap process     │ ─────────────────────► │ Local files, stdout │  trusted
+   │ (Python 3.11+)      │                        └─────────────────────┘
+   │                     │  --otlp (OTLP/HTTP)    ┌─────────────────────┐
+   │                     │ ─────────────────────► │ OTLP collector      │  user-chosen
+   └──────────┬──────────┘                        └─────────────────────┘
               │  TLS/HTTP  ◄─── untrusted: network, proxy, remote host
               ▼
    ┌─────────────────────┐
@@ -64,13 +69,27 @@ Cada una se asigna a arguments de apoyo en las secciones siguientes.
    └─────────────────────┘
 ```
 
-- **Usuario → httptap** es confiable: se assume que el usuario tiene razones
+- **Usuario → httptap** es confiable: se asume que el usuario tiene razones
   legítimas para emitir cualquier solicitud dada. La validación de entrada aún
   rechaza URLs, métodos, tiempos de espera, etc. mal formados para prevenir
   errores del operador.
 - **httptap → red → servidor remoto** no es confiable. Todos los datos que cruzan
   este límite se tratan como controlados por el atacante: cabeceras de respuesta,
   códigos de estado, valores `Location`, certificados TLS, cuerpos de contenido.
+- **httptap → salidas locales** es confiable: `--json` escribe el informe en un
+  archivo o en stdout, y `--prometheus` escribe un textfile de node_exporter de
+  forma atómica (archivo temporal en el mismo directorio y después un renombrado).
+  Las etiquetas de Prometheus solo llevan el nombre de host y el número de paso de
+  redirección, nunca rutas ni cadenas de consulta. Los archivos se crean donde el
+  usuario indica y los puede leer cualquiera que tenga acceso a esa ubicación.
+- **httptap → collector OTLP** cruza la red hacia un endpoint que el usuario
+  proporciona con `--otlp` (extra opcional `httptap[otel]`), sobre `http://` o
+  `https://` según se indique. Cada paso de la solicitud se convierte en un span con
+  spans hijos por fase, que llevan el método, el código de estado, el tamaño del
+  cuerpo, el nombre de host, la IP del par, las versiones de HTTP y TLS y el mensaje
+  de error de un paso fallido. Los spans nunca incluyen la URL completa (ruta, cadena
+  de consulta, credenciales) ni ninguna cabecera. Los fallos de entrega se informan
+  como advertencias y no cambian el código de salida.
 - **Canalización de compilación → PyPI / GitHub Releases** es un límite de confianza
   independiente, asegurado mediante GitHub OIDC (sin claves de larga duración),
   firma con Sigstore y actions fijadas por SHA.
@@ -91,11 +110,12 @@ explícitamente como no objetivos.
 | **Repudiation** | — | Fuera de alcance; httptap no es un sistema multiusuario. |
 | **Information disclosure** | Las credenciales en `-H Authorization` se filtran al destino de redirección en un host diferente. | httptap sigue las redirecciones por sí mismo (`follow_redirects=False` en httpx) y descarta `Authorization`, `Cookie` y `Proxy-Authorization` cuando una redirección cambia el esquema, el host o el puerto; `303`, y `301`/`302` tras `POST`, pasan a `GET` sin cuerpo (SR-3). |
 | **Information disclosure** | La exportación `--json` incluye cabeceras de autenticación o credenciales de proxy en disco. | Las cabeceras `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie` y de claves de API se enmascaran en la salida y en la exportación, y las credenciales de la URL del proxy se ocultan; aun así, SECURITY.md y docs/troubleshooting.md aconsejan revisar las exportaciones antes de compartirlas. |
+| **Information disclosure** | Las exportaciones de telemetría revelan detalles de la solicitud a quien lea el textfile o gestione el collector. | Las etiquetas de Prometheus se limitan al nombre de host y al paso; los spans OTLP omiten la URL completa y las cabeceras. La exportación OTLP es de habilitación explícita y solo se envía al endpoint indicado con `--otlp`; se recomienda `https://` para collectors remotos. |
 | **Information disclosure** | MITM en un proxy inseguro. | El esquema de la URL del proxy se valida; se recomienda `socks5h://` / `https://` para destinos sensibles; el origen del proxy se reporta en la salida y en el JSON para auditoría. |
 | **Denial of service** | Un servidor malicioso transmite un cuerpo sin límite. | Tiempo de espera por solicitud mediante `--timeout` (20s por defecto); la fase de transferencia está acotada por el mismo plazo. |
 | **Denial of service** | Un servidor malicioso transmite una bomba zip o un cuerpo gigantesco. | httptap no decodifica ni persiste los cuerpos más allá de contar los bytes para la métrica de tiempos, así que el coste de memoria es lineal y está acotado por el tiempo de espera. |
 | **Elevation of privilege** | Un cuerpo de respuesta malicioso desencadena una RCE en el analizador. | Los cuerpos nunca se analizan por su contenido: solo se lee la longitud. Ninguna interpretación de HTML, JS ni scripts embebidos (SR-4). |
-| **Elevation of privilege** | Un argumento de CLI malicioso desencadena una inyección de shell en una invocación posterior. | Los arguments se analizan con `argparse` (sin shell), se reenvían como `list[str]` a `httpx` (sin shell); no hay invocación de shell en la ruta de la solicitud. |
+| **Elevation of privilege** | Un argumento de CLI malicioso desencadena una inyección de shell en una invocación posterior. | Los argumentos se analizan con `argparse` (sin shell), se reenvían como `list[str]` a `httpx` (sin shell); no hay invocación de shell en la ruta de la solicitud. |
 
 ### Amenazas fuera de alcance
 
@@ -123,7 +143,7 @@ Asignados a Saltzer & Schroeder (1975) más añadidos modernos.
 | Aceptabilidad psicológica | Los alias de flags compatibles con curl (`-X`, `-L`, `-k`, `-x`, `-H`) mantienen familiar el modelo mental. |
 | Factor de trabajo | Las ganancias de un atacante frente a una invocación local de `curl` de un desarrollador son esencialmente nulas: httptap no expone más de lo que expone curl. |
 | Registro de compromisos | La exportación JSON captura todos los metadatos de solicitud/respuesta y el origen del proxy, así que el análisis forense a posteriori es sencillo. |
-| Defensa en profundidad | Validación de entrada + verificación TLS + dependencies de compilación fijadas + SAST + escaneo de secrets + Dependabot + publicaciones firmadas. |
+| Defensa en profundidad | Validación de entrada + verificación TLS + dependencias de compilación fijadas + SAST + escaneo de secretos + Dependabot + publicaciones firmadas. |
 
 ## Debilidades de implementación comunes contrarrestadas
 
@@ -136,15 +156,15 @@ de forma ascendente.
 |-----|----------|----------------|
 | CWE-20 | Validación de entrada indebida | Coerción de enum/tipo de `argparse`; URL/método/tiempo de espera/proxy verificados explícitamente. |
 | CWE-22 | Traversal de rutas (en el cargador de datos `@file`) | La ruta se toma literalmente del usuario; nunca se usa una ruta proporcionada por el servidor para abrir un archivo. |
-| CWE-78 | Inyección de commandos del SO | Ninguna llamada a `subprocess`/`os.system` sobre datos controlados por el usuario en la ruta de la solicitud. |
+| CWE-78 | Inyección de comandos del SO | Ninguna llamada a `subprocess`/`os.system` sobre datos controlados por el usuario en la ruta de la solicitud. |
 | CWE-79 | XSS | Sin renderizado de HTML; los valores controlados por el servidor (URL, `Server`, `Location`, campos del certificado, mensajes de error) se escapan con `rich.markup.escape` antes del renderizado de Rich, y los modos de una línea se imprimen sin marcado. |
 | CWE-89 | Inyección SQL | Sin base de datos. |
 | CWE-94 | Inyección de código | No se usan `eval`/`exec`; los cuerpos de respuesta nunca se analizan. |
 | CWE-116 | Codificación de salida indebida | Las cadenas controladas por el servidor se escapan antes del renderizado de marcado de Rich; la exportación JSON usa `json.dumps` con escapado estricto. |
-| CWE-200 | Divulgación de información sensible | Las cabeceras sensibles se enmascaran y las credenciales de la URL del proxy se ocultan en la salida y en la exportación JSON; las cabeceras de credenciales no se reenvían a otros orígenes en las redirecciones (SR-3); SECURITY.md y la documentación aconsejan revisar las exportaciones antes de compartirlas. |
+| CWE-200 | Divulgación de información sensible | Las cabeceras sensibles se enmascaran y las credenciales de la URL del proxy se ocultan en la salida y en la exportación JSON; las exportaciones de Prometheus y OTLP no llevan rutas de URL, cadenas de consulta ni cabeceras; las cabeceras de credenciales no se reenvían a otros orígenes en las redirecciones (SR-3); SECURITY.md y la documentación aconsejan revisar las exportaciones antes de compartirlas. |
 | CWE-295 | Validación de certificado indebida | Verificación TLS activada por defecto; `--ignore-ssl` solo de habilitación explícita, documentado explícitamente. |
-| CWE-319 | Transmisión en texto claro | HTTPS preferido; el HTTP simple require una URL `http://` explícita; se reporta el origen del proxy. |
-| CWE-327 | Criptografía rota | Delegada a la `ssl` de la biblioteca estándar; los algorithms débiles solo afloran al diagnosticar servidores remotos. |
+| CWE-319 | Transmisión en texto claro | HTTPS preferido; el HTTP simple requiere una URL `http://` explícita; se reporta el origen del proxy. |
+| CWE-327 | Criptografía rota | Delegada a la `ssl` de la biblioteca estándar; los algoritmos débiles solo afloran al diagnosticar servidores remotos. |
 | CWE-330 | Aleatoriedad insuficiente | Ningún uso de RNG más allá del CSPRNG provisto por OpenSSL para TLS. |
 | CWE-352 | CSRF | No aplica: httptap es un cliente, no un servidor. |
 | CWE-400 | Consumo de recursos no controlado | Tiempo de espera por solicitud; cadena de redirecciones acotada (máximo 10). |
@@ -176,10 +196,10 @@ En apoyo de la propiedad de integridad de la publicación (SR-5):
 - **Fijación**: toda GitHub Action en todo flujo de trabajo está fijada por SHA;
   impuesto por Scorecard Pinned-Dependencies y zizmor pedantic en cada
   PR.
-- **Seguimiento de dependencies**: se genera un SBOM en formatos CycloneDX y SPDX
+- **Seguimiento de dependencias**: se genera un SBOM en formatos CycloneDX y SPDX
   durante la publicación y se adjunta como asset de GitHub Release.
 - **Divulgación de explotabilidad**: un documento OpenVEX
-  (`httptap-X.Y.Z.openvex.json`) se distribute junto al SBOM, declarando
+  (`httptap-X.Y.Z.openvex.json`) se distribuye junto al SBOM, declarando
   para cada CVE de dependencia si `httptap` está realmente afectado. La
   fuente de verdad está versionada en
   [`.vex/httptap.openvex.json`](https://github.com/ozeranskii/httptap/blob/main/.vex/httptap.openvex.json);
@@ -208,25 +228,26 @@ que son explícitas en lugar de descuidos.
   desarrollador, pero significa que un fallo en el propio `httptap` se ejecuta con
   los privilegios del usuario.
 - **Anclas de confianza TLS heredadas del SO.** Si el almacén de confianza del SO está
-  comprometido (por ejemplo, un proxy MITM corporation instala una CA privada),
-  httptap no puede detector. Los campos `network.tls_custom_ca` y
+  comprometido (por ejemplo, un proxy MITM corporativo instala una CA privada),
+  httptap no puede detectarlo. Los campos `network.tls_custom_ca` y
   `proxy_source` en la exportación JSON documentan si se usó un paquete de CA
   personalizado o un proxy.
 
-## Historical de cambios
+## Historial de cambios
 
 | Fecha | Notas |
 |------|-------|
 | 2026-04-12 | Caso de garantía inicial para httptap 0.4.7 (envío para nivel plata). |
 | 2026-04-13 | Endurecimiento OSS para 0.5.0: commits/etiquetas de publicación firmados con gitsign, verificación previa en TestPyPI, imágenes de contenedor GHCR firmadas con procedencia SLSA, hadolint en CI, artefacto de página de manual. |
 | 2026-09-17 | Correcciones de seguridad en 0.6.2 ([GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)): SR-3 se garantiza con una comprobación explícita de origen en las redirecciones, los valores controlados por el servidor se escapan antes del renderizado de Rich (CWE-79/116) y las credenciales de proxy se ocultan (CWE-200); OpenVEX registra ahora el estado del aviso. |
+| 2026-10-05 | Se añadieron las salidas de textfile `--prometheus` y de trazas `--otlp` a los límites de confianza, al modelo de amenazas y a las contramedidas de CWE-200. |
 
 ---
 
 ## Referencias
 
-- [SECURITY.md](https://github.com/ozeranskii/httptap/blob/main/SECURITY.md) — proceso de reporte de vulnerabilidades y versions soportadas.
-- [GOVERNANCE.md](https://github.com/ozeranskii/httptap/blob/main/GOVERNANCE.md) — roles del proyecto, decisions y plan de continuidad.
+- [SECURITY.md](https://github.com/ozeranskii/httptap/blob/main/SECURITY.md) — proceso de reporte de vulnerabilidades y versiones soportadas.
+- [GOVERNANCE.md](https://github.com/ozeranskii/httptap/blob/main/GOVERNANCE.md) — roles del proyecto, decisiones y plan de continuidad.
 - [ROADMAP.md](https://github.com/ozeranskii/httptap/blob/main/ROADMAP.md) — alcance, no objetivos y política de obsolescencia.
 - [Resolución de problemas y preguntas frecuentes](../troubleshooting.md) — orientación operativa.
 - [CWE Top 25](https://cwe.mitre.org/top25/) y

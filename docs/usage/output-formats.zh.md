@@ -157,7 +157,7 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -176,6 +176,7 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     }
   ],
@@ -204,6 +205,8 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
 | `summary`         | object  | 本次导出的汇总值。                                              |
 
 以 `_ms` 结尾的计时值单位为毫秒。请求和响应体大小的单位为字节。响应大小（`bytes`、`final_bytes`）统计的是线路上实际接收到的响应体，即 `Content-Encoding` 解码之前的大小，与 curl 的 `size_download` 一致。证书和响应中的日期在可用时为 ISO 8601/RFC 3339 时间戳。嵌套的 `steps` 和 `summary` 结构请参见上面的示例。
+
+使用了 `--cacert` 时 `network.tls_custom_ca` 为 `true`，否则为 `false`。当 `--follow` 在某个步骤上因达到 10 次重定向上限而停止时，该步骤的`redirect_limit_reached` 为 `true`；这样的步骤也会计入 `summary.errors`。
 
 ### 特性
 
@@ -268,7 +271,7 @@ pip install 'httptap[otel]'
 httptap --otlp http://localhost:4318/v1/traces https://api.example.com/health
 ```
 
-每个请求步骤都会创建一个 `http.request` span，其子 span 分别表示 DNS、连接、TLS、服务器等待和传输阶段。导出时会省略完整的请求 URL，因此查询参数不会被发送到 collector。
+一次运行会导出为一条 trace：一个 `httptap.analysis` 根 span，其下每个重定向步骤一个 `http.request` span（按先后顺序依次排列），以及表示 DNS、连接、TLS、服务器等待和传输阶段的子 span。投递耗时受 `-m`/`--max-time` 限制；collector 错误会以警告形式报告，不会改变退出码。导出时会省略完整的请求 URL，因此查询参数不会被发送到 collector。
 
 ## 重定向链
 

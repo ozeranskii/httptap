@@ -7,8 +7,8 @@ description: Problemas comunes, mensajes de error y diagnósticos al ejecutar ht
 
 Esta página recopila las preguntas y errores más comunes que encuentran los usuarios al ejecutar
 `httptap`. Si tu problema no aparece en la lista,
-[abre una incidencia](https://github.com/ozeranskii/httptap/issues) con el commando exacto,
-la exportación JSON (si la hay) y la salida de terminal relevant.
+[abre una incidencia](https://github.com/ozeranskii/httptap/issues) con el comando exacto,
+la exportación JSON (si la hay) y la salida de terminal relevante.
 
 ## TLS y certificados
 
@@ -31,22 +31,22 @@ se omiten cuando hay un proxy activo, para que httptap no lo eluda.
 
 `cert_days_left` se analiza a partir del campo `notAfter` del certificado de hoja. Un
 valor `null` significa que el certificado no se pudo obtener/analizar — normalmente TLS
-se abortó antes de recibir un certificado, o se usó `--ignore-ssl` (con la
-verificación desactivada, el certificado del par no se expone como un diccionario
-analizado, por lo que `cert_cn`/`cert_days_left` y los demás campos `cert_*` permanecen
-en `null` mientras que `tls_version`/`tls_cipher` se siguen informando). Un valor **negativo**
-significa que el certificado ya ha caducado.
+se abortó antes de recibir un certificado, el destino es `http://` plano o la
+solicitud falló antes de la negociación TLS. `--ignore-ssl` no lo deja en `null`: con la
+verificación desactivada, httptap analiza el certificado del par a partir de su forma DER,
+por lo que `cert_cn`, `cert_days_left` y los demás campos `cert_*` se siguen
+informando. Un valor **negativo** significa que el certificado ya ha caducado.
 
 ### `--ignore-ssl` sigue fallando con `DH_KEY_TOO_SMALL` / `WRONG_VERSION_NUMBER`
 
 Las compilaciones modernas de OpenSSL descartan algunos cifrados y parámetros DH por seguridad.
 `--ignore-ssl` relaja la verificación y las restricciones de protocolo, pero no puede recuperar
 los conjuntos de cifrado (RC4, 3DES, DH débil) que se eliminaron del binario.
-Soluciones alternativas: usa un curl más antiguo, un proxy que determine TLS o recompila OpenSSL.
+Soluciones alternativas: usa un curl más antiguo, un proxy que termine TLS o recompila OpenSSL.
 
 ## Proxies
 
-### `--proxy` se ignore
+### `--proxy` se ignora
 
 La opción explícita `-x/--proxy` siempre prevalece sobre las variables de entorno. Comprueba:
 
@@ -57,7 +57,7 @@ La opción explícita `-x/--proxy` siempre prevalece sobre las variables de ento
 3. Que el host de destino no coincide con `NO_PROXY`. Comprueba el campo `proxy_source`
    en la exportación JSON; si indica `NO_PROXY`, tu host está excluido.
 
-### Referencia de patrons de `NO_PROXY`
+### Referencia de patrones de `NO_PROXY`
 
 - Host exacto: `api.internal.example`
 - Sufijo de dominio: `.internal.example` (coincide con `foo.internal.example`)
@@ -71,7 +71,7 @@ adoptado de curl.
 
 ### El servidor responde con HTTP/1.1 aunque no se pasó `--no-http2`
 
-HTTP/2 require la negociación ALPN durante la negociación TLS. Si:
+HTTP/2 requiere la negociación ALPN durante la negociación TLS. Si:
 
 - el servidor no anuncia `h2` en ALPN, **o**
 - el destino usa `http://` plano (h2c no es compatible),
@@ -89,10 +89,10 @@ la negociación ALPN de h2.
 ### `timing.is_estimated: true` — ¿qué significa?
 
 httptap normalmente obtiene los tiempos de las fases a partir de los ganchos de traza de `httpcore`. Cuando esos
-ganchos no están disponibles (p. ej., un `RequestExecutor` personalizado que los omite,
-o ciertas rutas de reutilización de conexiones HTTP/2), httptap recurre a dividir el
-tiempo total transcurrido mediante heurísticas. El desglose sigue siendo direccionalmente
-correcto, pero menos preciso que la ruta predeterminada.
+ganchos no informan de eventos de conexión/TLS para una solicitud (p. ej., un transporte que no
+emite eventos de traza de `httpcore`), httptap recurre a dividir el tiempo entre DNS y el primer
+byte de la respuesta mediante heurísticas (30 % conexión, 70 % TLS para HTTPS). El desglose sigue
+siendo direccionalmente correcto, pero menos preciso que la ruta predeterminada.
 
 ### ¿Por qué dos ejecuciones consecutivas muestran valores de `dns_ms` tan dispares?
 
@@ -102,13 +102,14 @@ Para omitir las cachés, proporciona un resolutor personalizado a través de la 
 caché local (p. ej., `sudo dscacheutil -flushcache` en macOS, `resolvectl flush-caches`
 en systemd).
 
-### `ttfb_ms` es cero o inferior a `connect_ms`
+### Cada paso de redirección muestra `connect_ms` y `tls_ms` completos
 
-En la reutilización de conexiones (keep-alive para pasos de redirección posteriores, multiplexación de
-flujos HTTP/2) no hay una nueva conexión TCP para ese paso — `connect_ms` será
-`0` o muy pequeño. `ttfb_ms` mide el tiempo hasta el primer byte de respuesta en
-esa solicitud específica; es de esperar que compararlo con `connect_ms` entre pasos
-parezca extraño.
+httptap abre una conexión nueva para cada solicitud, incluido cada paso de redirección,
+así que las conexiones nunca se reutilizan y cada paso paga su propia conexión TCP y su
+propia negociación TLS. `ttfb_ms` se cuenta desde el inicio de la resolución DNS, por lo
+que ya incluye `dns_ms`, `connect_ms` y `tls_ms`; el tiempo de procesamiento propio del
+servidor es `wait_ms`. Un paso cuyos tiempos son todos `0` falló antes de que llegara una
+respuesta — revisa su campo `error`.
 
 ## Salida
 
@@ -124,15 +125,26 @@ TTY de Rich:
 
 ### `--metrics-only` dejó de mostrar un campo `proxy=`
 
-No lo hizo — el campo siempre está presente. Las capturas/ejemplos antiguos pueden set anteriores
+No lo hizo — el campo siempre está presente. Las capturas/ejemplos antiguos pueden ser anteriores
 al cambio. Formato esperado:
 
 ```
 Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
 ```
 
-Fuentes para `proxy`: `direct`, `none` (coincidencia con NO_PROXY), `disabled` (`--proxy ""`),
-`<url>` con una pista `proxy_from=...`.
+Valores posibles:
+
+- `proxy=<url> proxy_from=arg` — proxy configurado con `-x/--proxy`.
+- `proxy=<url> proxy_from=env:<VAR>` — proxy tomado de una variable de entorno
+  como `https_proxy` o `HTTPS_PROXY`.
+- `proxy=none proxy_from=env:no_proxy` — el host coincidió con `NO_PROXY`.
+- `proxy=disabled proxy_from=arg` — proxies desactivados con `--proxy ""`.
+- `proxy=direct proxy_from=no_scheme_match` — hay variables de proxy configuradas, pero
+  ninguna se aplica al esquema de la URL.
+- `proxy=direct` — no hay ningún proxy configurado.
+
+Los valores se codifican con porcentajes cuando, de lo contrario, romperían la
+tokenización `key=value`.
 
 ## Scripting y CI
 
@@ -140,8 +152,11 @@ Fuentes para `proxy`: `direct`, `none` (coincidencia con NO_PROXY), `disabled` (
 
 Consulta la sección [Exit Codes](https://github.com/ozeranskii/httptap#exit-codes)
 del README. Patrón típico de CI: trata `75` (red / TLS, transitorio) como
-reintentable, falla de forma rotunda con `64` (uso), `70` (error) y `4` (violación de SLO si
-proporcionaste `--slo`).
+reintentable, falla de forma rotunda con `64` (uso), `70` (error interno), `47` (límite de
+redirecciones alcanzado con `--follow`), `73` (no se escribió el archivo de `--json`), `22` (HTTP
+4xx/5xx con `--fail`) y `4` (violación de SLO si proporcionaste `--slo`).
+Cuando se aplican varios, gana el código de mayor prioridad; consulta la
+[tabla de prioridades](usage/slo.md#codigos-de-salida).
 
 ### Mi presupuesto de `--slo` nunca se activa aunque la solicitud sea lenta.
 
@@ -149,9 +164,9 @@ Comprueba tres cosas:
 
 1. Que la clave que configuraste se corresponde con una fase de temporización real. Las claves válidas son
    `dns`, `connect`, `tls`, `ttfb`, `wait`, `xfer`, `total` — cualquier otra
-   rechaza el commando con código de salida `64` (panel de error de SLO).
+   rechaza el comando con código de salida `64` (panel de error de SLO).
 2. El SLO se evalúa sobre el **paso exitoso final**, no sobre las redirecciones
-   intermedias. Si `--follow` rebotó a través de various saltos y el último
+   intermedias. Si `--follow` rebotó a través de varios saltos y el último
    paso fue rápido, el total general de la cadena no se compara. Usa `total`
    contra el presupuesto de la solicitud terminal, o agrega manualmente desde
    `--json` si necesitas garantías por paso.
@@ -186,7 +201,7 @@ usa un `RequestExecutor` personalizado si necesitas cambiar ese comportamiento.
 
 ## ¿Sigues atascado?
 
-- Ejecuta con `--metrics-only` e incluye la salida completa en tu inform.
-- Ejecuta con `--json report.json` y adjunta el inform (censura las cabeceras de autenticación).
+- Ejecuta con `--metrics-only` e incluye la salida completa en tu informe.
+- Ejecuta con `--json report.json` y adjunta el informe (censura las cabeceras de autenticación).
 - Confirma la versión — `httptap --version` — solo damos soporte a la última
   versión menor.

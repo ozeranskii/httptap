@@ -1,11 +1,11 @@
 ---
 title: SLO 阈值校验
-description: 使用 --slo 或 --slo-file 依据各阶段延迟预算，在 CI、cron 和就绪检查中对请求进行门禁校验。
+description: 使用 --slo 或 --slo-file 依据各阶段延迟预算，在 CI、cron 和可用性检查中对请求进行门禁校验。
 ---
 
 # SLO 阈值校验
 
-`httptap --slo` 和 `--slo-file` 会将测量到的计时与各阶段延迟预算进行比对，当任一预算被超出时以非零码退出。这将一次请求变成一个通过/失败的探针，适用于 CI 门禁、基于 cron 的合成监控、就绪检查以及部署后的冒烟测试——无需编写自定义的 shell 解析器。
+`httptap --slo` 和 `--slo-file` 会将测量到的计时与各阶段延迟预算进行比对，当任一预算被超出时以非零码退出。这将一次请求变成一个通过/失败的探针，适用于 CI 门禁、基于 cron 的合成监控、可用性检查以及部署后的冒烟测试——无需编写自定义的 shell 解析器。
 
 ## 快速示例
 
@@ -69,8 +69,9 @@ httptap --slo-file slo.txt https://api.example.com/health
 - 非数值（`--slo total=fast`）。
 - 零、负值或非有限值（`--slo total=0`、`total=nan`、`total=inf`）。
 - 缺少 `=`（`--slo total500`）。
+- 无法读取的 `--slo-file`，或包含上述任一情况的 `--slo-file`。
 
-具体错误会在 Rich 格式的面板中打印以供交互使用，并在 `--metrics-only` 下以纯文本打印。
+具体错误会以 Rich 格式的 `SLO Error` 面板打印到 stderr（在 `--metrics-only` 下同样如此）；由于不会发起任何请求，stdout 上不会有任何输出。
 
 ## 评估规则
 
@@ -82,7 +83,7 @@ SLO 阈值针对请求链的**最终成功步骤**进行评估：
 
 当 `actual ≤ threshold` 时阈值通过。相等**不**计为违规。违规项会按其键的字母顺序报告，以获得确定性的输出。
 
-## 退出码
+## 退出码 { #exit-codes }
 
 `--slo` 与 `httptap` 的整体退出码优先级相集成：
 
@@ -196,21 +197,25 @@ Step 1: ... proxy=direct slo=pass
       https://staging.example.com/
 ```
 
-该步骤仅在退出码 `4` 或 `64` 时失败。网络错误（退出码 `75`）可以单独处理：
+该步骤在任何非零退出码时都会失败，包括网络错误（`75`）。若希望在 SLO 违规（或任何其他错误）时让构建失败，而对网络错误仅发出警告，可将退出码记录到 `$GITHUB_OUTPUT`，并在后续步骤中据此处理：
 
 ```yaml
 - name: Smoke-test staging latency
   id: smoke
-  continue-on-error: true
-  run: httptap --slo total=2000 https://staging.example.com/
-- name: Fail CI only on SLO violation
-  if: steps.smoke.outcome == 'failure' && steps.smoke.conclusion != 'success'
   run: |
-    if [ "${{ steps.smoke.outputs.exit_code }}" = "4" ]; then
-      echo "SLO violation — failing build."
-      exit 1
+    set +e
+    httptap --slo total=2000 https://staging.example.com/
+    code=$?
+    echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+    if [ "${code}" -ne 0 ] && [ "${code}" -ne 75 ]; then
+      exit "${code}"
     fi
+- name: Warn on network errors
+  if: steps.smoke.outputs.exit_code == '75'
+  run: echo "::warning::httptap could not reach staging (exit 75)."
 ```
+
+`set +e` 让 shell 在非零退出后继续运行，以便记录退出码。SLO 违规（`4`）会让冒烟测试步骤本身失败。
 
 ### Kubernetes 就绪探针
 

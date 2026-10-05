@@ -21,7 +21,7 @@ httptap は検証なしの診断用 TLS ハンドシェイクのみを再試行�
 
 ### 証明書に `cert_days_left: null` または負の値が表示される
 
-`cert_days_left` はリーフ証明書の `notAfter` フィールドから解析されます。`null` の値は証明書を取得/解析できなかったことを意味します。通常は、証明書を受信する前に TLS が中断されたか、`--ignore-ssl` が使用された場合です（検証を無効にすると、ピア証明書は解析済みのディクショナリとして表面化されないため、`cert_cn`/`cert_days_left` およびその他の `cert_*` フィールドは `null` のままとなり、一方で `tls_version`/`tls_cipher` は依然として報告されます）。**負**の値は、証明書がすでに期限切れであることを意味します。
+`cert_days_left` はリーフ証明書の `notAfter` フィールドから解析されます。`null` の値は証明書を取得/解析できなかったことを意味します。通常は、証明書を受信する前に TLS が中断された、ターゲットが平文の `http://` である、または TLS ハンドシェイクの前にリクエストが失敗した場合です。`--ignore-ssl` によって `null` になることはありません。検証を無効にした場合、httptap はピア証明書を DER 形式から解析するため、`cert_cn`、`cert_days_left`、およびその他の `cert_*` フィールドは引き続き報告されます。**負**の値は、証明書がすでに期限切れであることを意味します。
 
 ### `--ignore-ssl` を使っても `DH_KEY_TOO_SMALL` / `WRONG_VERSION_NUMBER` で失敗する
 
@@ -65,15 +65,15 @@ HTTP/2 には TLS ハンドシェイク中の ALPN ネゴシエーションが�
 
 ### `timing.is_estimated: true` — これはどういう意味？
 
-httptap は通常、`httpcore` のトレースフックからフェーズのタイミングを取得します。それらのフックが利用できない場合（例: それらをバイパスするカスタム `RequestExecutor`、または特定の HTTP/2 接続再利用パス）、httptap は経過時間の合計をヒューリスティックで分割するフォールバックを使用します。内訳は依然として方向性としては正しいものの、デフォルトのパスより精度は落ちます。
+httptap は通常、`httpcore` のトレースフックからフェーズのタイミングを取得します。あるリクエストについてそれらのフックが接続/TLS のイベントを 1 つも報告しない場合（例: `httpcore` のトレースイベントを発行しないトランスポート）、httptap は DNS から最初のレスポンスバイトまでの時間をヒューリスティック（HTTPS では接続 30%、TLS 70%）で分割するフォールバックを使用します。内訳は依然として方向性としては正しいものの、デフォルトのパスより精度は落ちます。
 
 ### 連続する 2 回の実行で `dns_ms` が大きく異なるのはなぜ？
 
 システムのリゾルバはエントリをキャッシュします。最初のリクエストは DNS サーバーへの完全な RTT を支払い、その後のリクエストはキャッシュにヒットします（多くの場合ミリ秒未満）。キャッシュをバイパスするには、Python API 経由でカスタムリゾルバを渡すか、ローカルキャッシュをフラッシュします（例: macOS では `sudo dscacheutil -flushcache`、systemd では `resolvectl flush-caches`）。
 
-### `ttfb_ms` がゼロ、または `connect_ms` より小さい
+### すべてのリダイレクトステップで `connect_ms` と `tls_ms` がフルに計上される
 
-接続の再利用時（後続のリダイレクトステップでの keep-alive、HTTP/2 のストリーム多重化）には、そのステップに対して新しい TCP 接続がありません — `connect_ms` は `0` または非常に小さくなります。`ttfb_ms` はその特定のリクエストで最初のレスポンスバイトが返るまでの時間を計測します。ステップ間で `connect_ms` と比較すると、奇妙に見えるのが予想される挙動です。
+httptap は各リダイレクトステップを含め、リクエストごとに新しい接続を開きます。そのため接続が再利用されることはなく、各ステップがそれぞれ TCP 接続と TLS ハンドシェイクのコストを支払います。`ttfb_ms` は名前解決の開始から計測されるため、`dns_ms`、`connect_ms`、`tls_ms` をすでに含んでいます。サーバー自身の処理時間は `wait_ms` です。タイミングがすべて `0` のステップは、レスポンスが届く前に失敗しています — そのステップの `error` フィールドを確認してください。
 
 ## 出力
 
@@ -93,13 +93,22 @@ httptap は [`NO_COLOR`](https://no-color.org) の規約と Rich の TTY 検出�
 Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
 ```
 
-`proxy` の値のソース: `direct`、`none`（NO_PROXY にヒット）、`disabled`（`--proxy ""`）、`proxy_from=...` のヒント付きの `<url>`。
+取りうる値:
+
+- `proxy=<url> proxy_from=arg` — `-x/--proxy` で設定されたプロキシ。
+- `proxy=<url> proxy_from=env:<VAR>` — `https_proxy` や `HTTPS_PROXY` などの環境変数から取得されたプロキシ。
+- `proxy=none proxy_from=env:no_proxy` — ホストが `NO_PROXY` にマッチした。
+- `proxy=disabled proxy_from=arg` — `--proxy ""` でプロキシが無効化された。
+- `proxy=direct proxy_from=no_scheme_match` — プロキシ変数は設定されているが、URL のスキームに該当するものがない。
+- `proxy=direct` — プロキシが設定されていない。
+
+`key=value` のトークン分割を壊してしまう値はパーセントエンコードされます。
 
 ## スクリプト & CI
 
 ### どの終了コードを確認すべき？
 
-README の [Exit Codes](https://github.com/ozeranskii/httptap#exit-codes) セクションを参照してください。典型的な CI のパターン: `75`（ネットワーク / TLS、一時的）はリトライ可能として扱い、`64`（使用方法）、`70`（バグ）、`4`（`--slo` を指定した場合の SLO 違反）ではハードに失敗させます。
+README の [Exit Codes](https://github.com/ozeranskii/httptap#exit-codes) セクションを参照してください。典型的な CI のパターン: `75`（ネットワーク / TLS、一時的）はリトライ可能として扱い、`64`（使用方法）、`70`（バグ）、`47`（`--follow` でリダイレクト上限に到達）、`73`（`--json` ファイルを書き込めなかった）、`22`（`--fail` 指定時の HTTP 4xx/5xx）、`4`（`--slo` を指定した場合の SLO 違反）ではハードに失敗させます。複数が該当する場合は、優先度の最も高いコードが採用されます。[優先順位の表](usage/slo.md#exit-codes)を参照してください。
 
 ### リクエストが遅いのに `--slo` の予算が一度もトリガーされない。
 

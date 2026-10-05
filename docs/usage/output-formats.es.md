@@ -166,7 +166,7 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -185,6 +185,7 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     }
   ],
@@ -218,6 +219,10 @@ de solicitud y respuesta están en bytes. Los tamaños de respuesta (`bytes`, `f
 cuerpo tal como se recibe por la red, antes de decodificar `Content-Encoding`, como `size_download` de
 curl. Las fechas del certificado y de la respuesta son marcas de tiempo ISO 8601/RFC 3339 cuando
 están disponibles. Consulta el ejemplo anterior para ver la estructura anidada de `steps` y `summary`.
+
+`network.tls_custom_ca` es `true` cuando se usó `--cacert` y `false` en caso contrario. El campo
+`redirect_limit_reached` de un paso es `true` cuando `--follow` se detuvo en el límite de 10
+redirecciones en ese paso; ese paso también cuenta en `summary.errors`.
 
 ### Características
 
@@ -285,9 +290,12 @@ pip install 'httptap[otel]'
 httptap --otlp http://localhost:4318/v1/traces https://api.example.com/health
 ```
 
-Cada paso de solicitud crea un span `http.request`. Sus spans hijos representan
-las fases de DNS, conexión, TLS, espera del servidor y transferencia. La exportación omite la
-URL completa de la solicitud para que los parámetros de consulta no se envíen al collector.
+Una ejecución se exporta como una única traza: un span raíz `httptap.analysis` con un span
+`http.request` por cada paso de redirección, dispuestos uno tras otro, y spans hijos para las
+fases de DNS, conexión, TLS, espera del servidor y transferencia. La entrega está acotada por
+`-m`/`--max-time`; un error del collector se informa como advertencia y no cambia el código de
+salida. La exportación omite la URL completa de la solicitud, de modo que los parámetros de
+consulta no se envían al collector.
 
 ## Cadenas de redirecciones
 
@@ -360,7 +368,7 @@ aprobado/fallido evaluado frente a la solicitud final correcta.
   `violations[]` (cada uno con `key`, `threshold_ms`, `actual_ms`,
   `delta_ms`). Ausente cuando no se proporciona `--slo`.
 
-Una violación have que `httptap` salga con el código `4` sin dejar de renderizar
+Una violación hace que `httptap` salga con el código `4` sin dejar de renderizar
 la salida completa, de modo que la evidencia se conserva para el análisis posterior.
 
 Consulta la página dedicada [Comprobación de umbrales SLO](slo.md) para la

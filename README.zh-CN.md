@@ -117,13 +117,14 @@
 - **分阶段计时** —— 基于 httpcore 的 trace 钩子进行精确测量（当底层数据不可用时提供合理的回退估算）。
 - **全部 HTTP 方法** —— GET、POST、PUT、PATCH、DELETE、HEAD、OPTIONS，均支持请求体。
 - **请求体支持** —— 内联或从文件发送 JSON、XML 或任意数据，并自动检测 Content-Type。
-- **IPv4/IPv6 感知** —— 解析器与 TLS 检查器会同时报告地址及其地址族。
+- **IPv4/IPv6 感知** —— 解析器与 TLS 检查器会同时报告地址及其地址族；`-4`/`-6` 将解析限定为单一地址族，`--resolve HOST:PORT:ADDR` 则可将主机固定到某个地址，同时保留原始 `Host` 头和 TLS SNI。
 - **TLS 洞察** —— 证书 CN、SAN、颁发者、序列号、有效期窗口与到期倒计时，以及加密套件和协议版本，均直接从当前
   连接自动采集（无需额外握手）。
 - **多种输出模式** —— 丰富的瀑布图视图、紧凑的单行摘要，或用于脚本化的 `--metrics-only`。
-- **JSON 导出** —— 持久化完整的分步数据（包含重定向链）以便后续处理。
-- **SLO 阈值校验** —— `--slo total=500,ttfb=200` 可基于各阶段延迟预算为 CI 任务、cron 探针和就绪检查设置门禁；
-  超标时以非零码退出，同时仍渲染完整报告。
+- **JSON 导出** —— 持久化完整的分步数据（包含重定向链）以便后续处理，或通过 `--json -` 将其输出到标准输出。
+- **Prometheus 与 OpenTelemetry 导出** —— `--prometheus PATH` 写入 node_exporter textfile；`--otlp ENDPOINT` 将分阶段 span 发送到 OTLP/HTTP collector（需要安装 `httptap[otel]`）。
+- **SLO 阈值校验** —— `--slo total=500,ttfb=200`（或通过 `--slo-file` 从文件读取阈值）可基于各阶段延迟预算为 CI 任务、cron 探针和就绪检查设置门禁；超标时以非零码退出，同时仍渲染完整报告。
+- **可脚本化的退出码** —— `-f/--fail` 在 HTTP 4xx/5xx 响应时以 `22` 退出；SLO 违规、网络错误和重定向次数上限也各有专属的[退出码](#退出码)。
 - **可扩展** —— 为 DNS、TLS、计时、可视化和导出提供清晰的 Protocol 接口，便于插入自定义行为。
 
 > 📣 <strong>httptap 用户专享：</strong>在 <a href="https://gitkraken.cello.so/vY8yybnplsZ"><strong>GitKraken Pro</strong></a> 上节省 50%。将 GitKraken Client、用于 VS Code 的 GitLens 以及强大的 CLI 工具组合在一起，加速每一次仓库工作流。
@@ -262,7 +263,7 @@ Homebrew 会自动将补全安装到：
 ```shell
 # 补全命令选项
 httptap --<TAB>
-# 显示：--method, --data, --follow, --timeout, --no-http2, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --version, --help
+# 显示：--method, --data, --follow, --timeout, --no-http2, --fail, --ipv4, --ipv6, --resolve, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --prometheus, --otlp, --slo, --slo-file, --version, --help
 
 # 输入部分选项后补全
 httptap --fol<TAB>
@@ -295,7 +296,7 @@ httptap https://httpbin.io/post --data '{"name": "John", "email": "john@example.
 
 **注意：** 当提供了 `--data` 而未提供 `--method` 时，httptap 会自动切换为 POST（类似 curl）。
 
-**兼容 curl 的参数：** httptap 接受最常见的 curl 语法，因此你常常可以直接用 `httptap` 替换 `curl`。别名包括：`-X/--request` 对应 `--method`、`-L/--location` 对应 `--follow`、`-m/--max-time` 对应 `--timeout`、`-k/--insecure` 对应 `--ignore-ssl`、`-x` 对应 `--proxy`、`--http1.1` 对应 `--no-http2`。（并非所有 curl 选项都受支持——替换命令时请只使用这些共有参数。）
+**兼容 curl 的参数：** httptap 接受最常见的 curl 语法，因此你常常可以直接用 `httptap` 替换 `curl`。别名包括：`-X/--request` 对应 `--method`、`-L/--location` 对应 `--follow`、`-m/--max-time` 对应 `--timeout`、`-k/--insecure` 对应 `--ignore-ssl`、`-x` 对应 `--proxy`、`--http1.1` 对应 `--no-http2`。`-f/--fail`、`-4/--ipv4`、`-6/--ipv6` 和 `--resolve HOST:PORT:ADDR` 与 curl 中的名称相同。（并非所有 curl 选项都受支持——替换命令时请只使用这些共有参数。）
 
 从文件加载数据：
 
@@ -470,10 +471,15 @@ httptap 遵循 BSD `sysexits.h` 约定，因此能与 shell 管道、CI 任务�
 |:--:|------|------|
 | `0` | `EX_OK` | 成功。 |
 | `4` | — | SLO 阈值违规（请求成功但过慢）。 |
+| `22` | — | 使用 `-f` / `--fail` 时收到 HTTP 4xx/5xx 响应。 |
+| `47` | — | 已跟随到最大重定向次数。 |
 | `64` | `EX_USAGE` | 命令行参数无效。 |
 | `70` | `EX_SOFTWARE` | 内部错误（意外异常、缺陷）。 |
+| `73` | `EX_CANTCREAT` | 无法写入 `--json` 输出文件。 |
 | `75` | `EX_TEMPFAIL` | 网络 / TLS 错误（可能仍会渲染部分输出）。 |
 | `128 + N` | 信号偏移 | 被信号 `N` 终止（例如 `130` 对应 `SIGINT` / Ctrl-C）。 |
+
+当多个条件同时满足时，优先级最高的退出码胜出：`70` > `47` > `75` > `73` > `22` > `4` > `0`。无效参数（`64`）会在发起任何请求之前报告。完整的优先级表请参见 [SLO 退出码](https://docs.httptap.dev/usage/slo/#exit-codes)。
 
 示例 —— 仅在用法错误时使 CI 任务失败，容忍瞬时网络问题：
 
@@ -490,26 +496,14 @@ fi
 
 ## 发布
 
-### 前置条件
+发布由手动触发的 **Release** 工作流（GitHub Actions → **Release** → **Run workflow**）完成，可指定确切版本号（例如 `0.3.0`），或选择 `patch`/`minor`/`major` 递增：
 
-- 必须在仓库设置中配置 GitHub Environment `pypi`
-- 为 `ozeranskii/httptap` 配置 PyPI Trusted Publishing
+1. **准备** —— 使用 `uv version` 更新版本，刷新 `uv.lock`，将 `git-cliff` 生成的变更日志条目追加到 `CHANGELOG.md` 开头，并在本地创建经 gitsign 签名的发布提交和标签。此时尚未推送任何内容。
+2. **构建** —— 在尚未推送的标签上运行完整测试套件，构建 wheel 和 sdist，生成 SBOM（CycloneDX、SPDX）、OpenVEX 文档和 man 手册页，并生成构建来源证明。
+3. **推送** —— 仅在构建和来源证明成功后，才将 `main` fast-forward 到发布提交并推送标签。如果发布期间 `main` 有新的提交，推送会失败，且不会发布任何内容。
+4. **发布** —— 通过 Trusted Publishing (OIDC) 先后上传到 TestPyPI 和 PyPI，将已签名的多架构容器镜像推送到 GHCR，并创建附带 wheel、sdist、SBOM、VEX 和 man 手册页的 GitHub Release。
 
-### 步骤
-
-1. 从 GitHub Actions 触发 **Release** 工作流：
-   - 提供确切版本号（例如 `0.3.0`），或
-   - 选择递增类型：`patch`、`minor` 或 `major`
-2. 工作流将会：
-   - 使用 `uv version` 更新 `pyproject.toml` 中的版本
-   - 使用 `git-cliff` 生成变更日志并更新 `CHANGELOG.md`
-   - 提交更改并创建 git 标签
-   - 在已打标签的版本上运行完整测试套件
-   - 构建 wheel 和源码分发包
-   - 通过 Syft 生成 CycloneDX 和 SPDX 格式的 SBOM
-   - 附上当前的 OpenVEX 文档（`.vex/httptap.openvex.json`）
-   - 通过 Trusted Publishing (OIDC) 发布到 PyPI
-   - 创建带 wheel、sdist、SBOM 和 VEX 资产的 GitHub Release
+前置条件（GitHub environments、Trusted Publishing、deploy key）以及各任务的详细信息，请参见[发布流程文档](https://docs.httptap.dev/development/release/)。
 
 ---
 
@@ -526,6 +520,9 @@ fi
 
 ```json
 {
+  "schema_version": 1,
+  "httptap_version": "0.6.3",
+  "timestamp": "2026-09-18T08:00:00Z",
   "initial_url": "https://httpbin.io/redirect/2",
   "total_steps": 3,
   "steps": [
@@ -561,7 +558,7 @@ fi
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -582,6 +579,7 @@ fi
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     },
     {
@@ -616,7 +614,7 @@ fi
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -637,6 +635,7 @@ fi
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     },
     {
@@ -671,7 +670,7 @@ fi
         "cert_not_before": "2025-04-01T00:00:00+00:00",
         "cert_not_after": "2025-09-01T00:00:00+00:00",
         "tls_verified": true,
-        "tls_custom_ca": null,
+        "tls_custom_ca": false,
         "proxy_url": null,
         "proxy_source": null
       },
@@ -692,6 +691,7 @@ fi
       },
       "error": null,
       "note": null,
+      "redirect_limit_reached": false,
       "proxy": null
     }
   ],
@@ -735,6 +735,8 @@ class HardcodedDNS(SystemDNSResolver):
 analyzer = HTTPTapAnalyzer(dns_resolver=HardcodedDNS())
 steps = analyzer.analyze_url("https://httpbin.io")
 ```
+
+`HardcodedDNS` 只重写了 `resolve()`，因此 httptap 会调用它而不是继承来的 `resolve_all()`，并连接到这一个地址。若要返回多个地址以便在连接失败时回退，请同时重写 `resolve_all()`；当名称无法解析时，请抛出 `DNSResolutionError`。参见 [Protocol Interfaces](https://docs.httptap.dev/api/interfaces/#dnsresolver)。
 
 ---
 
