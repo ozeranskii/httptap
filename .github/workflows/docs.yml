@@ -31,6 +31,8 @@ env:
   DISABLE_MKDOCS_2_WARNING: "true"
 
 jobs:
+  # Builds the site, including third-party MkDocs plugins, with a read-only
+  # token; only the deploy job below can publish, and it runs no project code.
   build:
     name: Build Documentation
     runs-on: ubuntu-latest
@@ -53,6 +55,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version-file: uv.lock
           enable-cache: true
 
       - name: Install dependencies
@@ -61,34 +64,28 @@ jobs:
       - name: Build (strict)
         run: uv run mkdocs build --strict
 
+      # The custom domain comes from the repository's Pages settings; the
+      # CNAME file that MkDocs copies into site/ is ignored by this deploy.
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/
+
   deploy:
     name: Deploy Documentation
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     permissions:
-      contents: write # Required for gh-pages push
+      pages: write # Required to deploy to GitHub Pages
+      id-token: write # Required to verify the deployment originates from this workflow
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0 # Fetch all history for git info
-          persist-credentials: true # Required for mkdocs gh-deploy push
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version-file: "pyproject.toml"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-        with:
-          enable-cache: true
-
-      - name: Install dependencies
-        run: uv sync --locked --group docs
-
       - name: Deploy to GitHub Pages
-        run: uv run mkdocs gh-deploy --force
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

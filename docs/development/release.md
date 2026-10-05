@@ -16,9 +16,12 @@ signed container image to GHCR.
 
 Before creating a release, ensure:
 
-1. **GitHub Environments** - `release`, `testpypi`, and `pypi` environments configured in repository settings
+1. **GitHub Environments** - `release`, `testpypi`, and `pypi` environments configured in repository settings,
+   each allowing deployments from `main` only; `pypi` has a required reviewer
 2. **PyPI Trusted Publishing** - Configured for both PyPI and TestPyPI (OIDC, no tokens)
-3. **Deploy Key** - SSH deploy key with write access (for bypassing branch protection)
+3. **Deploy Key** - SSH deploy key with write access, stored as the `DEPLOY_KEY` secret of the `release`
+   environment only, and allowed to bypass the `main` branch protection and the tag ruleset that protects
+   `refs/tags/v*`
 4. **GHCR access** - `packages: write` permission on the release job (granted per-workflow)
 5. **All tests passing** - CI must be green on main branch
 
@@ -76,20 +79,20 @@ The release process is triggered manually via GitHub Actions.
 
 5. **Build**
    ```bash
-   uv sync --locked --group test
-   uv run pytest  # Full test suite
+   uv sync --locked --no-dev --group test
+   uv run --no-sync pytest  # Full test suite
    uv build  # Create wheel and sdist
    ```
    Runs on the unpushed release tag from the bundle.
 
 6. **Push Commit and Tag**
    ```bash
-   git push origin "v0.2.0^{commit}:refs/heads/main"
-   git push origin v0.2.0
+   git push --atomic origin "v0.2.0^{commit}:refs/heads/main" refs/tags/v0.2.0:refs/tags/v0.2.0
    ```
    Only after the build and attestation succeed. The push is fast-forward
-   only, so if `main` moved during the release the workflow stops here,
-   before anything is published.
+   only and atomic, so if `main` moved during the release neither the branch
+   nor the tag is updated and the workflow stops here, before anything is
+   published.
 
 7. **Publish to TestPyPI**
     - Uploads to TestPyPI first via OIDC Trusted Publishing, with PEP 740
@@ -100,6 +103,7 @@ The release process is triggered manually via GitHub Actions.
     - Uploads wheel and source distribution with PEP 740 attestations
 
 9. **Publish container image to GHCR**
+    - Runs only after the PyPI publish, so it waits for the `pypi` review
     - Builds multi-arch (linux/amd64, linux/arm64) image
     - Pushes to `ghcr.io/ozeranskii/httptap` with `{version}`, `{major}.{minor}`,
       `{major}`, and `latest` tags
@@ -122,6 +126,7 @@ The release workflow is defined in `.github/workflows/release.yml`:
 - Configures Python and uv
 - Updates version in pyproject.toml
 - Generates changelog
+- Adds the release to the `fixed` statements of `.vex/httptap.openvex.json` and bumps the document version
 - Creates the signed release commit and tag locally
 - Uploads them as a `release-bundle` artifact; nothing is pushed
 
@@ -131,15 +136,16 @@ The release workflow is defined in `.github/workflows/release.yml`:
 - Runs full test suite
 - Builds wheel and sdist
 - Generates SBOM in CycloneDX and SPDX JSON formats via [Syft](https://github.com/anchore/syft)
-- Copies the versioned OpenVEX document from `.vex/httptap.openvex.json` into the `sbom/` directory as `httptap-X.Y.Z.openvex.json`
+- Fails if a `fixed` statement in `.vex/httptap.openvex.json` does not list the release, then copies the document into the `sbom/` directory as `httptap-X.Y.Z.openvex.json`
 - Generates a gzipped `man(1)` page with [argparse-manpage](https://github.com/praiskup/argparse-manpage)
 - Uploads `dist/`, `sbom/`, and `man/` artifacts separately
 
 #### 3. Push Release Commit and Tag
 
 - Runs only after the build and provenance attestation succeed
-- The only job with `contents: write` and the deploy key (`release` environment)
-- Fast-forwards `main` to the release commit and pushes the tag; fails without
+- The only job that writes to the git repository; it pushes over SSH with the deploy key of the `release`
+  environment, so its workflow token is read-only (`contents: read`)
+- Fast-forwards `main` to the release commit and pushes the tag in one atomic push; fails without
   publishing anything if `main` moved during the release
 
 #### 4. Publish to TestPyPI
@@ -154,13 +160,14 @@ The release workflow is defined in `.github/workflows/release.yml`:
 
 #### 6. Publish container image to GHCR
 
-- Runs only after the release commit and tag are pushed
+- Runs only after the PyPI publish, so nothing reaches GHCR before the `pypi` environment's review
 - Builds multi-arch image with Buildx + QEMU
 - Signs with cosign (keyless Sigstore OIDC)
 - Attaches SLSA build provenance
 
 #### 7. Create GitHub Release
 
+- The only job with `contents: write`, which it needs to create the release
 - Downloads `dist/`, `sbom/`, and `man/` artifacts
 - Creates GitHub release with changelog notes
 - Attaches wheel, sdist, SBOM (`*.cdx.json`, `*.spdx.json`), VEX (`*.openvex.json`), and the man page
@@ -224,8 +231,10 @@ During pre-1.0 development (0.x.x):
 If push fails due to branch protection:
 
 1. Verify deploy key has write access
-2. Check deploy key is in bypass list for branch protection rules
+2. Check deploy key is in bypass list for the branch protection rules and the `refs/tags/v*` tag ruleset
 3. Ensure `ssh-key` is configured in workflow checkout
+4. Check that `DEPLOY_KEY` is a secret of the `release` environment and that the workflow was run from `main`,
+   the only branch the environment accepts
 
 ### Changelog Empty
 

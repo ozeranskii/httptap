@@ -16,9 +16,12 @@ imagen de contenedor firmada a GHCR.
 
 Antes de crear una publicación, asegúrate de:
 
-1. **GitHub Environments** - Entornos `release`, `testpypi` y `pypi` configurados en la configuración del repositorio
+1. **GitHub Environments** - Entornos `release`, `testpypi` y `pypi` configurados en la configuración del repositorio,
+   cada uno admitiendo despliegues solo desde `main`; `pypi` requiere un revisor
 2. **PyPI Trusted Publishing** - Configurado tanto para PyPI como para TestPyPI (OIDC, sin tokens)
-3. **Deploy Key** - Clave de despliegue SSH con acceso de escritura (para eludir la protección de ramas)
+3. **Deploy Key** - Clave de despliegue SSH con acceso de escritura, guardada solo como secreto `DEPLOY_KEY` del
+   entorno `release` y autorizada a eludir la protección de la rama `main` y el conjunto de reglas que protege
+   las etiquetas `refs/tags/v*`
 4. **Acceso a GHCR** - Permiso `packages: write` en el job de publicación (otorgado por flujo de trabajo)
 5. **Todas las pruebas pasando** - CI debe estar en verde en la rama main
 
@@ -77,20 +80,20 @@ El proceso de publicación se activa manualmente mediante GitHub Actions.
 
 5. **Compilación**
    ```bash
-   uv sync --locked --group test
-   uv run pytest  # Full test suite
+   uv sync --locked --no-dev --group test
+   uv run --no-sync pytest  # Full test suite
    uv build  # Create wheel and sdist
    ```
    Se ejecuta sobre la etiqueta de publicación no enviada procedente del bundle.
 
 6. **Envío del commit y la etiqueta**
    ```bash
-   git push origin "v0.2.0^{commit}:refs/heads/main"
-   git push origin v0.2.0
+   git push --atomic origin "v0.2.0^{commit}:refs/heads/main" refs/tags/v0.2.0:refs/tags/v0.2.0
    ```
    Solo después de que la compilación y la atestación tengan éxito. El envío es
-   únicamente fast-forward, así que si `main` avanzó durante la publicación, el
-   flujo de trabajo se detiene aquí, antes de publicar nada.
+   únicamente fast-forward y atómico, así que si `main` avanzó durante la
+   publicación no se actualizan ni la rama ni la etiqueta, y el flujo de trabajo
+   se detiene aquí, antes de publicar nada.
 
 7. **Publicación en TestPyPI**
     - Sube primero a TestPyPI mediante OIDC Trusted Publishing, con atestaciones
@@ -101,6 +104,7 @@ El proceso de publicación se activa manualmente mediante GitHub Actions.
     - Sube el wheel y la distribución de código fuente con atestaciones PEP 740
 
 9. **Publicación de la imagen de contenedor en GHCR**
+    - Se ejecuta solo después de la publicación en PyPI, por lo que espera la revisión de `pypi`
     - Compila una imagen multiarquitectura (linux/amd64, linux/arm64)
     - Envía a `ghcr.io/ozeranskii/httptap` con las etiquetas `{version}`, `{major}.{minor}`,
       `{major}` y `latest`
@@ -123,6 +127,7 @@ El flujo de trabajo de publicación está definido en `.github/workflows/release
 - Configura Python y uv
 - Actualiza la versión en pyproject.toml
 - Genera el registro de cambios
+- Añade la publicación a las declaraciones `fixed` de `.vex/httptap.openvex.json` e incrementa la versión del documento
 - Crea localmente el commit y la etiqueta de publicación firmados
 - Los sube como artefacto `release-bundle`; no se envía nada
 
@@ -132,16 +137,17 @@ El flujo de trabajo de publicación está definido en `.github/workflows/release
 - Ejecuta el conjunto de pruebas completo
 - Compila el wheel y el sdist
 - Genera el SBOM en formatos JSON CycloneDX y SPDX mediante [Syft](https://github.com/anchore/syft)
-- Copia el documento OpenVEX versionado desde `.vex/httptap.openvex.json` al directorio `sbom/` como `httptap-X.Y.Z.openvex.json`
+- Falla si alguna declaración `fixed` de `.vex/httptap.openvex.json` no incluye la publicación y luego copia el documento al directorio `sbom/` como `httptap-X.Y.Z.openvex.json`
 - Genera una página `man(1)` comprimida con gzip usando [argparse-manpage](https://github.com/praiskup/argparse-manpage)
 - Sube los artefactos `dist/`, `sbom/` y `man/` por separado
 
 #### 3. Enviar el commit y la etiqueta de publicación
 
 - Se ejecuta solo después de que la compilación y la atestación de procedencia tengan éxito
-- Es el único job con `contents: write` y la clave de despliegue (entorno `release`)
-- Avanza `main` mediante fast-forward hasta el commit de publicación y envía la etiqueta;
-  falla sin publicar nada si `main` avanzó durante la publicación
+- Es el único job que escribe en el repositorio git; envía por SSH con la clave de despliegue del entorno
+  `release`, así que su token del flujo de trabajo es de solo lectura (`contents: read`)
+- Avanza `main` mediante fast-forward hasta el commit de publicación y envía la etiqueta en un único envío
+  atómico; falla sin publicar nada si `main` avanzó durante la publicación
 
 #### 4. Publicar en TestPyPI
 
@@ -155,13 +161,14 @@ El flujo de trabajo de publicación está definido en `.github/workflows/release
 
 #### 6. Publicar la imagen de contenedor en GHCR
 
-- Se ejecuta solo después de que se hayan enviado el commit y la etiqueta de publicación
+- Se ejecuta solo después de la publicación en PyPI, así que nada llega a GHCR antes de la revisión del entorno `pypi`
 - Compila una imagen multiarquitectura con Buildx + QEMU
 - Firma con cosign (Sigstore OIDC sin claves)
 - Adjunta procedencia de compilación SLSA
 
 #### 7. Crear la GitHub Release
 
+- Es el único job con `contents: write`, que necesita para crear la publicación
 - Descarga los artefactos `dist/`, `sbom/` y `man/`
 - Crea la publicación de GitHub con las notas del registro de cambios
 - Adjunta el wheel, el sdist, el SBOM (`*.cdx.json`, `*.spdx.json`), el VEX (`*.openvex.json`) y la página de manual
@@ -225,8 +232,11 @@ Durante el desarrollo pre-1.0 (0.x.x):
 Si el push falla debido a la protección de ramas:
 
 1. Verifica que la clave de despliegue tenga acceso de escritura
-2. Comprueba que la clave de despliegue esté en la lista de exención de las reglas de protección de ramas
+2. Comprueba que la clave de despliegue esté en la lista de exención de las reglas de protección de ramas y del
+   conjunto de reglas de etiquetas `refs/tags/v*`
 3. Asegúrate de que `ssh-key` esté configurado en el checkout del flujo de trabajo
+4. Comprueba que `DEPLOY_KEY` sea un secreto del entorno `release` y que el flujo de trabajo se haya ejecutado
+   desde `main`, la única rama que admite el entorno
 
 ### Registro de cambios vacío
 

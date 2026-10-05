@@ -74,6 +74,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version-file: uv.lock
           enable-cache: false
 
       - name: Update project version
@@ -108,13 +109,29 @@ jobs:
           DATE=$(date -u +%Y-%m-%d)
           yq -i ".version = \"${VERSION}\" | .\"date-released\" = \"${DATE}\"" CITATION.cff
 
+      - name: Add release to OpenVEX fixed statements
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Every fixed vulnerability stays fixed in the new release, so its
+          # purl joins the products of each "fixed" statement. The document
+          # version and timestamps only move when something actually changed,
+          # which keeps a re-run for the same version a no-op.
+          VEX=.vex/httptap.openvex.json
+          jq --arg purl "pkg:pypi/${PACKAGE_NAME}@${VERSION}" \
+             --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+            . as $orig
+            | .statements |= map(
+                if .status == "fixed" and (any(.products[]; .["@id"] == $purl) | not)
+                then .products += [{"@id": $purl}] | .timestamp = $now
+                else . end)
+            | if . == $orig then . else .version += 1 | .timestamp = $now end
+          ' "$VEX" > "${RUNNER_TEMP}/openvex.json"
+          mv "${RUNNER_TEMP}/openvex.json" "$VEX"
+          git diff --stat -- "$VEX"
+
       - name: Ensure changelog exists
         run: touch "${CHANGELOG_FILE}"
-
-      - name: Install git-cliff
-        uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
-        with:
-          tool: git-cliff
 
       - name: Generate changelog entry
         id: notes
@@ -122,12 +139,12 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
           # Generate full changelog and prepend to CHANGELOG.md
-          git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --prepend "${CHANGELOG_FILE}"
+          uv run --locked --only-group release git-cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --prepend "${CHANGELOG_FILE}"
           # Extract release notes for the new version.
           # We cannot use --latest here because the tag does not exist in git
           # yet (it is created in a later step); --latest would fall back to
           # the previous release and embed stale notes in the GitHub release.
-          NOTES=$(git cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --strip header)
+          NOTES=$(uv run --locked --only-group release git-cliff --config .release/git-cliff.toml --tag "${TAG}" --unreleased --strip header)
           {
             echo "text<<EOF"
             echo "${NOTES}"
@@ -139,7 +156,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          git add pyproject.toml uv.lock CITATION.cff "${CHANGELOG_FILE}"
+          git add pyproject.toml uv.lock CITATION.cff .vex/httptap.openvex.json "${CHANGELOG_FILE}"
           git commit -S -m "chore: release v${VERSION}"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -195,19 +212,20 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version-file: uv.lock
           enable-cache: false
 
       - name: Sync dependencies
         run: uv sync --locked --no-dev --group test
 
       - name: Run tests
-        run: uv run pytest
+        run: uv run --no-sync pytest
 
       - name: Build distribution
         run: uv build
 
       - name: Validate distribution metadata
-        run: uvx twine check dist/*
+        run: uv run --locked --only-group release twine check dist/*
 
       - name: Smoke test wheel
         run: uv run --isolated --no-project --with dist/*.whl httptap --version
@@ -257,14 +275,21 @@ jobs:
           # the current exploitability assessment. Rename-copy the file
           # with the release version embedded so the published artifact
           # is self-identifying.
-          cp .vex/httptap.openvex.json "sbom/${PACKAGE_NAME}-${VERSION}.openvex.json"
+          VEX=.vex/httptap.openvex.json
+          if ! jq -e --arg purl "pkg:pypi/${PACKAGE_NAME}@${VERSION}" \
+            '[.statements[] | select(.status == "fixed")] | all(any(.products[]; .["@id"] == $purl))' \
+            "$VEX" > /dev/null; then
+            echo "::error file=${VEX}::A fixed statement does not list pkg:pypi/${PACKAGE_NAME}@${VERSION}"
+            exit 1
+          fi
+          cp "$VEX" "sbom/${PACKAGE_NAME}-${VERSION}.openvex.json"
 
       - name: Generate man page
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           mkdir -p man
-          uv run --with 'argparse-manpage>=4.7' argparse-manpage \
+          uv run --locked --no-dev --group release argparse-manpage \
             --module httptap.cli \
             --function create_parser \
             --project-name httptap \
@@ -313,9 +338,11 @@ jobs:
         with:
           subject-path: "dist/*"
 
-  # The only job that writes to the repository. It runs after the release
-  # tree was tested and built, and the push is fast-forward only: if main
-  # moved during the release, it fails before anything is published.
+  # The only job that writes to the git repository, through the deploy key of
+  # the release environment rather than the workflow token. It runs after the
+  # release tree was tested and built, and the push is fast-forward only and
+  # atomic: if main moved during the release, neither the branch nor the tag
+  # is updated and nothing is published.
   push-release:
     name: Push Release Commit and Tag
     runs-on: ubuntu-latest
@@ -326,7 +353,7 @@ jobs:
       - build
       - attest
     permissions:
-      contents: write # Required to push the release commit and tag
+      contents: read # The push goes over SSH with the deploy key
 
     steps:
       - name: Checkout
@@ -348,8 +375,9 @@ jobs:
           BUNDLE: ${{ runner.temp }}/release/release.bundle
         run: |
           git fetch "${BUNDLE}" "refs/tags/${TAG}:refs/tags/${TAG}"
-          git push origin "refs/tags/${TAG}^{commit}:refs/heads/${GITHUB_REF_NAME}"
-          git push origin "refs/tags/${TAG}"
+          git push --atomic origin \
+            "refs/tags/${TAG}^{commit}:refs/heads/${GITHUB_REF_NAME}" \
+            "refs/tags/${TAG}:refs/tags/${TAG}"
 
   publish-testpypi:
     name: Publish to TestPyPI
@@ -411,9 +439,12 @@ jobs:
     name: Publish container image to GHCR
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Gated on PyPI, so the image is only published once the release has
+    # passed the pypi environment's required review.
     needs:
       - prepare
       - push-release
+      - publish-pypi
     permissions:
       contents: read
       packages: write # Push to ghcr.io/<owner>/<repo>

@@ -11,9 +11,12 @@ on:
 permissions:
   contents: read
 
+# A new push supersedes a pull request's run. Every other run gets its own
+# group: GitHub drops a pending run when another one queues in the same
+# group, so sharing one would still skip some commits on main.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
@@ -64,6 +67,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version-file: uv.lock
           enable-cache: true
 
       - name: Install dependencies
@@ -145,7 +149,6 @@ jobs:
     name: Test / Python ${{ matrix.python-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
-    environment: ci
     needs: test-matrix
     strategy:
       fail-fast: false
@@ -160,6 +163,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version-file: uv.lock
           enable-cache: true
           python-version: ${{ matrix.python-version }}
 
@@ -204,12 +208,14 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version-file: uv.lock
 
       - name: Build package
         run: uv build
 
       - name: Validate distribution metadata
-        run: uvx twine check dist/*
+        run: uv run --locked --only-group release twine check dist/*
 
       - name: Smoke test wheel
         run: uv run --isolated --no-project --with dist/*.whl httptap --version
@@ -284,10 +290,13 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version-file: uv.lock
           enable-cache: false
 
+      # With the otel extra, the suite also runs the real-SDK OTLP tests
+      # against the lowest supported OpenTelemetry release.
       - name: Install lowest direct dependencies
-        run: uv sync --python 3.11 --resolution lowest-direct --no-dev --group test
+        run: uv sync --python 3.11 --resolution lowest-direct --no-dev --group test --extra otel
 
       - name: Run tests
         run: uv run --no-sync pytest
@@ -310,6 +319,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
+          version-file: uv.lock
           enable-cache: false
 
       - name: Install dependencies with the otel extra
