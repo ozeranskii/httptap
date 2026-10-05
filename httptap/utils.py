@@ -7,6 +7,7 @@ management.
 
 import json
 import re
+import socket
 import ssl
 from collections.abc import Mapping
 from contextlib import suppress
@@ -25,6 +26,7 @@ __all__ = [
     "UTC",
     "calculate_days_until",
     "create_ssl_context",
+    "format_address_family",
     "mask_sensitive_value",
     "parse_certificate_date",
     "parse_http_date",
@@ -183,6 +185,23 @@ def calculate_days_until(target_date: datetime) -> int:
     """
     now = datetime.now(UTC)
     return (target_date - now).days
+
+
+def format_address_family(family: int) -> str:
+    """Return a human-readable label for a socket address family.
+
+    Args:
+        family: Numeric socket address family (e.g., ``socket.AF_INET``).
+
+    Returns:
+        ``"IPv4"``, ``"IPv6"``, or ``"AF_<num>"`` for any other family.
+
+    """
+    if family == socket.AF_INET6:
+        return "IPv6"
+    if family == socket.AF_INET:
+        return "IPv4"
+    return f"AF_{family}"
 
 
 def create_ssl_context(*, verify_ssl: bool, ca_bundle_path: str | None = None) -> ssl.SSLContext:

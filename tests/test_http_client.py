@@ -129,7 +129,6 @@ def test_make_request_uses_custom_headers(
         dns_resolver=dns_resolver,
         tls_inspector=FakeTLSInspector(),
         timing_collector=FakeTimingCollector(timing_input),
-        force_new_connection=False,
         headers={"Authorization": token, "Accept": "application/json"},
     )
 
@@ -641,7 +640,6 @@ class TestLiveTLSExtractionSupersedesProbe:
             dns_resolver=FakeDNSResolver(),
             tls_inspector=inspector,
             timing_collector=FakeTimingCollector(TimingMetrics(dns_ms=1.0, ttfb_ms=5.0, total_ms=6.0)),
-            force_new_connection=True,
         )
 
         assert inspector.calls == 0
@@ -664,7 +662,6 @@ class TestLiveTLSExtractionSupersedesProbe:
             dns_resolver=FakeDNSResolver(),
             tls_inspector=inspector,
             timing_collector=FakeTimingCollector(TimingMetrics(dns_ms=1.0, ttfb_ms=5.0, total_ms=6.0)),
-            force_new_connection=True,
         )
 
         assert inspector.calls == 1
@@ -778,7 +775,6 @@ class TestMakeRequest:
             timing_collector=FakeTimingCollector(
                 TimingMetrics(dns_ms=5.0, ttfb_ms=50.0, total_ms=100.0),
             ),
-            force_new_connection=False,
         )
 
         assert response.status == 200
@@ -811,7 +807,6 @@ class TestMakeRequest:
             timing_collector=FakeTimingCollector(
                 TimingMetrics(dns_ms=5.0, ttfb_ms=50.0, total_ms=100.0),
             ),
-            force_new_connection=False,
         )
 
         assert response.status == 200
@@ -886,7 +881,6 @@ class TestMakeRequest:
             dns_resolver=FakeDNSResolver(),
             tls_inspector=FakeTLSInspector(),
             timing_collector=FakeTimingCollector(timing_input),
-            force_new_connection=True,
         )
 
         assert response.status == 200
@@ -966,7 +960,6 @@ class TestMakeRequest:
             dns_resolver=IPv6Resolver(),
             tls_inspector=FakeTLSInspector(),
             timing_collector=FakeTimingCollector(timing_input),
-            force_new_connection=True,
         )
 
         assert response.status == 200
@@ -984,7 +977,6 @@ class TestMakeRequest:
             _timing, _network, _response = make_request(
                 "http://",
                 timeout=5.0,
-                force_new_connection=False,
             )
 
     def test_make_request_handles_dns_error(self) -> None:
@@ -1001,7 +993,6 @@ class TestMakeRequest:
                 "https://invalid.test",
                 timeout=5.0,
                 dns_resolver=FailingDNSResolver(),
-                force_new_connection=False,
             )
 
     def test_make_request_handles_timeout(
@@ -1023,7 +1014,6 @@ class TestMakeRequest:
                 timeout=1.0,
                 dns_resolver=dns_resolver,
                 timing_collector=FakeTimingCollector(TimingMetrics()),
-                force_new_connection=False,
             )
 
     def test_make_request_handles_connection_error(
@@ -1045,7 +1035,6 @@ class TestMakeRequest:
                 timeout=5.0,
                 dns_resolver=dns_resolver,
                 timing_collector=FakeTimingCollector(TimingMetrics()),
-                force_new_connection=False,
             )
 
     def test_make_request_handles_tls_inspection_error(
@@ -1074,7 +1063,6 @@ class TestMakeRequest:
             timing_collector=FakeTimingCollector(
                 TimingMetrics(dns_ms=5.0, ttfb_ms=50.0, total_ms=100.0),
             ),
-            force_new_connection=False,
         )
 
         assert response.status == 200
@@ -1103,40 +1091,35 @@ class TestMakeRequest:
             url,
             timeout=5.0,
             http2=False,
-            force_new_connection=False,
         )
 
         assert response.status == 200
         # Should have used default implementations successfully
         mock_resolve.assert_called_once()
 
-    def test_make_request_force_new_connection_configures_limits(
+    def test_make_request_force_new_connection_is_deprecated(
         self,
         httpx_mock: pytest_httpx.HTTPXMock,
         mocker: pytest_mock.MockerFixture,
     ) -> None:
-        """Test that force_new_connection properly configures httpx limits."""
+        """Test that force_new_connection is deprecated, ignored, and drops limits."""
         url = "https://example.test"
         dns_resolver = FakeDNSResolver()
         ip, _family, _dns_ms = dns_resolver.resolve("example.test", 443, 5.0)
         httpx_mock.add_response(method="GET", url=f"https://{ip}", status_code=200)
 
-        # Spy on httpx.Limits to verify configuration
         limits_spy = mocker.spy(httpx, "Limits")
 
-        make_request(
-            url,
-            timeout=5.0,
-            dns_resolver=dns_resolver,
-            timing_collector=FakeTimingCollector(TimingMetrics(total_ms=100.0)),
-            force_new_connection=True,
-        )
+        with pytest.warns(DeprecationWarning, match="force_new_connection is deprecated"):
+            make_request(
+                url,
+                timeout=5.0,
+                dns_resolver=dns_resolver,
+                timing_collector=FakeTimingCollector(TimingMetrics(total_ms=100.0)),
+                force_new_connection=True,
+            )
 
-        # Verify Limits was called with correct parameters
-        limits_spy.assert_called_once_with(
-            max_connections=1,
-            max_keepalive_connections=0,
-        )
+        limits_spy.assert_not_called()
 
     def test_make_request_disable_ssl_verification(
         self,
@@ -1217,7 +1200,6 @@ class TestMakeRequest:
             verify_ssl=False,
             dns_resolver=FakeDNSResolver(),
             timing_collector=FakeTimingCollector(timing_input),
-            force_new_connection=True,
         )
 
         assert obtained_response.status == 200
@@ -1267,7 +1249,6 @@ class TestMakeRequest:
             proxy=proxy,
             dns_resolver=FakeDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-            force_new_connection=True,
         )
 
         assert created_clients
@@ -1313,7 +1294,6 @@ class TestMakeRequest:
             proxy=proxy_url,
             dns_resolver=FakeDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-            force_new_connection=True,
         )
 
         assert created_clients[0].kwargs["proxy"] == proxy_url
@@ -1382,7 +1362,6 @@ class TestMakeRequest:
             proxy=proxy_url,
             dns_resolver=SpyDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-            force_new_connection=True,
         )
 
         assert len(captured_urls) == 1
@@ -1448,7 +1427,6 @@ class TestMakeRequest:
             proxy=None,
             dns_resolver=SpyDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-            force_new_connection=True,
         )
 
         assert len(dns_calls) == 0
@@ -1520,7 +1498,6 @@ class TestMakeRequest:
             noproxy=noproxy,
             dns_resolver=SpyDNSResolver(),
             timing_collector=FakeTimingCollector(TimingMetrics(total_ms=1.0)),
-            force_new_connection=True,
         )
 
         assert len(dns_calls) == 1
@@ -1549,7 +1526,6 @@ class TestMakeRequest:
                 timeout=5.0,
                 dns_resolver=dns_resolver,
                 timing_collector=FakeTimingCollector(TimingMetrics()),
-                force_new_connection=False,
             )
 
 

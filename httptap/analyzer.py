@@ -306,7 +306,6 @@ class HTTPTapAnalyzer:
                 dns_resolver=self._dns_resolver,
                 tls_inspector=self._tls_inspector,
                 timing_collector=timing_collector,
-                force_new_connection=True,
                 headers=headers,
                 proxy=self._proxy,
                 noproxy=self._noproxy,
