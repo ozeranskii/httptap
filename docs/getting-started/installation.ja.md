@@ -8,7 +8,7 @@ description: uvx、Homebrew、PyPI、コンテナ、またはソースから htt
 
 httptap をインストールする前に、以下があることを確認してください:
 
-- **Python 3.10-3.15**（CPython 推奨）
+- **Python 3.11-3.15**（CPython 推奨）
 - **pip** または **uv** パッケージマネージャ
 - **macOS、Linux、または Windows** オペレーティングシステム
 

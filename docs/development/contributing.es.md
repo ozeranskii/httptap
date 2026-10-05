@@ -16,7 +16,7 @@ participar, se espera que respetes este código.
 
 ### Requisitos previous
 
-- Python 3.10 o superior (CPython)
+- Python 3.11 o superior (CPython)
 - El gestor de paquetes [uv](https://github.com/astral-sh/uv)
 - Git
 

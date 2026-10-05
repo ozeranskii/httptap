@@ -55,7 +55,7 @@ is mapped to supporting arguments in the sections below.
               ▼
    ┌─────────────────────┐
    │ httptap process     │   trusted
-   │ (Python 3.10+)      │
+   │ (Python 3.11+)      │
    └──────────┬──────────┘
               │  TLS/HTTP  ◄─── untrusted: network, proxy, remote host
               ▼

@@ -159,7 +159,7 @@
 
 ## 环境要求
 
-- Python 3.10-3.15 (CPython)
+- Python 3.11-3.15 (CPython)
 - macOS、Linux 或 Windows（在 CPython 上测试）
 - 除标准网络能力外无系统依赖
 - 代码须遵循 Google Python 风格指南（文档字符串、格式化）。参见

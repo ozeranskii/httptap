@@ -14,7 +14,7 @@ description: 如何搭建开发环境，并为 httptap 贡献代码、测试和�
 
 ### 前置条件
 
-- Python 3.10 或更高版本（CPython）
+- Python 3.11 或更高版本（CPython）
 - [uv](https://github.com/astral-sh/uv) 包管理器
 - Git
 

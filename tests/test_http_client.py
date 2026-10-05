@@ -4,23 +4,16 @@ import gzip
 import importlib
 import socket
 import ssl
-import sys
 import threading
 import time
 from contextlib import suppress
 from types import SimpleNamespace, TracebackType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 import httpx
 import pytest
 
 import httptap.http_client
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
 from httptap.constants import (
     PROXY_SOURCE_CLI,
     PROXY_SOURCE_DISABLED,

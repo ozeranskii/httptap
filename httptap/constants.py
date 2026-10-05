@@ -8,7 +8,7 @@ from http import HTTPStatus
 
 
 @unique
-class HTTPMethod(str, Enum):
+class HTTPMethod(str, Enum):  # noqa: UP042 - StrEnum would change str() of this public enum
     """HTTP methods supported by httptap.
 
     Inherits from str to enable direct comparison with strings

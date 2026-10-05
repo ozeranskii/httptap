@@ -166,7 +166,7 @@
 
 ## 要件
 
-- Python 3.10-3.15 (CPython)
+- Python 3.11-3.15 (CPython)
 - macOS、Linux、または Windows（CPython でテスト済み）
 - 標準的なネットワーク機能を超えるシステム依存はありません
 - コードは Google Python Style Guide（docstring、フォーマット）に従う必要があります。

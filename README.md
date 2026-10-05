@@ -160,7 +160,7 @@ performance baselines.
 
 ## Requirements
 
-- Python 3.10-3.15 (CPython)
+- Python 3.11-3.15 (CPython)
 - macOS, Linux, or Windows (tested on CPython)
 - No system dependencies beyond standard networking
 - Code must follow the Google Python Style Guide (docstrings, formatting). See

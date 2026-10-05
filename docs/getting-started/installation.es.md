@@ -8,7 +8,7 @@ description: Instala httptap con uvx, Homebrew, PyPI, un contenedor o desde el c
 
 Antes de instalar httptap, asegúrate de tener:
 
-- **Python 3.10-3.15** (se recomienda CPython)
+- **Python 3.11-3.15** (se recomienda CPython)
 - Gestor de paquetes **pip** o **uv**
 - Sistema operativo **macOS, Linux o Windows**
 

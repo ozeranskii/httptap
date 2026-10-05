@@ -11,14 +11,9 @@ import socket
 import ssl
 from collections.abc import Mapping
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
-
-try:  # pragma: no cover - exercised indirectly
-    from datetime import UTC  # type: ignore[attr-defined]
-except ImportError:  # Python < 3.11 # pragma: no cover - exercised indirectly
-    UTC = timezone.utc
 
 __all__ = [
     "MASK_PATTERN",

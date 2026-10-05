@@ -3,7 +3,7 @@ name = "httptap"
 version = "0.6.3"
 description = "HTTP request visualizer with detailed timing breakdown (DNS → TCP → TLS → HTTP)"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 
@@ -39,13 +39,13 @@ classifiers = [
     "Topic :: Software Development :: Testing",
     "Topic :: Utilities",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: Free Threading :: 3 - Stable",
     "Environment :: Console",
     "Operating System :: OS Independent",
     "Operating System :: POSIX",
@@ -135,7 +135,7 @@ precommit = [
 ]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 line-length = 120
 
 [tool.ruff.lint]
@@ -169,7 +169,7 @@ indent-style = "space"
 ]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 strict = true
 warn_unreachable = true
 

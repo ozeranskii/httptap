@@ -8,15 +8,10 @@ import sys
 from argparse import Namespace
 from io import BytesIO, StringIO, TextIOWrapper
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, Self, cast
 
 import certifi
 import pytest
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
 
 from httptap.analyzer import HTTPTapAnalyzer
 from httptap.cli import (

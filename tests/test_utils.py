@@ -1,5 +1,5 @@
 import ssl
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -172,7 +172,7 @@ class TestParseHttpDate:
 
     def test_parse_http_date_missing_gmt_returns_none(self, faker: Faker) -> None:
         """Test that dates without GMT suffix return None."""
-        date = faker.date_time(tzinfo=timezone.utc).replace(microsecond=0)
+        date = faker.date_time(tzinfo=UTC).replace(microsecond=0)
         result = parse_http_date(
             date.strftime("%a, %d %b %Y %H:%M:%S UTC"),
         )

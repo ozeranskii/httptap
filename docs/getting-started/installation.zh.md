@@ -8,7 +8,7 @@ description: 使用 uvx、Homebrew、PyPI、容器或源码安装 httptap，并�
 
 在安装 httptap 之前，请确保你具备：
 
-- **Python 3.10-3.15**（推荐 CPython）
+- **Python 3.11-3.15**（推荐 CPython）
 - **pip** 或 **uv** 包管理器
 - **macOS、Linux 或 Windows** 操作系统
 
