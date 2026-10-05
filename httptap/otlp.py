@@ -6,7 +6,7 @@ import time
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from .utils import url_hostname
+from .utils import redact_url_credentials, url_hostname
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -67,19 +67,21 @@ class OTLPExporter:
         provider = otel.tracer_provider()
         provider.add_span_processor(otel.simple_span_processor(finished_spans))
         exporter = otel.span_exporter(endpoint=endpoint, timeout=timeout)
+        shown_endpoint = redact_url_credentials(endpoint)
 
         try:
             self._record_chain(otel.trace, provider.get_tracer("httptap"), steps)
             result = exporter.export(finished_spans.get_finished_spans())
         except Exception as exc:
-            msg = f"Failed to export traces to OTLP endpoint '{endpoint}': {exc}"
+            reason = str(exc).replace(endpoint, shown_endpoint)
+            msg = f"Failed to export traces to OTLP endpoint '{shown_endpoint}': {reason}"
             raise OTLPExportError(msg) from exc
         finally:
             provider.shutdown()
             exporter.shutdown()
 
         if result != otel.span_export_result.SUCCESS:
-            msg = f"Failed to export traces to OTLP endpoint '{endpoint}'."
+            msg = f"Failed to export traces to OTLP endpoint '{shown_endpoint}'."
             raise OTLPExportError(msg)
 
     @staticmethod

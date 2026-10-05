@@ -33,7 +33,11 @@ class _Origin:
 
 
 class _OriginHandler(BaseHTTPRequestHandler):
-    """Answer ``/redirect?to=URL`` with a 302 to URL and everything else with 200."""
+    """Answer ``/redirect?to=URL`` with a 302 to URL and everything else with 200.
+
+    ``/credentials`` redirects to ``/ok`` on the same server with ``alice:topsecret``
+    userinfo, so the secret never appears in the URL httptap is started with.
+    """
 
     protocol_version = "HTTP/1.1"
     received: ClassVar[list[_Received]]
@@ -42,6 +46,8 @@ class _OriginHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length") or 0)
         type(self).received.append(_Received(self.path, dict(self.headers), self.rfile.read(length)))
         target = parse_qs(urlsplit(self.path).query).get("to")
+        if self.path == "/credentials":
+            target = [f"http://alice:topsecret@127.0.0.1:{self.server.server_address[1]}/ok"]
         if target:
             self.send_response(302)
             self.send_header("Location", target[0])
@@ -98,3 +104,34 @@ def test_follow_reports_redirect_step_when_target_port_is_invalid(
     assert [step["response"]["status"] for step in steps] == [302, None]
     assert steps[1]["url"] == "http://127.0.0.1:99999/next"
     assert steps[1]["error"].startswith("Invalid redirect target")
+
+
+def test_location_credentials_are_redacted_but_followed(
+    origin: _Origin,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = _run(monkeypatch, "--follow", "--json", "-", f"{origin.url}/credentials")
+
+    out, err = capsys.readouterr()
+    assert exit_code == 0
+    steps = json.loads(out)["steps"]
+    assert steps[0]["response"]["location"].startswith("http://alice:****@127.0.0.1:")
+    assert steps[0]["response"]["headers"]["location"] == steps[0]["response"]["location"]
+    assert steps[1]["response"]["status"] == 200
+    assert origin.received[1].headers["Authorization"] == "Basic YWxpY2U6dG9wc2VjcmV0"
+    assert "topsecret" not in out
+    assert "topsecret" not in err
+
+
+def test_rich_output_redacts_location_credentials(
+    origin: _Origin,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = _run(monkeypatch, f"{origin.url}/credentials")
+
+    out, err = capsys.readouterr()
+    assert exit_code == 0
+    assert f"http://alice:****@{origin.url.removeprefix('http://')}/ok" in out
+    assert "topsecret" not in out + err

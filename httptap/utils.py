@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 __all__ = [
     "MASK_PATTERN",
     "SENSITIVE_HEADERS",
+    "URL_HEADERS",
     "UTC",
     "calculate_days_until",
     "create_ssl_context",
@@ -41,6 +42,9 @@ SENSITIVE_HEADERS: set[str] = {
     "api-key",
     "x-api-key",
 }
+
+# Headers whose value is a URL; only the userinfo of these is masked.
+URL_HEADERS: set[str] = {"location", "content-location"}
 
 MASK_PATTERN = "****"
 
@@ -114,17 +118,23 @@ def sanitize_headers(headers: Mapping[str, str]) -> dict[str, str]:
         headers: Dictionary of HTTP headers.
 
     Returns:
-        New dictionary with sensitive values masked.
+        New dictionary with sensitive values masked and URL credentials in
+        ``Location``-style headers redacted.
 
     Examples:
         >>> sanitize_headers({"Authorization": "Bearer secret"})
         {'Authorization': 'Bear****cret'}
+        >>> sanitize_headers({"Location": "https://user:secret@example.com/"})
+        {'Location': 'https://user:****@example.com/'}
 
     """
     sanitized = {}
     for key, value in headers.items():
-        if key.lower() in SENSITIVE_HEADERS:
+        name = key.lower()
+        if name in SENSITIVE_HEADERS:
             sanitized[key] = mask_sensitive_value(value)
+        elif name in URL_HEADERS:
+            sanitized[key] = redact_url_credentials(value)
         else:
             sanitized[key] = value
     return sanitized

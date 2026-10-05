@@ -123,6 +123,12 @@ class TestSanitizeHeaders:
         assert sanitized["COOKIE"] != "session=123"
         assert sanitized["SeT-CoOkIe"] != "auth=456"
 
+    @pytest.mark.parametrize("header", ["Location", "content-location"])
+    def test_sanitize_headers_redacts_url_credentials(self, header: str) -> None:
+        sanitized = sanitize_headers({header: "http://alice:topsecret@example.test/ok"})
+
+        assert sanitized == {header: "http://alice:****@example.test/ok"}
+
     def test_sanitize_headers_preserves_non_sensitive(self, faker: Faker) -> None:
         """Test that non-sensitive headers are preserved."""
         headers = {

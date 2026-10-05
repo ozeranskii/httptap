@@ -258,6 +258,11 @@ class HTTPTapAnalyzer:
                 headers=headers,
             )
             steps.append(step)
+            # Only the redacted Location is displayed and exported; the real one
+            # is followed so its userinfo can still authenticate.
+            location = step.response.location
+            if location:
+                step.response.location = redact_url_credentials(location)
 
             # Check if we should follow redirect
             if not self.follow_redirects:
@@ -269,14 +274,13 @@ class HTTPTapAnalyzer:
 
             if step.is_redirect:
                 # Follow redirect
-                next_url = step.response.location
-                if next_url:
+                if location:
                     if redirect_count == self.max_redirects:
                         step.note = f"{REDIRECT_LIMIT_NOTE} ({self.max_redirects})"
                         step.redirect_limit_reached = True
                         break
                     next_method = _redirect_method(step.response.status or 0, method)
-                    next_url, target_error = _resolve_redirect_target(current_url, next_url)
+                    next_url, target_error = _resolve_redirect_target(current_url, location)
                     if target_error is not None:
                         steps.append(_invalid_redirect_step(next_url, step_number + 1, next_method, target_error))
                         break

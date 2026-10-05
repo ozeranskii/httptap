@@ -19,6 +19,7 @@ class StubExecutor:
     def __init__(self, results: list[tuple[int, str | None]]) -> None:
         self.results = results
         self.calls: list[Mapping[str, str] | None] = []
+        self.urls: list[str] = []
 
     def execute(self, options: RequestOptions) -> RequestOutcome:
         if not self.results:
@@ -26,6 +27,7 @@ class StubExecutor:
             raise HTTPClientError(msg)
 
         self.calls.append(options.headers)
+        self.urls.append(options.url)
         status, location = self.results.pop(0)
 
         timing = TimingMetrics(total_ms=100.0)
@@ -167,6 +169,27 @@ def test_analyze_url_redirect_limit_takes_precedence_over_invalid_target() -> No
     assert len(steps) == 1
     assert steps[0].redirect_limit_reached
     assert not steps[0].has_error
+
+
+def test_analyze_url_redacts_location_but_follows_real_target() -> None:
+    executor = StubExecutor([(302, "http://alice:topsecret@example.test/ok"), (200, None)])
+    analyzer = HTTPTapAnalyzer(follow_redirects=True, request_executor=executor)
+
+    steps = analyzer.analyze_url("https://example.test/start")
+
+    assert executor.urls[1] == "http://alice:topsecret@example.test/ok"
+    assert steps[0].response.location == "http://alice:****@example.test/ok"
+    assert steps[1].url == "http://alice:****@example.test/ok"
+
+
+def test_analyze_url_redacts_location_without_following() -> None:
+    executor = StubExecutor([(302, "http://alice:topsecret@example.test/ok")])
+    analyzer = HTTPTapAnalyzer(request_executor=executor)
+
+    steps = analyzer.analyze_url("https://example.test/start")
+
+    assert steps[0].response.location == "http://alice:****@example.test/ok"
+    assert steps[0].is_redirect
 
 
 def test_analyze_url_respects_max_redirects() -> None:
