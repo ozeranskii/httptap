@@ -4,7 +4,7 @@ import json
 import signal
 import sys
 from argparse import Namespace
-from io import BytesIO, TextIOWrapper
+from io import BytesIO, StringIO, TextIOWrapper
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pytest
@@ -116,6 +116,19 @@ def test_configure_output_encoding_replaces_unencodable_characters(
     output.flush()
 
     assert output.buffer.getvalue() == b"?"
+
+
+def test_configure_output_encoding_skips_streams_without_reconfigure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    monkeypatch.setattr(sys, "stderr", output)
+
+    _configure_output_encoding()
+    output.write("🔍")
+
+    assert output.getvalue() == "🔍"
 
 
 class AnalyzerStub:
