@@ -17,7 +17,11 @@ Modules:
     implementations: Concrete implementations of Protocol interfaces.
     interfaces: Protocol definitions for extensibility.
     models: Data models for metrics and request/response information.
+    otlp: Optional OpenTelemetry OTLP trace export.
+    prometheus: Prometheus text-format metrics export.
     render: Output rendering orchestration.
+    request_executor: Protocol for plugging in a custom request executor.
+    slo: SLO threshold parsing and evaluation.
     tls_inspector: TLS certificate inspection.
     utils: Helper utilities for common operations.
     visualizer: Waterfall timeline visualization.

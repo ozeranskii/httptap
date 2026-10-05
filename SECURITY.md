@@ -2,14 +2,13 @@
 
 ## Supported Versions
 
-We release patches for security vulnerabilities in the following versions:
+| Version                  | Supported          |
+|--------------------------|--------------------|
+| Latest minor release     | :white_check_mark: |
+| Older minor releases     | :x:                |
 
-| Version | Supported          |
-|---------|--------------------|
-| 0.6.x   | :white_check_mark: |
-| < 0.6   | :x:                |
-
-**Note:** This project is still pre-1.0. Security patches are only backported to the latest minor series; always use the most recent release.
+Security fixes are released as a patch of the latest minor series and are not
+backported to older ones; always use the most recent release.
 
 ## Reporting a Vulnerability
 
@@ -42,7 +41,7 @@ A good security report should include:
 
 **Example Template:**
 
-```
+````markdown
 ## Vulnerability Description
 [Describe the security issue]
 
@@ -55,8 +54,7 @@ A good security report should include:
 3. [Result]
 
 ## Proof of Concept
-Your PoC code here
-```
+[Your PoC code here]
 
 ## Affected Versions
 - Version X.Y.Z
@@ -66,9 +64,10 @@ Your PoC code here
 [Your suggestion if you have one]
 
 ## Environment
-- Python: 3.11-3.15
-- OS: macOS/Linux/Windows
-- httptap version: X.Y.Z
+- Python: [e.g. 3.13.2]
+- OS: [macOS/Linux/Windows]
+- httptap version: [X.Y.Z]
+````
 
 ## Response Timeline
 
@@ -275,9 +274,11 @@ We regularly monitor dependencies for security vulnerabilities:
 - **Manual Review**: Major updates are reviewed before merging
 
 Current security-relevant dependencies:
-- `httpx[http2]` - HTTP client (handles network requests)
+- `httpx[http2,socks]` - HTTP client, HTTP/2 and SOCKS proxy support (handles network requests)
+- `cryptography` - X.509 certificate parsing for TLS details
 - `dnspython` - DNS resolution
 - `rich` - Terminal output (display only)
+- `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http` - optional `otel` extra, only used with `--otlp`
 
 ## Vulnerability Disclosure Policy
 
@@ -338,7 +339,7 @@ Our CI/CD pipeline includes:
 ### Documentation
 
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [Python Security Best Practices](https://python.readthedocs.io/en/stable/library/security_warnings.html)
+- [Python Security Best Practices](https://docs.python.org/3/library/security_warnings.html)
 - [GitHub Security Features](https://docs.github.com/en/code-security)
 
 ### External Security Audits
@@ -349,11 +350,9 @@ We welcome external security audits. If you're interested in conducting a formal
 
 We acknowledge security researchers who have responsibly disclosed vulnerabilities:
 
-<!--
-- [Name/Handle] - [Date] - [Brief description]
--->
-
-*No vulnerabilities have been reported yet.*
+- [GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv) -
+  credential leak on cross-origin redirects and unescaped Rich markup, fixed in 0.6.2.
+  Credited in the advisory.
 
 ---
 

@@ -23,6 +23,8 @@ Open a pull request touching `httptap.openvex.json` whenever:
   `httptap` (watch GitHub Security Advisories and Dependabot alerts).
 - A security advisory for `httptap` is published or gets a CVE ID
   (add the CVE to the statement's `aliases`).
+- A new `httptap` release ships: add it to the products of every
+  `fixed` statement for `httptap`'s own advisories.
 - An existing VEX statement needs to be revised (e.g., status changes
   from `under_investigation` to `not_affected` after analysis).
 
