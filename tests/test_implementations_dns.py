@@ -393,6 +393,52 @@ class TestSystemDNSResolver:
             resolver.resolve("unreachable.example.com", 443, 5.0)
 
 
+class TestIPv4MappedAddresses:
+    """``getaddrinfo(..., AF_INET6)`` returns ``::ffff:a.b.c.d`` when the host has no global IPv6."""
+
+    def test_ipv6_only_resolution_drops_ipv4_mapped_addresses(self, mocker: MockerFixture) -> None:
+        mocker.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("::ffff:142.250.0.1", 443, 0, 0)),
+                (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("2001:db8::1", 443, 0, 0)),
+            ],
+        )
+
+        addresses, _elapsed = SystemDNSResolver(socket.AF_INET6).resolve_all("example.test", 443, 5.0)
+
+        assert addresses == [("2001:db8::1", "IPv6")]
+
+    def test_ipv6_only_resolution_fails_without_real_ipv6(self, mocker: MockerFixture) -> None:
+        mocker.patch(
+            "socket.getaddrinfo",
+            return_value=[(socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("::ffff:142.250.0.1", 443, 0, 0))],
+        )
+
+        with pytest.raises(DNSResolutionError, match=r"No IPv6 address for example\.test"):
+            SystemDNSResolver(socket.AF_INET6).resolve_all("example.test", 443, 5.0)
+
+    def test_unrestricted_resolution_reports_mapped_addresses_as_ipv4(self, mocker: MockerFixture) -> None:
+        mocker.patch(
+            "socket.getaddrinfo",
+            return_value=[(socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("::ffff:142.250.0.1", 443, 0, 0))],
+        )
+
+        addresses, _elapsed = SystemDNSResolver().resolve_all("example.test", 443, 5.0)
+
+        assert addresses == [("142.250.0.1", "IPv4")]
+
+    def test_scoped_ipv6_addresses_are_kept(self, mocker: MockerFixture) -> None:
+        mocker.patch(
+            "socket.getaddrinfo",
+            return_value=[(socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("fe80::1%en0", 443, 0, 4))],
+        )
+
+        addresses, _elapsed = SystemDNSResolver(socket.AF_INET6).resolve_all("example.test", 443, 5.0)
+
+        assert addresses == [("fe80::1%en0", "IPv6")]
+
+
 class TestOverrideDNSResolver:
     def test_resolve_returns_configured_address_without_lookup(self, mocker: MockerFixture) -> None:
         resolver = OverrideDNSResolver({("example.test", 443): "2001:db8::10"})
