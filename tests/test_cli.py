@@ -30,6 +30,7 @@ from httptap.cli import (
     EXIT_USAGE_ERROR,
     _configure_output_encoding,
     _export_results,
+    _merge_headers,
     _parse_headers,
     _parse_http_method,
     _parse_resolve_entries,
@@ -1674,3 +1675,36 @@ def test_determine_exit_code_ranks_export_failure(
     expected: int,
 ) -> None:
     assert determine_exit_code([step], fail_on_http_error=fail_on_http_error, export_failed=True) == expected
+
+
+def test_merge_headers_lets_user_header_replace_default_case_insensitively() -> None:
+    merged = _merge_headers({"Content-Type": "application/json"}, {"content-type": "text/plain", "X-Trace": "1"})
+
+    assert merged == {"content-type": "text/plain", "X-Trace": "1"}
+
+
+def test_main_exports_single_content_type_when_user_overrides_it(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def build_analyzer(*_args: object, **_kwargs: object) -> HTTPTapAnalyzer:
+        return HTTPTapAnalyzer(request_executor=_SingleStepExecutor())
+
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", build_analyzer)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["httptap", "--json", "-", "-H", "content-type: text/plain", "--data", '{"a": 1}', "https://example.test/"],
+    )
+
+    assert main() == EXIT_SUCCESS
+
+    headers = json.loads(capsys.readouterr().out)["steps"][0]["request"]["headers"]
+    assert {name.lower() for name in headers} == {"content-type"}
+    assert next(iter(headers.values())) == "text/plain"
+
+
+def test_main_rejects_empty_json_path(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr("sys.argv", ["httptap", "--json", "", "https://example.test/"])
+
+    assert main() == EXIT_USAGE_ERROR
+    assert "JSON export path cannot be empty" in capsys.readouterr().err
