@@ -7,11 +7,13 @@ Follows CLI best practices for error handling, exit codes, and user feedback.
 
 import argparse
 import logging
+import math
 import signal
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -50,7 +52,7 @@ from .slo import (
     parse_slo_spec,
     select_step_for_evaluation,
 )
-from .utils import read_request_data, validate_url
+from .utils import create_ssl_context, read_request_data, validate_url
 
 # Exit codes (aligned with sysexits.h conventions where possible)
 # Fall back to canonical numeric equivalents when running on platforms
@@ -476,7 +478,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
         )
         return False
 
-    if args.timeout <= 0:
+    if not math.isfinite(args.timeout) or args.timeout <= 0:
         error_text = Text()
         error_text.append("Invalid timeout: ", style="bold red")
         error_text.append(f"{args.timeout}", style="yellow")
@@ -505,6 +507,27 @@ def validate_arguments(args: argparse.Namespace) -> bool:
         )
         return False
 
+    if not _validate_connection_arguments(args):
+        return False
+
+    try:
+        args.slo_thresholds = _parse_slo_thresholds(args)
+    except SLOSpecError as exc:
+        console.print(
+            Panel(
+                f"[red]{escape(str(exc))}[/red]",
+                title="[bold red]❌ SLO Error[/bold red]",
+                border_style="red",
+                padding=(1, 2),
+            )
+        )
+        return False
+
+    return True
+
+
+def _validate_connection_arguments(args: argparse.Namespace) -> bool:
+    """Validate TLS and proxy arguments and normalize the CA bundle path."""
     if args.ca_bundle is not None:
         ca_bundle_str = str(args.ca_bundle).strip()
         if not ca_bundle_str:
@@ -520,15 +543,45 @@ def validate_arguments(args: argparse.Namespace) -> bool:
                 )
             )
             return False
-        args.ca_bundle = str(Path(ca_bundle_str).expanduser().absolute())
+        ca_bundle_path = Path(ca_bundle_str).expanduser().absolute()
+        if not ca_bundle_path.is_file():
+            console.print(
+                Panel(
+                    f"[red]CA bundle file does not exist: {escape(str(ca_bundle_path))}[/red]",
+                    title="[bold red]❌ Validation Error[/bold red]",
+                    border_style="red",
+                    padding=(1, 2),
+                )
+            )
+            return False
+        try:
+            create_ssl_context(verify_ssl=True, ca_bundle_path=str(ca_bundle_path))
+        except ValueError as exc:
+            console.print(
+                Panel(
+                    f"[red]{escape(str(exc))}[/red]",
+                    title="[bold red]❌ Validation Error[/bold red]",
+                    border_style="red",
+                    padding=(1, 2),
+                )
+            )
+            return False
+        args.ca_bundle = str(ca_bundle_path)
 
-    try:
-        args.slo_thresholds = _parse_slo_thresholds(args)
-    except SLOSpecError as exc:
+    if args.proxy and "://" not in args.proxy:
+        # curl treats a scheme-less proxy as plain HTTP.
+        args.proxy = f"http://{args.proxy}"
+
+    if args.proxy and urlparse(args.proxy).scheme.lower() not in {
+        "http",
+        "https",
+        "socks5",
+        "socks5h",
+    }:
         console.print(
             Panel(
-                f"[red]{escape(str(exc))}[/red]",
-                title="[bold red]❌ SLO Error[/bold red]",
+                "[red]Proxy URL must use http://, https://, socks5://, or socks5h://.[/red]",
+                title="[bold red]❌ Validation Error[/bold red]",
                 border_style="red",
                 padding=(1, 2),
             )

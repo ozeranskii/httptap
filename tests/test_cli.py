@@ -6,8 +6,10 @@ import signal
 import sys
 from argparse import Namespace
 from io import BytesIO, StringIO, TextIOWrapper
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
+import certifi
 import pytest
 
 if sys.version_info >= (3, 11):
@@ -40,7 +42,6 @@ from httptap.slo import SLOResult, SLOViolation
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
-    from pathlib import Path
     from types import TracebackType
 
     from httptap.render import OutputRenderer
@@ -328,8 +329,12 @@ def test_validate_arguments_invalid_url(
     assert "Invalid URL" in captured.err
 
 
-def test_validate_arguments_invalid_timeout(capsys: pytest.CaptureFixture[str]) -> None:
-    args = Namespace(url="https://example.test", timeout=0, headers=[], json=None)
+@pytest.mark.parametrize("timeout", [0, float("nan"), float("inf"), float("-inf")])
+def test_validate_arguments_invalid_timeout(
+    timeout: float,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    args = Namespace(url="https://example.test", timeout=timeout, headers=[], json=None)
     result = validate_arguments(args)
     assert result is False
     captured = capsys.readouterr()
@@ -337,9 +342,9 @@ def test_validate_arguments_invalid_timeout(capsys: pytest.CaptureFixture[str]) 
 
 
 def test_validate_arguments_cacert_valid_path(tmp_path: Path) -> None:
-    """Test that CA bundle path is normalized to absolute path."""
-    # Path doesn't need to exist - validation happens in SSL layer
+    """Test that an existing CA bundle path is normalized to an absolute path."""
     ca_bundle = tmp_path / "ca-bundle.pem"
+    ca_bundle.write_text(Path(certifi.where()).read_text(encoding="ascii"), encoding="ascii")
 
     args = Namespace(
         url="https://example.test",
@@ -348,6 +353,7 @@ def test_validate_arguments_cacert_valid_path(tmp_path: Path) -> None:
         json=None,
         ignore_ssl=False,
         ca_bundle=str(ca_bundle),
+        proxy=None,
         slo=None,
     )
     result = validate_arguments(args)
@@ -374,25 +380,126 @@ def test_validate_arguments_cacert_empty_string(
     assert result is False
 
 
-def test_validate_arguments_cacert_expanduser() -> None:
-    """Test that tilde expansion works for CA bundle path."""
-    from pathlib import Path
-
-    # Using a fake path with ~ - doesn't need to exist
+def test_validate_arguments_cacert_relative_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that a relative CA bundle path is normalized to an absolute path."""
+    ca_bundle = tmp_path / "ca-bundle.pem"
+    ca_bundle.write_text(Path(certifi.where()).read_text(encoding="ascii"), encoding="ascii")
+    monkeypatch.chdir(tmp_path)
     args = Namespace(
         url="https://example.test",
         timeout=5,
         headers=[],
         json=None,
         ignore_ssl=False,
-        ca_bundle="~/ca-bundle.pem",
+        ca_bundle=ca_bundle.name,
+        proxy=None,
         slo=None,
     )
     result = validate_arguments(args)
 
     assert result is True
-    assert not args.ca_bundle.startswith("~")
     assert Path(args.ca_bundle).is_absolute()
+
+
+def test_validate_arguments_rejects_missing_cacert(capsys: pytest.CaptureFixture[str]) -> None:
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        json=None,
+        ignore_ssl=False,
+        ca_bundle="missing-ca-bundle.pem",
+        proxy=None,
+        slo=None,
+    )
+
+    assert validate_arguments(args) is False
+    assert "CA bundle file does not exist" in capsys.readouterr().err
+
+
+def test_validate_arguments_rejects_invalid_cacert_contents(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    ca_bundle = tmp_path / "ca-bundle.pem"
+    ca_bundle.write_text("not a certificate\n", encoding="ascii")
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        json=None,
+        ignore_ssl=False,
+        ca_bundle=str(ca_bundle),
+        proxy=None,
+        slo=None,
+    )
+
+    assert validate_arguments(args) is False
+    assert "Failed to load CA bundle" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("proxy", "expected"),
+    [
+        ("proxy.example.com:8080", "http://proxy.example.com:8080"),
+        ("user:pw@127.0.0.1:3128", "http://user:pw@127.0.0.1:3128"),
+        ("socks5h://gateway:1080", "socks5h://gateway:1080"),
+    ],
+)
+def test_validate_arguments_defaults_scheme_less_proxy_to_http(proxy: str, expected: str) -> None:
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        json=None,
+        ignore_ssl=False,
+        ca_bundle=None,
+        proxy=proxy,
+        slo=None,
+    )
+
+    assert validate_arguments(args) is True
+    assert args.proxy == expected
+
+
+@pytest.mark.parametrize("proxy", ["foo://bar", "ftp://proxy.example.com:21"])
+def test_validate_arguments_rejects_invalid_proxy_scheme(
+    proxy: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    args = Namespace(
+        url="https://example.test",
+        timeout=5,
+        headers=[],
+        json=None,
+        ignore_ssl=False,
+        ca_bundle=None,
+        proxy=proxy,
+        slo=None,
+    )
+
+    assert validate_arguments(args) is False
+    assert "Proxy URL must use" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("argv", "error"),
+    [
+        (["--cacert", "missing-ca-bundle.pem", "https://example.test"], "CA bundle file does not exist"),
+        (["--proxy", "foo://bar", "https://example.test"], "Proxy URL must use"),
+        (["--timeout", "nan", "https://example.test"], "Invalid timeout"),
+    ],
+)
+def test_main_returns_usage_error_for_invalid_runtime_arguments(
+    argv: list[str],
+    error: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["httptap", *argv])
+
+    assert main() == EXIT_USAGE_ERROR
+    assert error in capsys.readouterr().err
 
 
 def test_parser_insecure_and_cacert_mutually_exclusive(
@@ -401,7 +508,7 @@ def test_parser_insecure_and_cacert_mutually_exclusive(
 ) -> None:
     """Test that --insecure and --cacert cannot be used together (enforced by argparse)."""
     ca_bundle = tmp_path / "ca-bundle.pem"
-    ca_bundle.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n")
+    ca_bundle.write_text(Path(certifi.where()).read_text(encoding="ascii"), encoding="ascii")
 
     parser = create_parser()
 
