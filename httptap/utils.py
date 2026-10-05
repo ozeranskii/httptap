@@ -16,6 +16,7 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import SplitResult, urlsplit
 
 __all__ = [
@@ -279,18 +280,28 @@ def _unbracket(server_hostname: str | bytes | None) -> str | bytes | None:
     return server_hostname
 
 
+class _ClientSettings(NamedTuple):
+    options: ssl.Options
+    verify_flags: ssl.VerifyFlags
+    minimum_version: ssl.TLSVersion
+    maximum_version: ssl.TLSVersion
+
+
 @cache
-def _default_client_settings() -> tuple[ssl.Options, ssl.VerifyFlags]:
-    """Options and verification flags of ``ssl.create_default_context()``; they vary by Python version."""
+def _default_client_settings() -> _ClientSettings:
+    """Settings of ``ssl.create_default_context()``; they vary by Python version and OpenSSL build."""
     template = ssl.create_default_context()
-    return template.options, template.verify_flags
+    return _ClientSettings(template.options, template.verify_flags, template.minimum_version, template.maximum_version)
 
 
 def _default_context_accepting_bracketed_names() -> ssl.SSLContext:
     """Return the equivalent of ``ssl.create_default_context()`` as a :class:`_BracketedNameSSLContext`."""
     context = _BracketedNameSSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    context.minimum_version = ssl.TLSVersion.TLSv1_2
-    context.options, context.verify_flags = _default_client_settings()
+    settings = _default_client_settings()
+    context.options = settings.options
+    context.verify_flags = settings.verify_flags
+    context.minimum_version = settings.minimum_version
+    context.maximum_version = settings.maximum_version
     context.load_default_certs(ssl.Purpose.SERVER_AUTH)
     keylog_file = os.environ.get("SSLKEYLOGFILE")
     if keylog_file and not sys.flags.ignore_environment:

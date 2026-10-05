@@ -716,6 +716,7 @@ class TestBracketedServerNames:
         assert context.verify_flags == default.verify_flags
         assert context.verify_mode == default.verify_mode
         assert context.minimum_version == default.minimum_version
+        assert context.maximum_version == default.maximum_version
         assert context.check_hostname is True
         assert context.cert_store_stats() == default.cert_store_stats()
 
@@ -731,6 +732,7 @@ class TestBracketedServerNames:
 
     def test_server_names_are_unbracketed(self) -> None:
         context = create_ssl_context(verify_ssl=True, accept_bracketed_server_names=True)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
 
         tls_object = context.wrap_bio(ssl.MemoryBIO(), ssl.MemoryBIO(), server_hostname="[::1]")
         with socket.socket() as raw, context.wrap_socket(raw, server_hostname="[2001:db8::1]") as tls_socket:
