@@ -289,6 +289,7 @@ def _default_client_settings() -> tuple[ssl.Options, ssl.VerifyFlags]:
 def _default_context_accepting_bracketed_names() -> ssl.SSLContext:
     """Return the equivalent of ``ssl.create_default_context()`` as a :class:`_BracketedNameSSLContext`."""
     context = _BracketedNameSSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.options, context.verify_flags = _default_client_settings()
     context.load_default_certs(ssl.Purpose.SERVER_AUTH)
     keylog_file = os.environ.get("SSLKEYLOGFILE")
