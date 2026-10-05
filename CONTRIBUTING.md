@@ -169,6 +169,9 @@ Use `--codspeed-mode=walltime` to check an optimization locally without waiting 
 
 ```python
 from unittest.mock import patch
+
+import pytest
+
 from httptap.implementations.timing import PerfCounterTimingCollector
 
 
@@ -180,7 +183,7 @@ def test_timing_collector():
         collector.mark_dns_end()
 
         metrics = collector.get_metrics()
-        assert metrics.dns_ms == 100.0  # 0.1 seconds = 100ms
+        assert metrics.dns_ms == pytest.approx(100.0)  # 0.1 seconds = 100ms
 ```
 
 ### Making Changes
@@ -244,7 +247,7 @@ Then create a pull request on GitHub using the [PR template](.github/pull_reques
 - [ ] Type checking passes: `uv run mypy httptap` (or let pre-commit handle it)
 - [ ] Documentation updated (if applicable)
 - [ ] Tests added for new features
-- [ ] Changelog updated (if significant change)
+- [ ] Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`CHANGELOG.md` is generated from them by git-cliff at release time; do not edit it by hand)
 
 **Note**: If you're using pre-commit hooks, the formatting, linting, and type checking will be handled automatically before each commit.
 

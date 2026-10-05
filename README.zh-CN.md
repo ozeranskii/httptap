@@ -256,6 +256,20 @@ Homebrew 会自动将补全安装到：
 
 **注意：** 全局激活脚本仅为 bash 和 zsh 提供参数补全。其他 shell 不在该脚本覆盖范围内，需单独配置。
 
+#### 隔离安装（`uv tool`、`pipx`）
+
+`uv tool install` 和 `pipx install` 只会把 `httptap` 命令加入 `PATH`，不包括 argcomplete 的辅助脚本。请在安装时一并暴露它们，然后在 shell 启动文件（例如 `~/.bashrc` 或 `~/.zshrc`）中为 `httptap` 注册补全：
+
+```shell
+uv tool install --with-executables-from argcomplete "httptap[completion]"
+# or
+pipx install --include-resources-from argcomplete "httptap[completion]"
+
+eval "$(register-python-argcomplete httptap)"
+```
+
+不支持 `--include-resources-from` 的旧版 pipx 可以改用 `--include-deps`。
+
 #### 用法示例
 
 补全安装完成后，可使用 `Tab` 自动补全命令和选项：
@@ -263,7 +277,7 @@ Homebrew 会自动将补全安装到：
 ```shell
 # 补全命令选项
 httptap --<TAB>
-# 显示：--method, --data, --follow, --timeout, --no-http2, --fail, --ipv4, --ipv6, --resolve, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --prometheus, --otlp, --slo, --slo-file, --version, --help
+# 显示：--help --version --request --method --data --location --follow --max-time --timeout --no-http2 --http1.1 --fail --ipv4 --ipv6 --resolve --insecure --ignore-ssl --cacert --ca-bundle --proxy --header --compact --metrics-only --json --prometheus --otlp --slo --slo-file
 
 # 输入部分选项后补全
 httptap --fol<TAB>
@@ -445,21 +459,21 @@ esac
 
 ## 环境变量
 
-httptap 在运行时会读取以下环境变量。它们均可通过 CLI 参数覆盖，且每次请求实际使用的来源都会记录在输出和 JSON 导出中。
+httptap 在运行时会读取以下环境变量。代理相关变量可通过 `-x/--proxy` 覆盖或通过 `--proxy ""` 忽略，每次请求实际使用的代理来源都会记录在输出和 JSON 导出中。颜色相关变量没有对应的 CLI 参数。
 
 | 变量 | 用途 | 覆盖方式 |
 |------|------|----------|
 | `HTTP_PROXY` / `http_proxy` | 用于 `http://` 目标的代理 URL。 | `-x/--proxy` |
 | `HTTPS_PROXY` / `https_proxy` | 用于 `https://` 目标的代理 URL。 | `-x/--proxy` |
 | `ALL_PROXY` / `all_proxy` | 当协议专用变量未设置时的回退代理 URL。 | `-x/--proxy` |
-| `NO_PROXY` / `no_proxy` | 逗号分隔的排除列表（支持 `*`、前导 `.`、精确匹配）。被排除的条目将直连。 | `--proxy ""` |
+| `NO_PROXY` / `no_proxy` | 逗号分隔的排除列表：`*` 匹配所有主机，`example.com` 匹配该主机及其子域名，`.example.com` 仅匹配子域名。不支持 CIDR 范围。被排除的主机将直连。 | `-x/--proxy`、`--proxy ""` |
 | `NO_COLOR` | 禁用所有 Rich 输出的 ANSI 颜色（遵循 [NO_COLOR](https://no-color.org) 约定）。 | — |
 | `FORCE_COLOR` | 即使 stdout 非 TTY 也强制彩色输出（Rich 约定）。 | — |
 | `TERM=dumb` | Rich 降级为纯文本渲染。 | — |
 
-> 代理配置的优先级：显式 `-x/--proxy` → `--proxy ""`（禁用环境变量） →
-> `HTTPS_PROXY`/`HTTP_PROXY`/`ALL_PROXY`（按协议匹配） →
-> `NO_PROXY` 排除 → 直连。
+> 代理配置的优先级：显式 `-x/--proxy` 或 `--proxy ""`（禁用环境变量） →
+> `NO_PROXY` 排除（直连） → 与 URL 协议匹配的变量（`HTTPS_PROXY` 或 `HTTP_PROXY`） →
+> `ALL_PROXY` → 直连。小写变量优先于大写变量。
 
 ---
 
@@ -551,12 +565,12 @@ fi
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -567,13 +581,13 @@ fi
         "bytes": 0,
         "content_type": null,
         "server": null,
-        "date": "2025-10-23T19:20:36+00:00",
+        "date": "2026-09-18T07:59:59+00:00",
         "location": "/relative-redirect/1",
         "headers": {
           "access-control-allow-credentials": "true",
           "access-control-allow-origin": "*",
           "location": "/relative-redirect/1",
-          "date": "Thu, 23 Oct 2025 19:20:36 GMT",
+          "date": "Fri, 18 Sep 2026 07:59:59 GMT",
           "content-length": "0"
         }
       },
@@ -607,12 +621,12 @@ fi
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -623,13 +637,13 @@ fi
         "bytes": 0,
         "content_type": null,
         "server": null,
-        "date": "2025-10-23T19:20:36+00:00",
+        "date": "2026-09-18T07:59:59+00:00",
         "location": "/get",
         "headers": {
           "access-control-allow-credentials": "true",
           "access-control-allow-origin": "*",
           "location": "/get",
-          "date": "Thu, 23 Oct 2025 19:20:36 GMT",
+          "date": "Fri, 18 Sep 2026 07:59:59 GMT",
           "content-length": "0"
         }
       },
@@ -663,12 +677,12 @@ fi
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -679,13 +693,13 @@ fi
         "bytes": 389,
         "content_type": "application/json; charset=utf-8",
         "server": null,
-        "date": "2025-10-23T19:20:37+00:00",
+        "date": "2026-09-18T08:00:00+00:00",
         "location": null,
         "headers": {
           "access-control-allow-credentials": "true",
           "access-control-allow-origin": "*",
           "content-type": "application/json; charset=utf-8",
-          "date": "Thu, 23 Oct 2025 19:20:37 GMT",
+          "date": "Fri, 18 Sep 2026 08:00:00 GMT",
           "content-length": "389"
         }
       },
@@ -751,7 +765,7 @@ uv run ruff check
 uv run ruff format .
 ```
 
-测试期望有外网访问；离线运行时可 mock `SystemDNSResolver` / `SocketTLSInspector`。
+测试套件不需要外网访问：HTTP 调用通过 `pytest-httpx` 模拟，TLS 和代理测试使用本地服务器。
 
 ---
 
@@ -775,7 +789,7 @@ Apache License 2.0 © Sergei Ozeranskii。详见 [LICENSE](https://github.com/oz
 ## 致谢
 
 - 构建于众多出色的库之上：[httpx](https://www.python-httpx.org/)、[httpcore](https://github.com/encode/httpcore)、
-  [dnspython](https://www.dnspython.org/) 和 [Rich](https://github.com/Textualize/rich)。
+  [cryptography](https://cryptography.io/) 和 [Rich](https://github.com/Textualize/rich)。
 - 灵感来自围绕 Web 性能的工具生态（例如 DevTools 瀑布图、`curl --trace`）。
 - 特别感谢每一位提交 issue、分享想法或贡献补丁的人。
 

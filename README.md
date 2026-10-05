@@ -264,6 +264,20 @@ If you installed httptap via `pip` or `uv`, you need to install the optional com
 
 **Note:** The global activation script provides argument completions for bash and zsh only. Other shells are not covered by the script and must be configured separately.
 
+#### Isolated installs (`uv tool`, `pipx`)
+
+`uv tool install` and `pipx install` put only the `httptap` command on your `PATH`, not argcomplete's helper scripts. Expose them at install time, then register completion for `httptap` in your shell startup file (e.g. `~/.bashrc` or `~/.zshrc`):
+
+```shell
+uv tool install --with-executables-from argcomplete "httptap[completion]"
+# or
+pipx install --include-resources-from argcomplete "httptap[completion]"
+
+eval "$(register-python-argcomplete httptap)"
+```
+
+Older pipx releases without `--include-resources-from` can use `--include-deps` instead.
+
 #### Usage Examples
 
 Once completions are installed, you can use `Tab` to autocomplete commands and options:
@@ -271,7 +285,7 @@ Once completions are installed, you can use `Tab` to autocomplete commands and o
 ```shell
 # Complete command options
 httptap --<TAB>
-# Shows: --method, --data, --follow, --timeout, --no-http2, --fail, --ipv4, --ipv6, --resolve, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --prometheus, --otlp, --slo, --slo-file, --version, --help
+# Shows: --help --version --request --method --data --location --follow --max-time --timeout --no-http2 --http1.1 --fail --ipv4 --ipv6 --resolve --insecure --ignore-ssl --cacert --ca-bundle --proxy --header --compact --metrics-only --json --prometheus --otlp --slo --slo-file
 
 # Complete after typing partial option
 httptap --fol<TAB>
@@ -464,23 +478,25 @@ Full specification, evaluation rules, and recipes:
 
 ## Environment Variables
 
-httptap reads the following environment variables at runtime. All of them are
-overridable via CLI flags, and the actual source used for each request is
-recorded in the output and JSON export.
+httptap reads the following environment variables at runtime. The proxy
+variables can be overridden with `-x/--proxy` or ignored with `--proxy ""`, and
+the proxy source used for each request is recorded in the output and JSON
+export. The color variables have no CLI equivalent.
 
 | Variable                              | Purpose                                                                                                      | Overridden by         |
 |---------------------------------------|--------------------------------------------------------------------------------------------------------------|-----------------------|
 | `HTTP_PROXY` / `http_proxy`           | Proxy URL used for `http://` targets.                                                                        | `-x/--proxy`          |
 | `HTTPS_PROXY` / `https_proxy`         | Proxy URL used for `https://` targets.                                                                       | `-x/--proxy`          |
 | `ALL_PROXY` / `all_proxy`             | Fallback proxy URL when scheme-specific variables are unset.                                                 | `-x/--proxy`          |
-| `NO_PROXY` / `no_proxy`               | Comma-separated exclusion list (supports `*`, leading `.`, exact matches). Bypassed entries connect direct.  | `--proxy ""`          |
+| `NO_PROXY` / `no_proxy`               | Comma-separated exclusion list: `*` matches every host, `example.com` the host and its subdomains, `.example.com` subdomains only. No CIDR ranges. Bypassed hosts connect direct. | `-x/--proxy`, `--proxy ""` |
 | `NO_COLOR`                            | Disables ANSI colors in all Rich output (honors the [NO_COLOR](https://no-color.org) convention).            | —                     |
 | `FORCE_COLOR`                         | Forces colored output even when stdout is not a TTY (Rich convention).                                       | —                     |
 | `TERM=dumb`                           | Rich downgrades to plain-text rendering.                                                                     | —                     |
 
-> Precedence for proxy configuration: explicit `-x/--proxy` → `--proxy ""`
-> (disables env) → `HTTPS_PROXY`/`HTTP_PROXY`/`ALL_PROXY` (scheme-matching) →
-> `NO_PROXY` exclusion → direct connection.
+> Precedence for proxy configuration: explicit `-x/--proxy` or `--proxy ""`
+> (disables env) → `NO_PROXY` exclusion (direct connection) → the variable
+> matching the URL scheme (`HTTPS_PROXY` or `HTTP_PROXY`) → `ALL_PROXY` →
+> direct connection. Lowercase variables take priority over uppercase ones.
 
 ---
 
@@ -584,12 +600,12 @@ The redirect summary includes a total row:
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -600,13 +616,13 @@ The redirect summary includes a total row:
         "bytes": 0,
         "content_type": null,
         "server": null,
-        "date": "2025-10-23T19:20:36+00:00",
+        "date": "2026-09-18T07:59:59+00:00",
         "location": "/relative-redirect/1",
         "headers": {
           "access-control-allow-credentials": "true",
           "access-control-allow-origin": "*",
           "location": "/relative-redirect/1",
-          "date": "Thu, 23 Oct 2025 19:20:36 GMT",
+          "date": "Fri, 18 Sep 2026 07:59:59 GMT",
           "content-length": "0"
         }
       },
@@ -640,12 +656,12 @@ The redirect summary includes a total row:
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -656,13 +672,13 @@ The redirect summary includes a total row:
         "bytes": 0,
         "content_type": null,
         "server": null,
-        "date": "2025-10-23T19:20:36+00:00",
+        "date": "2026-09-18T07:59:59+00:00",
         "location": "/get",
         "headers": {
           "access-control-allow-credentials": "true",
           "access-control-allow-origin": "*",
           "location": "/get",
-          "date": "Thu, 23 Oct 2025 19:20:36 GMT",
+          "date": "Fri, 18 Sep 2026 07:59:59 GMT",
           "content-length": "0"
         }
       },
@@ -696,12 +712,12 @@ The redirect summary includes a total row:
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -712,13 +728,13 @@ The redirect summary includes a total row:
         "bytes": 389,
         "content_type": "application/json; charset=utf-8",
         "server": null,
-        "date": "2025-10-23T19:20:37+00:00",
+        "date": "2026-09-18T08:00:00+00:00",
         "location": null,
         "headers": {
           "access-control-allow-credentials": "true",
           "access-control-allow-origin": "*",
           "content-type": "application/json; charset=utf-8",
-          "date": "Thu, 23 Oct 2025 19:20:37 GMT",
+          "date": "Fri, 18 Sep 2026 08:00:00 GMT",
           "content-length": "389"
         }
       },
@@ -787,7 +803,7 @@ uv run ruff check
 uv run ruff format .
 ```
 
-Tests expect outbound network access; you can mock `SystemDNSResolver` / `SocketTLSInspector` when running offline.
+The test suite does not need outbound network access: HTTP calls are mocked with `pytest-httpx`, and TLS and proxy tests use local servers.
 
 ---
 
@@ -813,7 +829,7 @@ details.
 
 - Built on the shoulders of fantastic
   libraries: [httpx](https://www.python-httpx.org/), [httpcore](https://github.com/encode/httpcore),
-  [dnspython](https://www.dnspython.org/), and [Rich](https://github.com/Textualize/rich).
+  [cryptography](https://cryptography.io/), and [Rich](https://github.com/Textualize/rich).
 - Inspired by the tooling ecosystem around web performance (e.g., DevTools waterfalls, `curl --trace`).
 - Special thanks to everyone who opens issues, shares ideas, or contributes patches.
 

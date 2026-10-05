@@ -10,7 +10,7 @@ project believes its security properties hold, not just **what** those
 properties are. It is structured according to the OpenSSF Best Practices
 silver-level `assurance_case` criterion.
 
-**Last reviewed:** 2026-09-17 for httptap 0.6.2.
+**Last reviewed:** 2026-10-05.
 
 The assurance case is a living document; it is reviewed at every major
 release and whenever the threat landscape or feature set changes
@@ -130,9 +130,9 @@ Mapped to Saltzer & Schroeder (1975) plus modern additions.
 
 | Principle | Application in httptap |
 |-----------|-----------------------|
-| Economy of mechanism | Small codebase (~2 kLoC), one purpose, no plugin loader, no runtime config files. |
+| Economy of mechanism | Small codebase (~6 kLoC), one purpose, no plugin loader, no runtime config files. |
 | Fail-safe defaults | TLS verification on, sane default timeout, HTTP/2 preferred, no redirect following by default. |
-| Complete mediation | Every outbound request is routed through `HTTPClientRequestExecutor`; there is no secondary or legacy code path. |
+| Complete mediation | Every outbound HTTP request is routed through `HTTPClientRequestExecutor`; there is no legacy code path. The only secondary path is a TLS-only probe to the same host and port, without an HTTP request: a fallback probe when the live connection exposes no TLS data, and an unverified diagnostic probe that reports the certificate after a verification failure (the request still fails). Both are skipped when a proxy is in use and bounded by the request deadline. |
 | Open design | Entire codebase is Apache-2.0 on GitHub; no security-through-obscurity. |
 | Separation of privilege | Release pipeline is separate from development environment; PyPI publishing uses a GitHub Environment gated by OIDC. |
 | Least privilege | Every CI job declares explicit minimum `permissions:`; no workflow has `write-all`. Token-Permissions Scorecard check scores 10/10. |
@@ -236,7 +236,7 @@ that are explicit rather than oversights.
 | 2026-04-12 | Initial assurance case for httptap 0.4.7 (silver submission). |
 | 2026-04-13 | OSS hardening for 0.5.0: gitsign-signed release commits/tags, TestPyPI pre-flight, signed GHCR container images with SLSA provenance, hadolint in CI, man-page artifact. |
 | 2026-09-17 | Security fixes in 0.6.2 ([GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)): SR-3 is enforced by an explicit origin check on redirects, server-controlled values are escaped before Rich rendering (CWE-79/116), proxy credentials are redacted (CWE-200); OpenVEX now records the advisory status. |
-| 2026-10-05 | Added the `--prometheus` textfile and `--otlp` trace outputs to the trust boundaries, threat model, and CWE-200 countermeasures. |
+| 2026-10-05 | Added the `--prometheus` textfile and `--otlp` trace outputs to the trust boundaries, threat model, and CWE-200 countermeasures; documented the TLS fallback and diagnostic probes under complete mediation. |
 
 ---
 

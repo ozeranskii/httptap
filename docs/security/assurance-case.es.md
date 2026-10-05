@@ -10,7 +10,7 @@ el proyecto cree que sus propiedades de seguridad se sostienen, no solo **cuále
 son esas propiedades. Está estructurado conforme al criterio `assurance_case`
 del nivel plata de las OpenSSF Best Practices.
 
-**Última revisión:** 2026-09-17 para httptap 0.6.2.
+**Última revisión:** 2026-10-05.
 
 El caso de garantía es un documento vivo; se revisa en cada versión mayor
 y siempre que el panorama de amenazas o el conjunto de funcionalidades cambie
@@ -133,9 +133,9 @@ Asignados a Saltzer & Schroeder (1975) más añadidos modernos.
 
 | Principio | Aplicación en httptap |
 |-----------|-----------------------|
-| Economía del mecanismo | Base de código pequeña (~2 kLoC), un solo propósito, sin cargador de plugins, sin archivos de configuración en tiempo de ejecución. |
+| Economía del mecanismo | Base de código pequeña (~6 kLoC), un solo propósito, sin cargador de plugins, sin archivos de configuración en tiempo de ejecución. |
 | Valores predeterminados a prueba de fallos | Verificación TLS activada, tiempo de espera predeterminado sensato, HTTP/2 preferido, sin seguimiento de redirecciones por defecto. |
-| Mediación completa | Toda solicitud saliente se enruta a través de `HTTPClientRequestExecutor`; no hay una ruta de código secundaria ni heredada. |
+| Mediación completa | Toda solicitud HTTP saliente se enruta a través de `HTTPClientRequestExecutor`; no hay una ruta de código heredada. La única ruta secundaria es una sonda solo TLS al mismo host y puerto, sin solicitud HTTP: una sonda de respaldo cuando la conexión activa no expone datos TLS, y una sonda de diagnóstico sin verificación que informa del certificado tras un fallo de verificación (la solicitud sigue fallando). Ambas se omiten cuando se usa un proxy y están limitadas por el plazo de la solicitud. |
 | Diseño abierto | Toda la base de código es Apache-2.0 en GitHub; sin seguridad por oscuridad. |
 | Separación de privilegios | La canalización de publicación está separada del entorno de desarrollo; la publicación en PyPI usa un GitHub Environment protegido por OIDC. |
 | Menor privilegio | Cada job de CI declara un `permissions:` mínimo explícito; ningún flujo de trabajo tiene `write-all`. La verificación Token-Permissions de Scorecard puntúa 10/10. |
@@ -240,7 +240,7 @@ que son explícitas en lugar de descuidos.
 | 2026-04-12 | Caso de garantía inicial para httptap 0.4.7 (envío para nivel plata). |
 | 2026-04-13 | Endurecimiento OSS para 0.5.0: commits/etiquetas de publicación firmados con gitsign, verificación previa en TestPyPI, imágenes de contenedor GHCR firmadas con procedencia SLSA, hadolint en CI, artefacto de página de manual. |
 | 2026-09-17 | Correcciones de seguridad en 0.6.2 ([GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)): SR-3 se garantiza con una comprobación explícita de origen en las redirecciones, los valores controlados por el servidor se escapan antes del renderizado de Rich (CWE-79/116) y las credenciales de proxy se ocultan (CWE-200); OpenVEX registra ahora el estado del aviso. |
-| 2026-10-05 | Se añadieron las salidas de textfile `--prometheus` y de trazas `--otlp` a los límites de confianza, al modelo de amenazas y a las contramedidas de CWE-200. |
+| 2026-10-05 | Se añadieron las salidas de textfile `--prometheus` y de trazas `--otlp` a los límites de confianza, al modelo de amenazas y a las contramedidas de CWE-200; se documentaron las sondas TLS de respaldo y de diagnóstico en la mediación completa. |
 
 ---
 

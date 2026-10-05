@@ -7,7 +7,7 @@ description: httptap 的威胁模型、信任边界、所应用的安全设计�
 
 本文档是 httptap 的安全保障论证。它阐述项目**为何**相信其安全属性成立，而不仅仅是这些属性**是什么**。文档结构遵循 OpenSSF Best Practices 银级（silver-level）的 `assurance_case` 准则。
 
-**最近审阅：** 2026-09-17，针对 httptap 0.6.2。
+**最近审阅：** 2026-10-05。
 
 保障论证是一份持续演进的文档；它会在每个大版本发布时、以及威胁态势或功能集发生实质性变化时接受审阅。修订提案以针对本文件的 pull request 形式受理。
 
@@ -96,9 +96,9 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 
 | 原则 | 在 httptap 中的应用 |
 |-----------|-----------------------|
-| 机制经济性（Economy of mechanism） | 代码库小（约 2 kLoC）、用途单一、无插件加载器、无运行时配置文件。 |
+| 机制经济性（Economy of mechanism） | 代码库小（约 6 kLoC）、用途单一、无插件加载器、无运行时配置文件。 |
 | 失败安全默认（Fail-safe defaults） | 默认启用 TLS 校验、合理的默认超时、优先使用 HTTP/2、默认不跟随重定向。 |
-| 完全仲裁（Complete mediation） | 每个出站请求都经由 `HTTPClientRequestExecutor` 路由；不存在次要或遗留代码路径。 |
+| 完全仲裁（Complete mediation） | 每个出站 HTTP 请求都经由 `HTTPClientRequestExecutor` 路由；不存在遗留代码路径。唯一的次要路径是对同一主机和端口的纯 TLS 探测，不发送 HTTP 请求：当实际连接未提供 TLS 数据时的回退探测，以及在证书验证失败后报告证书信息的不验证诊断探测（请求本身仍然失败）。两者在使用代理时都会跳过，并受请求截止时间约束。 |
 | 开放设计（Open design） | 整个代码库以 Apache-2.0 许可托管于 GitHub；不依赖隐晦性来保障安全。 |
 | 权限分离（Separation of privilege） | 发布流水线与开发环境相分离；PyPI 发布使用由 OIDC 把关的 GitHub Environment。 |
 | 最小权限（Least privilege） | 每个 CI 作业都声明显式的最小 `permissions:`；没有任何工作流使用 `write-all`。Token-Permissions 的 Scorecard 检查评分为 10/10。 |
@@ -168,7 +168,7 @@ gh attestation verify dist/httptap-X.Y.Z-py3-none-any.whl \
 | 2026-04-12 | httptap 0.4.7 的首个保障论证（银级提交）。 |
 | 2026-04-13 | 面向 0.5.0 的开源加固：gitsign 签名的发布提交/标签、TestPyPI 预检、带 SLSA 来源证明的已签名 GHCR 容器镜像、CI 中的 hadolint、man-page 制品。 |
 | 2026-09-17 | 0.6.2 中的安全修复（[GHSA-pgxm-hj3g-p7wv](https://github.com/ozeranskii/httptap/security/advisories/GHSA-pgxm-hj3g-p7wv)）：通过重定向时的显式源检查落实 SR-3，服务器控制的值在 Rich 渲染前转义（CWE-79/116），代理凭证被脱敏（CWE-200）；OpenVEX 现已记录该公告的状态。 |
-| 2026-10-05 | 将 `--prometheus` textfile 和 `--otlp` trace 输出加入信任边界、威胁模型以及 CWE-200 应对措施。 |
+| 2026-10-05 | 将 `--prometheus` textfile 和 `--otlp` trace 输出加入信任边界、威胁模型以及 CWE-200 应对措施；在完全仲裁中记录了 TLS 回退探测和诊断探测。 |
 
 ---
 

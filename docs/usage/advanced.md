@@ -38,7 +38,16 @@ failure is reported as a network error rather than an internal one.
 
 ## Custom TLS Inspection
 
-Implement custom TLS inspection logic to extract additional certificate information.
+httptap reads the TLS version, cipher, and certificate details directly from the
+live connection that served the response, so a custom `TLSInspector` does not
+replace that data. It is only a fallback: httptap calls it for an HTTPS request
+when the live connection exposes no TLS data and no proxy is in use, and its
+result then fills the TLS fields. The inspector receives the hostname, port, and
+remaining timeout and opens its own connection. Raise
+`httptap.TLSInspectionError` when inspection fails so the step is still reported
+without TLS details. The diagnostic probe that collects certificate details after
+a certificate verification failure always uses the built-in `SocketTLSInspector`,
+never a custom inspector.
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -179,9 +188,11 @@ The `--proxy` flag always takes precedence over environment variables.
 **NO_PROXY patterns:**
 
 - `*` - Bypass proxy for all hosts
-- `example.com` - Exact hostname match
-- `.example.com` - All subdomains of example.com
-- `sub.example.com` - Exact subdomain match
+- `example.com` - The host itself and all of its subdomains
+- `.example.com` - Subdomains of example.com only, not example.com itself
+- `sub.example.com` - sub.example.com and its subdomains
+
+Matching is case-insensitive. CIDR ranges and port-specific entries are not supported.
 
 ## Custom CA Bundles
 
@@ -376,17 +387,21 @@ for url, total_ms in results:
 
 ## Error Handling
 
-Handle errors gracefully when analyzing URLs.
+Handle errors gracefully when analyzing URLs. `has_error` is set only when the request
+itself failed (DNS, connection, TLS, or timeout); an HTTP `4xx`/`5xx` response is a
+completed step, so check `response.status` separately.
 
 ```python
 from httptap import HTTPTapAnalyzer
 
 analyzer = HTTPTapAnalyzer()
-steps = analyzer.analyze_url("https://httpbin.io/status/500")
+steps = analyzer.analyze_url("https://nonexistent.invalid")
 
 step = steps[0]
 if step.has_error:
     print(f"Error: {step.error}")
+elif step.response.status >= 400:
+    print(f"HTTP error: {step.response.status}")
 else:
     print(f"Status: {step.response.status}")
 ```

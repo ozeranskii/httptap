@@ -20,7 +20,7 @@ httptap https://httpbin.io
 - **计时阶段的可视化进度条**
 - **便于阅读的结构化表格**
 - **网络详情**，包括 IP、TLS 版本和证书信息
-- **响应元数据**，显示状态、请求头和响应体大小
+- **响应元数据**，显示状态、响应体大小、`Server` 头和重定向目标
 
 ### 何时使用
 
@@ -150,12 +150,12 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -165,11 +165,11 @@ httptap --json - https://httpbin.io | jq '.steps[0].timing'
         "status": 200,
         "bytes": 389,
         "content_type": "application/json",
-        "server": null,
-        "date": "2025-10-23T19:20:36+00:00",
+        "server": "gunicorn/19.9.0",
+        "date": "2026-09-18T07:59:59+00:00",
         "location": null,
         "headers": {
-          "date": "Thu, 23 Oct 2025 19:20:36 GMT",
+          "date": "Fri, 18 Sep 2026 07:59:59 GMT",
           "content-type": "application/json",
           "server": "gunicorn/19.9.0"
         }

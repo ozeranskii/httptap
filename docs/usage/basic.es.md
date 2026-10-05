@@ -382,7 +382,7 @@ La salida rich por defecto muestra una tabla de cascada con:
 - Nombre de la fase y duración
 - Barra de progreso visual
 - Detalles de red (IP, versión de TLS, información del certificado)
-- Metadatos de la respuesta (estado, tamaño, content-type)
+- Metadatos de la respuesta (estado, tamaño, cabecera `Server`, destino de la redirección)
 
 ### Desglose de tiempos
 

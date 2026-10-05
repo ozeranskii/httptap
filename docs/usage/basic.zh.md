@@ -358,7 +358,7 @@ httptap https://httpbin.io/status/200
 - 阶段名称和持续时间
 - 可视化进度条
 - 网络详情（IP、TLS 版本、证书信息）
-- 响应元数据（状态、大小、content-type）
+- 响应元数据（状态、大小、`Server` 头、重定向目标）
 
 ### 计时明细
 

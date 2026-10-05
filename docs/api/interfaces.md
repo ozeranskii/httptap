@@ -100,6 +100,14 @@ class PinnedResolver(SystemDNSResolver):
 
 ::: httptap.interfaces.TLSInspector
 
+httptap reads TLS and certificate details from the live connection that served the response.
+A custom inspector is only a fallback: it is called for HTTPS requests when that connection
+exposes no TLS data and no proxy is in use, receives the hostname, port, and remaining
+timeout, and opens its own connection. Raise `TLSInspectionError` (exported from `httptap`)
+when inspection fails; the step is then reported without TLS details. The diagnostic probe
+that runs after a certificate verification failure always uses the built-in
+`SocketTLSInspector`, not a custom inspector.
+
 ### Example implementation
 
 ```python

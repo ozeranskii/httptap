@@ -155,5 +155,5 @@ Construido sobre los hombros de bibliotecas fantásticas:
 
 - [httpx](https://www.python-httpx.org/) - Cliente HTTP moderno
 - [httpcore](https://github.com/encode/httpcore) - Implementación de bajo nivel del protocolo HTTP
-- [dnspython](https://www.dnspython.org/) - Kit de herramientas DNS para Python
+- [cryptography](https://cryptography.io/) - Análisis de certificados X.509
 - [Rich](https://github.com/Textualize/rich) - Hermoso formato de terminal

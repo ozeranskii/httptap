@@ -87,12 +87,17 @@ realiza ninguna solicitud.
 ## Reglas de evaluación
 
 Los umbrales SLO se evalúan frente al **paso final correcto** de
-una cadena de solicitudes:
+una cadena de solicitudes, es decir, el último paso que no falló con un error
+de red o de TLS:
 
 - Solicitud única → se comprueba frente a esa solicitud.
-- Cadena de redirecciones (`--follow`) → se comprueba frente a la respuesta terminal,
+- Cadena de redirecciones (`--follow`) → se comprueba frente a la última respuesta,
   no frente a las redirecciones intermedias. Se asume que a los usuarios les importa
   lo que realmente sirvió su solicitud.
+- Límite de redirecciones alcanzado → el último paso es en sí una redirección `3xx`
+  y se sigue evaluando; el código de salida es `47` en cualquier caso (véase más abajo).
+- Un paso posterior falló → se evalúa el último paso correcto anterior a él;
+  el código de salida refleja el fallo de red.
 - Todos los pasos con error → el SLO se omite por completo; el código de salida refleja
   el fallo de red (véase más abajo).
 

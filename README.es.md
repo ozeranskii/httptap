@@ -269,6 +269,20 @@ Si instalaste httptap mediante `pip` o `uv`, necesitas instalar los extras opcio
 
 **Nota:** El script de activación global solo proporciona autocompletado de argumentos para bash y zsh. Otros shells no están cubiertos por el script y deben configurarse por separado.
 
+#### Instalaciones aisladas (`uv tool`, `pipx`)
+
+`uv tool install` y `pipx install` solo añaden el comando `httptap` a tu `PATH`, no los scripts auxiliares de argcomplete. Exponlos al instalar y luego registra el autocompletado de `httptap` en el archivo de inicio de tu shell (p. ej. `~/.bashrc` o `~/.zshrc`):
+
+```shell
+uv tool install --with-executables-from argcomplete "httptap[completion]"
+# or
+pipx install --include-resources-from argcomplete "httptap[completion]"
+
+eval "$(register-python-argcomplete httptap)"
+```
+
+Las versiones antiguas de pipx sin `--include-resources-from` pueden usar `--include-deps` en su lugar.
+
 #### Ejemplos de uso
 
 Una vez instalado el autocompletado, puedes usar `Tab` para autocompletar comandos y opciones:
@@ -276,7 +290,7 @@ Una vez instalado el autocompletado, puedes usar `Tab` para autocompletar comand
 ```shell
 # Complete command options
 httptap --<TAB>
-# Shows: --method, --data, --follow, --timeout, --no-http2, --fail, --ipv4, --ipv6, --resolve, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --prometheus, --otlp, --slo, --slo-file, --version, --help
+# Shows: --help --version --request --method --data --location --follow --max-time --timeout --no-http2 --http1.1 --fail --ipv4 --ipv6 --resolve --insecure --ignore-ssl --cacert --ca-bundle --proxy --header --compact --metrics-only --json --prometheus --otlp --slo --slo-file
 
 # Complete after typing partial option
 httptap --fol<TAB>
@@ -472,23 +486,25 @@ Especificación completa, reglas de evaluación y recetas:
 
 ## Variables de entorno
 
-httptap lee las siguientes variables de entorno en tiempo de ejecución. Todas
-ellas se pueden anular mediante flags de la CLI, y el origen real usado para
-cada solicitud se registra en la salida y en la exportación a JSON.
+httptap lee las siguientes variables de entorno en tiempo de ejecución. Las
+variables de proxy se pueden anular con `-x/--proxy` o ignorar con `--proxy ""`,
+y el origen del proxy usado en cada solicitud se registra en la salida y en la
+exportación a JSON. Las variables de color no tienen equivalente en la CLI.
 
 | Variable                              | Propósito                                                                                                     | Anulada por           |
 |---------------------------------------|--------------------------------------------------------------------------------------------------------------|-----------------------|
 | `HTTP_PROXY` / `http_proxy`           | URL de proxy usada para destinos `http://`.                                                                  | `-x/--proxy`          |
 | `HTTPS_PROXY` / `https_proxy`         | URL de proxy usada para destinos `https://`.                                                                 | `-x/--proxy`          |
 | `ALL_PROXY` / `all_proxy`             | URL de proxy de reserva cuando las variables específicas de esquema no están definidas.                      | `-x/--proxy`          |
-| `NO_PROXY` / `no_proxy`               | Lista de exclusión separada por comas (admite `*`, `.` inicial, coincidencias exactas). Las entradas omitidas conectan directamente. | `--proxy ""` |
+| `NO_PROXY` / `no_proxy`               | Lista de exclusión separada por comas: `*` coincide con todos los hosts, `example.com` con el host y sus subdominios, `.example.com` solo con los subdominios. Sin rangos CIDR. Los hosts omitidos conectan directamente. | `-x/--proxy`, `--proxy ""` |
 | `NO_COLOR`                            | Desactiva los colores ANSI en toda la salida de Rich (respeta la convención [NO_COLOR](https://no-color.org)). | —                     |
 | `FORCE_COLOR`                         | Fuerza la salida con color incluso cuando stdout no es un TTY (convención de Rich).                          | —                     |
 | `TERM=dumb`                           | Rich reduce la representación a texto plano.                                                                  | —                     |
 
-> Precedencia para la configuración del proxy: `-x/--proxy` explícito → `--proxy ""`
-> (desactiva el entorno) → `HTTPS_PROXY`/`HTTP_PROXY`/`ALL_PROXY` (coincidencia de esquema) →
-> exclusión `NO_PROXY` → conexión directa.
+> Precedencia para la configuración del proxy: `-x/--proxy` explícito o `--proxy ""`
+> (desactiva el entorno) → exclusión `NO_PROXY` (conexión directa) → la variable que
+> coincide con el esquema de la URL (`HTTPS_PROXY` o `HTTP_PROXY`) → `ALL_PROXY` →
+> conexión directa. Las variables en minúsculas tienen prioridad sobre las mayúsculas.
 
 ---
 
@@ -595,12 +611,12 @@ El resumen de redirección incluye una fila de total:
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -611,13 +627,13 @@ El resumen de redirección incluye una fila de total:
         "bytes": 0,
         "content_type": null,
         "server": null,
-        "date": "2025-10-23T19:20:36+00:00",
+        "date": "2026-09-18T07:59:59+00:00",
         "location": "/relative-redirect/1",
         "headers": {
           "access-control-allow-credentials": "true",
           "access-control-allow-origin": "*",
           "location": "/relative-redirect/1",
-          "date": "Thu, 23 Oct 2025 19:20:36 GMT",
+          "date": "Fri, 18 Sep 2026 07:59:59 GMT",
           "content-length": "0"
         }
       },
@@ -651,12 +667,12 @@ El resumen de redirección incluye una fila de total:
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -667,13 +683,13 @@ El resumen de redirección incluye una fila de total:
         "bytes": 0,
         "content_type": null,
         "server": null,
-        "date": "2025-10-23T19:20:36+00:00",
+        "date": "2026-09-18T07:59:59+00:00",
         "location": "/get",
         "headers": {
           "access-control-allow-credentials": "true",
           "access-control-allow-origin": "*",
           "location": "/get",
-          "date": "Thu, 23 Oct 2025 19:20:36 GMT",
+          "date": "Fri, 18 Sep 2026 07:59:59 GMT",
           "content-length": "0"
         }
       },
@@ -707,12 +723,12 @@ El resumen de redirección incluye una fila de total:
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -723,13 +739,13 @@ El resumen de redirección incluye una fila de total:
         "bytes": 389,
         "content_type": "application/json; charset=utf-8",
         "server": null,
-        "date": "2025-10-23T19:20:37+00:00",
+        "date": "2026-09-18T08:00:00+00:00",
         "location": null,
         "headers": {
           "access-control-allow-credentials": "true",
           "access-control-allow-origin": "*",
           "content-type": "application/json; charset=utf-8",
-          "date": "Thu, 23 Oct 2025 19:20:37 GMT",
+          "date": "Fri, 18 Sep 2026 08:00:00 GMT",
           "content-length": "389"
         }
       },
@@ -798,7 +814,7 @@ uv run ruff check
 uv run ruff format .
 ```
 
-Las pruebas esperan acceso de red saliente; puedes simular `SystemDNSResolver` / `SocketTLSInspector` al ejecutar sin conexión.
+La suite de pruebas no necesita acceso de red saliente: las llamadas HTTP se simulan con `pytest-httpx`, y las pruebas de TLS y proxy usan servidores locales.
 
 ---
 
@@ -823,7 +839,7 @@ detalles.
 ## Agradecimientos
 
 - Construido sobre los hombros de bibliotecas fantásticas: [httpx](https://www.python-httpx.org/), [httpcore](https://github.com/encode/httpcore),
-  [dnspython](https://www.dnspython.org/) y [Rich](https://github.com/Textualize/rich).
+  [cryptography](https://cryptography.io/) y [Rich](https://github.com/Textualize/rich).
 - Inspirado en el ecosistema de herramientas en torno al rendimiento web (p. ej., las cascadas de DevTools, `curl --trace`).
 - Un agradecimiento especial a todos los que abren issues, comparten ideas o contribuyen con parches.
 

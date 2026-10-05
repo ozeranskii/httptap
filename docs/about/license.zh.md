@@ -67,12 +67,12 @@ httptap 依赖若干开源项目：
 
 ### 直接依赖
 
-| 软件包    | 许可证       | 链接                                  |
-|-----------|--------------|---------------------------------------|
-| httpx     | BSD-3-Clause | https://github.com/encode/httpx       |
-| httpcore  | BSD-3-Clause | https://github.com/encode/httpcore    |
-| Rich      | MIT          | https://github.com/Textualize/rich    |
-| dnspython | ISC          | https://github.com/rthalley/dnspython |
+| 软件包       | 许可证                     | 链接                                 |
+|--------------|----------------------------|--------------------------------------|
+| httpx        | BSD-3-Clause               | https://github.com/encode/httpx      |
+| httpcore     | BSD-3-Clause               | https://github.com/encode/httpcore   |
+| Rich         | MIT                        | https://github.com/Textualize/rich   |
+| cryptography | Apache-2.0 OR BSD-3-Clause | https://github.com/pyca/cryptography |
 
 所有依赖均使用与 Apache 2.0 兼容的宽松许可证。
 

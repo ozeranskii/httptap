@@ -12,9 +12,13 @@ la exportación JSON (si la hay) y la salida de terminal relevante.
 
 ## TLS y certificados
 
-### `TLS handshake failed: CERTIFICATE_VERIFY_FAILED`
+### `[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed`
 
-El servidor presentó un certificado que tu almacén de confianza no reconoce.
+El servidor presentó un certificado que tu almacén de confianza no reconoce. El
+paso fallido informa de un error como
+`Request failed: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1077)`;
+el motivo tras los dos puntos (certificado autofirmado o caducado, emisor local
+desconocido, nombre de host que no coincide) y el número de línea de `_ssl.c` varían.
 
 - **Certificado autofirmado o caducado en un host que no es de producción** — añade `--ignore-ssl`
   (desactiva la validación, úsalo solo en redes de confianza).
@@ -59,13 +63,16 @@ La opción explícita `-x/--proxy` siempre prevalece sobre las variables de ento
 
 ### Referencia de patrones de `NO_PROXY`
 
-- Host exacto: `api.internal.example`
-- Sufijo de dominio: `.internal.example` (coincide con `foo.internal.example`)
+- Host y sus subdominios: `api.internal.example` (también coincide con
+  `v1.api.internal.example`)
+- Solo subdominios: `.internal.example` (coincide con `foo.internal.example`, no con
+  `internal.example`)
 - Comodín: `*` (excluye todo)
-- Múltiples entradas: separadas por comas, con espacios en blanco recortados
+- Múltiples entradas: separadas por comas, con espacios en blanco recortados, sin distinguir
+  mayúsculas de minúsculas
 
-La coincidencia de IP/CIDR **no** es compatible — esto sigue el comportamiento ampliamente
-adoptado de curl.
+Las direcciones IP se comparan como nombres de host normales. Los rangos CIDR (que curl
+admite desde la 7.86.0) y las entradas con puerto **no** son compatibles.
 
 ## HTTP/2
 
@@ -125,8 +132,10 @@ TTY de Rich:
 
 ### `--metrics-only` dejó de mostrar un campo `proxy=`
 
-No lo hizo — el campo siempre está presente. Las capturas/ejemplos antiguos pueden ser anteriores
-al cambio. Formato esperado:
+No lo hizo — el campo está presente en cada paso que recibió una respuesta. Las
+capturas/ejemplos antiguos pueden ser anteriores al cambio. Los pasos fallidos se muestran
+como `Step N: ERROR - <message>` y no llevan métricas ni campo `proxy=`. Formato esperado
+para un paso correcto:
 
 ```
 Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
@@ -168,8 +177,9 @@ Comprueba tres cosas:
 2. El SLO se evalúa sobre el **paso exitoso final**, no sobre las redirecciones
    intermedias. Si `--follow` rebotó a través de varios saltos y el último
    paso fue rápido, el total general de la cadena no se compara. Usa `total`
-   contra el presupuesto de la solicitud terminal, o agrega manualmente desde
-   `--json` si necesitas garantías por paso.
+   contra el presupuesto de la última solicitud, o agrega manualmente desde
+   `--json` si necesitas garantías por paso. Si se alcanza el límite de
+   redirecciones, el paso evaluado es la última respuesta `3xx`.
 3. Si todos los pasos dieron error, el SLO se omite por completo — el código de salida
    refleja el fallo de red (normalmente `75`). En ese caso no aparece ningún token
    `slo=` en la salida de `--metrics-only`.

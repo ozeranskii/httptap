@@ -272,6 +272,22 @@ httptap を `pip` または `uv` でインストールした場合、オプシ�
 **注記：** グローバル有効化スクリプトが提供する引数補完は bash と zsh のみです。その他のシェルはこのスクリプトの
 対象外であり、個別に設定する必要があります。
 
+#### 分離インストール（`uv tool`、`pipx`）
+
+`uv tool install` と `pipx install` は `httptap` コマンドだけを `PATH` に追加し、argcomplete のヘルパースクリプトは
+追加しません。インストール時にこれらも公開し、シェルの起動ファイル（例：`~/.bashrc` や `~/.zshrc`）で `httptap` の
+補完を登録してください：
+
+```shell
+uv tool install --with-executables-from argcomplete "httptap[completion]"
+# or
+pipx install --include-resources-from argcomplete "httptap[completion]"
+
+eval "$(register-python-argcomplete httptap)"
+```
+
+`--include-resources-from` に対応していない古い pipx では、代わりに `--include-deps` を使えます。
+
 #### 使用例
 
 補完をインストールすれば、`Tab` を使ってコマンドやオプションを自動補完できます：
@@ -279,7 +295,7 @@ httptap を `pip` または `uv` でインストールした場合、オプシ�
 ```shell
 # Complete command options
 httptap --<TAB>
-# Shows: --method, --data, --follow, --timeout, --no-http2, --fail, --ipv4, --ipv6, --resolve, --ignore-ssl, --cacert, --proxy, --header, --compact, --metrics-only, --json, --prometheus, --otlp, --slo, --slo-file, --version, --help
+# Shows: --help --version --request --method --data --location --follow --max-time --timeout --no-http2 --http1.1 --fail --ipv4 --ipv6 --resolve --insecure --ignore-ssl --cacert --ca-bundle --proxy --header --compact --metrics-only --json --prometheus --otlp --slo --slo-file
 
 # Complete after typing partial option
 httptap --fol<TAB>
@@ -480,21 +496,23 @@ esac
 
 ## 環境変数
 
-httptap は実行時に次の環境変数を読み取ります。これらはすべて CLI フラグで上書き可能であり、各リクエストで実際に
-使用された送信元は出力と JSON エクスポートに記録されます。
+httptap は実行時に次の環境変数を読み取ります。プロキシ関連の変数は `-x/--proxy` で上書きするか `--proxy ""` で
+無視でき、各リクエストで使用されたプロキシの取得元は出力と JSON エクスポートに記録されます。カラー関連の変数に
+対応する CLI フラグはありません。
 
 | 変数                                   | 用途                                                                                                          | 上書き元              |
 |---------------------------------------|--------------------------------------------------------------------------------------------------------------|-----------------------|
 | `HTTP_PROXY` / `http_proxy`           | `http://` ターゲットに使用されるプロキシ URL。                                                                  | `-x/--proxy`          |
 | `HTTPS_PROXY` / `https_proxy`         | `https://` ターゲットに使用されるプロキシ URL。                                                                 | `-x/--proxy`          |
 | `ALL_PROXY` / `all_proxy`             | スキーム固有の変数が未設定の場合のフォールバックプロキシ URL。                                                    | `-x/--proxy`          |
-| `NO_PROXY` / `no_proxy`               | カンマ区切りの除外リスト（`*`、先頭の `.`、完全一致をサポート）。バイパスされたエントリは直接接続します。            | `--proxy ""`          |
+| `NO_PROXY` / `no_proxy`               | カンマ区切りの除外リスト：`*` はすべてのホスト、`example.com` はそのホストとサブドメイン、`.example.com` はサブドメインのみにマッチ。CIDR 範囲は非対応。バイパスされたホストは直接接続します。 | `-x/--proxy`、`--proxy ""` |
 | `NO_COLOR`                            | すべての Rich 出力で ANSI カラーを無効化します（[NO_COLOR](https://no-color.org) の慣習に従います）。              | —                     |
 | `FORCE_COLOR`                         | stdout が TTY でない場合でも色付き出力を強制します（Rich の慣習）。                                              | —                     |
 | `TERM=dumb`                           | Rich がプレーンテキストのレンダリングにダウングレードします。                                                     | —                     |
 
-> プロキシ設定の優先順位：明示的な `-x/--proxy` → `--proxy ""`（環境変数を無効化）→
-> `HTTPS_PROXY`/`HTTP_PROXY`/`ALL_PROXY`（スキーム一致）→ `NO_PROXY` による除外 → 直接接続。
+> プロキシ設定の優先順位：明示的な `-x/--proxy` または `--proxy ""`（環境変数を無効化）→
+> `NO_PROXY` による除外（直接接続）→ URL スキームに一致する変数（`HTTPS_PROXY` または `HTTP_PROXY`）→
+> `ALL_PROXY` → 直接接続。小文字の変数は大文字の変数より優先されます。
 
 ---
 
@@ -597,12 +615,12 @@ fi
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -613,13 +631,13 @@ fi
         "bytes": 0,
         "content_type": null,
         "server": null,
-        "date": "2025-10-23T19:20:36+00:00",
+        "date": "2026-09-18T07:59:59+00:00",
         "location": "/relative-redirect/1",
         "headers": {
           "access-control-allow-credentials": "true",
           "access-control-allow-origin": "*",
           "location": "/relative-redirect/1",
-          "date": "Thu, 23 Oct 2025 19:20:36 GMT",
+          "date": "Fri, 18 Sep 2026 07:59:59 GMT",
           "content-length": "0"
         }
       },
@@ -653,12 +671,12 @@ fi
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -669,13 +687,13 @@ fi
         "bytes": 0,
         "content_type": null,
         "server": null,
-        "date": "2025-10-23T19:20:36+00:00",
+        "date": "2026-09-18T07:59:59+00:00",
         "location": "/get",
         "headers": {
           "access-control-allow-credentials": "true",
           "access-control-allow-origin": "*",
           "location": "/get",
-          "date": "Thu, 23 Oct 2025 19:20:36 GMT",
+          "date": "Fri, 18 Sep 2026 07:59:59 GMT",
           "content-length": "0"
         }
       },
@@ -709,12 +727,12 @@ fi
         "tls_version": "TLSv1.2",
         "tls_cipher": "ECDHE-RSA-AES128-GCM-SHA256",
         "cert_cn": "httpbin.io",
-        "cert_days_left": 143,
+        "cert_days_left": 41,
         "cert_sans": ["httpbin.io", "*.httpbin.io"],
         "cert_issuer": "WE1",
         "cert_serial": "05BB0F0AA84C8FECE0E72D805BA7A5D2B",
-        "cert_not_before": "2025-04-01T00:00:00+00:00",
-        "cert_not_after": "2025-09-01T00:00:00+00:00",
+        "cert_not_before": "2026-08-01T00:00:00+00:00",
+        "cert_not_after": "2026-10-30T00:00:00+00:00",
         "tls_verified": true,
         "tls_custom_ca": false,
         "proxy_url": null,
@@ -725,13 +743,13 @@ fi
         "bytes": 389,
         "content_type": "application/json; charset=utf-8",
         "server": null,
-        "date": "2025-10-23T19:20:37+00:00",
+        "date": "2026-09-18T08:00:00+00:00",
         "location": null,
         "headers": {
           "access-control-allow-credentials": "true",
           "access-control-allow-origin": "*",
           "content-type": "application/json; charset=utf-8",
-          "date": "Thu, 23 Oct 2025 19:20:37 GMT",
+          "date": "Fri, 18 Sep 2026 08:00:00 GMT",
           "content-length": "389"
         }
       },
@@ -801,8 +819,8 @@ uv run ruff check
 uv run ruff format .
 ```
 
-テストは外向きのネットワークアクセスを前提としています。オフラインで実行する場合は、`SystemDNSResolver` /
-`SocketTLSInspector` をモックできます。
+テストスイートは外向きのネットワークアクセスを必要としません。HTTP 呼び出しは `pytest-httpx` でモックされ、
+TLS とプロキシのテストはローカルサーバーを使用します。
 
 ---
 
@@ -827,7 +845,7 @@ Apache License 2.0 © Sergei Ozeranskii。詳細は [LICENSE](https://github.com
 ## 謝辞
 
 - 素晴らしいライブラリの上に構築されています：[httpx](https://www.python-httpx.org/)、
-  [httpcore](https://github.com/encode/httpcore)、[dnspython](https://www.dnspython.org/)、および
+  [httpcore](https://github.com/encode/httpcore)、[cryptography](https://cryptography.io/)、および
   [Rich](https://github.com/Textualize/rich)。
 - Web パフォーマンスまわりのツールエコシステム（例：DevTools のウォーターフォール、`curl --trace`）から着想を
   得ています。

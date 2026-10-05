@@ -275,8 +275,7 @@ Before submitting, ensure:
 - [ ] Linter passes (`uv run ruff check`)
 - [ ] Type checks pass (`uv run mypy httptap`)
 - [ ] Documentation is updated (if needed)
-- [ ] CHANGELOG.md is updated (for significant changes)
-- [ ] Commit messages follow conventional format
+- [ ] Commit messages follow conventional format (`CHANGELOG.md` is generated from them by git-cliff at release time; do not edit it by hand)
 
 ## Documentation
 

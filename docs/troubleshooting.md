@@ -12,9 +12,13 @@ command, the JSON export (if any), and the relevant terminal output.
 
 ## TLS and certificates
 
-### `TLS handshake failed: CERTIFICATE_VERIFY_FAILED`
+### `[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed`
 
-The server presented a certificate your trust store doesn't recognize.
+The server presented a certificate your trust store doesn't recognize. The
+failed step reports an error such as
+`Request failed: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1077)`;
+the reason after the colon (self-signed, expired, unable to get local issuer
+certificate, hostname mismatch) and the `_ssl.c` line number vary.
 
 - **Self-signed or expired cert on a non-production host** — add `--ignore-ssl`
   (disables validation, use on trusted networks only).
@@ -59,13 +63,15 @@ The explicit `-x/--proxy` flag always wins over environment variables. Check:
 
 ### `NO_PROXY` pattern reference
 
-- Exact host: `api.internal.example`
-- Domain suffix: `.internal.example` (matches `foo.internal.example`)
+- Host and its subdomains: `api.internal.example` (also matches
+  `v1.api.internal.example`)
+- Subdomains only: `.internal.example` (matches `foo.internal.example`, not
+  `internal.example`)
 - Wildcard: `*` (excludes everything)
-- Multiple entries: comma-separated, whitespace trimmed
+- Multiple entries: comma-separated, whitespace trimmed, case-insensitive
 
-IP/CIDR matching is **not** supported — this follows the widely-adopted curl
-behavior.
+IP addresses are compared as plain hostnames. CIDR ranges (supported by curl
+since 7.86.0) and port-specific entries are **not** supported.
 
 ## HTTP/2
 
@@ -126,8 +132,10 @@ TTY detection:
 
 ### `--metrics-only` stopped showing a `proxy=` field
 
-It didn't — the field is always present. Old screenshots/examples may predate
-the change. Expected format:
+It didn't — the field is present on every step that received a response. Old
+screenshots/examples may predate the change. Failed steps are printed as
+`Step N: ERROR - <message>` and carry no metrics or `proxy=` field. Expected
+format for a successful step:
 
 ```
 Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
@@ -169,8 +177,9 @@ Check three things:
 2. SLO is evaluated on the **final successful step**, not intermediate
    redirects. If `--follow` bounced through several hops and the last
    step was fast, the overall chain total isn't compared. Use `total`
-   against the terminal request's budget, or aggregate manually from
-   `--json` if you need per-step guarantees.
+   against the last request's budget, or aggregate manually from
+   `--json` if you need per-step guarantees. When the redirect limit is
+   reached, the evaluated step is the last `3xx` response.
 3. If every step errored, SLO is skipped entirely — the exit code
    reflects the network failure (usually `75`). No `slo=` token
    appears in `--metrics-only` output in that case.

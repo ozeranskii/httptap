@@ -382,7 +382,7 @@ The default rich output displays a waterfall table with:
 - Phase name and duration
 - Visual progress bar
 - Network details (IP, TLS version, certificate info)
-- Response metadata (status, size, content-type)
+- Response metadata (status, size, `Server` header, redirect target)
 
 ### Timing Breakdown
 

@@ -38,7 +38,15 @@ que el fallo se informe como un error de red y no como uno interno.
 
 ## Inspección TLS personalizada
 
-Implementa lógica de inspección TLS personalizada para extraer información adicional del certificado.
+httptap lee la versión de TLS, el cifrado y los detalles del certificado directamente de la
+conexión activa que sirvió la respuesta, por lo que un `TLSInspector` personalizado no
+reemplaza esos datos. Solo actúa como respaldo: httptap lo llama en una solicitud HTTPS
+cuando la conexión activa no expone datos TLS y no se usa ningún proxy, y entonces su
+resultado rellena los campos TLS. El inspector recibe el nombre de host, el puerto y el
+tiempo de espera restante, y abre su propia conexión. Lanza `httptap.TLSInspectionError`
+cuando la inspección falle para que el paso se siga informando sin detalles TLS. La sonda
+de diagnóstico que recopila los detalles del certificado tras un fallo de verificación
+siempre usa el `SocketTLSInspector` integrado, nunca un inspector personalizado.
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -176,12 +184,14 @@ Cuando no se proporciona el flag `--proxy`, httptap comprueba las variables de e
 
 El flag `--proxy` siempre tiene prioridad sobre las variables de entorno.
 
-**Patrons de NO_PROXY:**
+**Patrones de NO_PROXY:**
 
 - `*` - Omite el proxy para todos los hosts
-- `example.com` - Coincidencia exacta del nombre de host
-- `.example.com` - Todos los subdominios de example.com
-- `sub.example.com` - Coincidencia exacta de subdominio
+- `example.com` - El propio host y todos sus subdominios
+- `.example.com` - Solo los subdominios de example.com, no example.com en sí
+- `sub.example.com` - sub.example.com y sus subdominios
+
+La coincidencia no distingue mayúsculas de minúsculas. No se admiten rangos CIDR ni entradas con puerto.
 
 ## Paquetes de CA personalizados
 
@@ -376,17 +386,21 @@ for url, total_ms in results:
 
 ## Manejo de errores
 
-Maneja los errores con elegancia al analizar URL.
+Maneja los errores con elegancia al analizar URL. `has_error` solo se activa cuando la propia
+solicitud falla (DNS, conexión, TLS o tiempo de espera); una respuesta HTTP `4xx`/`5xx` es un
+paso completado, así que comprueba `response.status` por separado.
 
 ```python
 from httptap import HTTPTapAnalyzer
 
 analyzer = HTTPTapAnalyzer()
-steps = analyzer.analyze_url("https://httpbin.io/status/500")
+steps = analyzer.analyze_url("https://nonexistent.invalid")
 
 step = steps[0]
 if step.has_error:
     print(f"Error: {step.error}")
+elif step.response.status >= 400:
+    print(f"HTTP error: {step.response.status}")
 else:
     print(f"Status: {step.response.status}")
 ```

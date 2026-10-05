@@ -273,8 +273,7 @@ def test_analyzer_follows_redirects(mock_http_client):
 - [ ] Linter 通过（`uv run ruff check`）
 - [ ] 类型检查通过（`uv run mypy httptap`）
 - [ ] 文档已更新（如有需要）
-- [ ] CHANGELOG.md 已更新（针对重要更改）
-- [ ] 提交信息遵循 conventional 格式
+- [ ] 提交信息遵循 conventional 格式（`CHANGELOG.md` 在发布时由 git-cliff 根据提交信息生成，请勿手动编辑）
 
 ## 文档
 

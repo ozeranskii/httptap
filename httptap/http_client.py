@@ -679,7 +679,7 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
     - Manual DNS resolution with timing
     - HTTP/1.1 and HTTP/2 support
     - Precise timing collection via httpx traces
-    - TLS certificate inspection (separate probe)
+    - TLS certificate inspection (from the live connection)
     - Response header and body parsing
 
     Args:
@@ -704,8 +704,8 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
             directly. Triggered by --proxy "".
         dns_resolver: Custom DNS resolver implementation.
             Defaults to SystemDNSResolver.
-        tls_inspector: Custom TLS inspector implementation.
-            Defaults to SocketTLSInspector.
+        tls_inspector: Custom TLS inspector implementation, used only for the
+            fallback probe (see Notes). Defaults to SocketTLSInspector.
         timing_collector: Custom timing collector implementation.
             Defaults to PerfCounterTimingCollector.
         force_new_connection: Deprecated and ignored. A fresh ``httpx.Client``
@@ -747,12 +747,19 @@ def make_request(  # noqa: C901, PLR0912, PLR0915, PLR0913
 
     Notes:
         The function performs DNS resolution manually before the HTTP request
-        to capture accurate DNS timing. The resolved IP is not passed to httpx,
-        so httpx will perform its own DNS resolution internally.
+        to capture accurate DNS timing, then connects to the resolved address
+        while keeping the original hostname for SNI and the Host header. With
+        a remote-DNS proxy (``http``, ``https``, ``socks5h``) local resolution
+        is skipped and the proxy resolves the hostname.
 
-        For HTTPS requests, the function makes a separate TLS probe connection
-        to extract detailed certificate information (CN, expiry, etc). This probe
-        happens after the main request completes and adds minimal overhead.
+        For HTTPS requests, TLS version, cipher and certificate details are read
+        from the live connection that served the response. Only when that
+        connection exposes no TLS data and no proxy is in use does the function
+        run a separate fallback probe with ``tls_inspector``, bounded by the
+        remaining deadline. When certificate verification fails (without a
+        proxy), a diagnostic probe with an unverified ``SocketTLSInspector``
+        collects the certificate details for the error report; it never uses
+        a custom ``tls_inspector``.
 
         By default a new connection is used for every request: httptap creates
         a short-lived ``httpx.Client`` per call, so connection pooling never

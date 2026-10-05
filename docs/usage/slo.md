@@ -87,12 +87,17 @@ written to stdout because no request is made.
 ## Evaluation Rules
 
 SLO thresholds are evaluated against the **final successful step** of
-a request chain:
+a request chain, i.e. the last step that did not fail with a network
+or TLS error:
 
 - Single request → checked against that request.
-- Redirect chain (`--follow`) → checked against the terminal response,
+- Redirect chain (`--follow`) → checked against the last response,
   not the intermediate redirects. The assumption is that users care
   about what actually served their request.
+- Redirect limit reached → the last step is itself a `3xx` redirect and
+  is still evaluated; the exit code is `47` regardless (see below).
+- A later step errored → the last step that succeeded before it is
+  evaluated; the exit code reflects the network failure.
 - All steps errored → SLO is skipped entirely; the exit code reflects
   the network failure (see below).
 

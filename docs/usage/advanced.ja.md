@@ -33,7 +33,14 @@ steps = analyzer.analyze_url("https://httpbin.io")
 
 ## カスタムな TLS インスペクション
 
-追加の証明書情報を抽出するために、カスタムの TLS インスペクションロジックを実装します。
+httptap は TLS バージョン、暗号スイート、証明書の詳細を、レスポンスを返したライブ接続から
+直接読み取ります。そのため、カスタムの `TLSInspector` がこれらのデータを置き換えることはありません。
+カスタムインスペクターはフォールバックにすぎず、HTTPS リクエストでライブ接続から TLS データが
+得られず、かつプロキシを使用していない場合にのみ呼び出され、その結果で TLS フィールドが埋められます。
+インスペクターはホスト名、ポート、残りのタイムアウトを受け取り、自身で接続を開きます。
+インスペクションに失敗した場合は `httptap.TLSInspectionError` を送出してください。そうすれば
+ステップは TLS の詳細なしで引き続き報告されます。証明書の検証失敗後に証明書の詳細を収集する
+診断プローブは、常に組み込みの `SocketTLSInspector` を使用し、カスタムインスペクターは使用しません。
 
 ```python
 from httptap import HTTPTapAnalyzer
@@ -168,9 +175,11 @@ httptap は 4 つのプロキシプロトコルをサポートしており、そ
 **NO_PROXY のパターン:**
 
 - `*` - すべてのホストでプロキシをバイパスする
-- `example.com` - 完全なホスト名の一致
-- `.example.com` - example.com のすべてのサブドメイン
-- `sub.example.com` - 完全なサブドメインの一致
+- `example.com` - そのホスト自体とすべてのサブドメイン
+- `.example.com` - example.com のサブドメインのみ（example.com 自体は含まない）
+- `sub.example.com` - sub.example.com とそのサブドメイン
+
+照合では大文字と小文字を区別しません。CIDR 範囲やポート指定のエントリはサポートされていません。
 
 ## カスタム CA バンドル
 
@@ -355,17 +364,21 @@ for url, total_ms in results:
 
 ## エラー処理
 
-URL を分析する際に、エラーを適切に処理します。
+URL を分析する際に、エラーを適切に処理します。`has_error` が設定されるのはリクエスト自体が
+失敗した場合（DNS、接続、TLS、タイムアウト）のみです。HTTP `4xx`/`5xx` レスポンスは完了した
+ステップなので、`response.status` を別途確認してください。
 
 ```python
 from httptap import HTTPTapAnalyzer
 
 analyzer = HTTPTapAnalyzer()
-steps = analyzer.analyze_url("https://httpbin.io/status/500")
+steps = analyzer.analyze_url("https://nonexistent.invalid")
 
 step = steps[0]
 if step.has_error:
     print(f"Error: {step.error}")
+elif step.response.status >= 400:
+    print(f"HTTP error: {step.response.status}")
 else:
     print(f"Status: {step.response.status}")
 ```

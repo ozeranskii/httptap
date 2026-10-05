@@ -9,9 +9,11 @@ description: 运行 httptap 时的常见问题、错误信息与诊断。
 
 ## TLS 与证书
 
-### `TLS handshake failed: CERTIFICATE_VERIFY_FAILED`
+### `[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed`
 
-服务器出示了一个你的信任库无法识别的证书。
+服务器出示了一个你的信任库无法识别的证书。失败的步骤会报告类似
+`Request failed: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1077)`
+的错误；冒号后的原因（自签名、已过期、无法获取本地颁发者证书、主机名不匹配）以及 `_ssl.c` 的行号会有所不同。
 
 - **非生产主机上的自签名或过期证书** —— 添加 `--ignore-ssl`（禁用校验，仅在可信网络中使用）。
 - **内部 CA** —— 将 `--cacert`（别名 `--ca-bundle`）指向你的 PEM 包。
@@ -39,12 +41,12 @@ httptap 仅会在不校验证书的情况下重试一次诊断性 TLS 握手，�
 
 ### `NO_PROXY` 模式参考
 
-- 精确主机：`api.internal.example`
-- 域名后缀：`.internal.example`（匹配 `foo.internal.example`）
+- 主机及其子域名：`api.internal.example`（也匹配 `v1.api.internal.example`）
+- 仅子域名：`.internal.example`（匹配 `foo.internal.example`，不匹配 `internal.example`）
 - 通配符：`*`（排除一切）
-- 多个条目：逗号分隔，去除首尾空白
+- 多个条目：逗号分隔，去除首尾空白，不区分大小写
 
-**不**支持 IP/CIDR 匹配——这遵循广泛采用的 curl 行为。
+IP 地址按普通主机名进行比较。**不**支持 CIDR 范围（curl 自 7.86.0 起支持）和带端口的条目。
 
 ## HTTP/2
 
@@ -87,7 +89,7 @@ httptap 遵循 [`NO_COLOR`](https://no-color.org) 约定和 Rich 的 TTY 检测�
 
 ### `--metrics-only` 不再显示 `proxy=` 字段
 
-它并没有——该字段始终存在。旧的截图/示例可能早于该变更。预期格式：
+它并没有——该字段在每个收到响应的步骤中都存在。旧的截图/示例可能早于该变更。失败的步骤会输出为 `Step N: ERROR - <message>`，不包含指标和 `proxy=` 字段。成功步骤的预期格式：
 
 ```
 Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
@@ -115,7 +117,7 @@ Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
 请检查三件事：
 
 1. 你设置的键映射到一个真实存在的计时阶段。有效的键是 `dns`、`connect`、`tls`、`ttfb`、`wait`、`xfer`、`total`——其他任何值都会以退出码 `64`（SLO Error 面板）拒绝该命令。
-2. SLO 是在**最终成功的步骤**上评估的，而非中间的重定向。如果 `--follow` 经过了若干跳，而最后一步很快，那么整个链的总时间不会被比较。请用 `total` 对照终端请求的预算，或在需要逐步保证时从 `--json` 手动聚合。
+2. SLO 是在**最终成功的步骤**上评估的，而非中间的重定向。如果 `--follow` 经过了若干跳，而最后一步很快，那么整个链的总时间不会被比较。请用 `total` 对照最后一个请求的预算，或在需要逐步保证时从 `--json` 手动聚合。达到重定向上限时，被评估的步骤是最后一个 `3xx` 响应。
 3. 如果每一步都出错，SLO 会被完全跳过——退出码反映的是网络故障（通常是 `75`）。此时 `--metrics-only` 输出中不会出现 `slo=` 标记。
 
 ### httptap 能输出 Prometheus 指标吗？
