@@ -6,11 +6,16 @@ import json
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+import pytest
+
 from tests.e2e import servers as srv
 from tests.e2e.harness import (
     EXIT_CANTCREAT,
+    EXIT_HTTP_FAIL,
     EXIT_NETWORK,
     EXIT_OK,
+    EXIT_REDIRECTS,
+    EXIT_SLO,
     EXIT_USAGE,
     PROXY_PASSWORD,
     PROXY_USER,
@@ -183,3 +188,97 @@ def test_har_unwritable_path_loses_to_network_error(run: RunCommand, servers: Se
     run(["--metrics-only", "--har", str(blocker / "run.har"), f"http://{servers.host}:{servers.dead.port}/"]).expect(
         EXIT_NETWORK
     )
+
+
+def test_har_status_text_is_the_standard_reason_phrase(run: RunCommand, servers: Servers) -> None:
+    res = run(["--har", "-", "-L", servers.url(servers.origin, "/redirect/1")]).expect(EXIT_OK)
+    entries = _check_document(res.json())
+    assert [(e["response"]["status"], e["response"]["statusText"]) for e in entries] == [
+        (302, "Found"),
+        (200, "OK"),
+    ]
+
+
+@pytest.mark.usefixtures("need_ipv6")
+def test_har_ipv6_server_address_has_no_brackets(run: RunCommand, servers: Servers) -> None:
+    res = run(["--har", "-", f"http://[::1]:{servers.port(servers.origin)}/ok"]).expect(EXIT_OK)
+    (entry,) = _check_document(res.json())
+    assert entry["serverIPAddress"] == "::1"
+    assert entry["request"]["url"].startswith("http://[::1]:")
+
+
+def test_har_keeps_the_response_received_before_a_stall(run: RunCommand, servers: Servers) -> None:
+    res = run(["--har", "-", "-m", "1.5", servers.url(servers.origin, "/slow-body")]).expect(EXIT_NETWORK)
+    (entry,) = _check_document(res.json())
+    response = entry["response"]
+    assert response["status"] == 200
+    assert response["statusText"] == "OK"
+    assert "deadline" in response["_error"]
+    assert response["_transferSize"] == 1
+
+
+def test_har_is_written_when_fail_exits_22(run: RunCommand, servers: Servers, out_dir: Path) -> None:
+    har = out_dir / "fail.har"
+    url = servers.url(servers.origin, "/status/404")
+    run(["--fail", "--metrics-only", "--har", str(har), url]).expect(EXIT_HTTP_FAIL)
+    (entry,) = _check_document(_load(har))
+    assert entry["response"]["status"] == 404
+    assert entry["response"]["statusText"] == "Not Found"
+
+
+def test_har_is_written_when_the_slo_is_violated(run: RunCommand, servers: Servers, out_dir: Path) -> None:
+    har = out_dir / "slo.har"
+    url = servers.url(servers.origin, "/ok")
+    run(["--slo", "total=0.001", "--metrics-only", "--har", str(har), url]).expect(EXIT_SLO)
+    (entry,) = _check_document(_load(har))
+    assert entry["response"]["status"] == 200
+
+
+def test_har_marks_the_redirect_limit(run: RunCommand, servers: Servers, out_dir: Path) -> None:
+    har = out_dir / "loop.har"
+    run(["--metrics-only", "-L", "--har", str(har), servers.url(servers.origin, "/loop")]).expect(EXIT_REDIRECTS)
+    entries = _check_document(_load(har))
+    assert entries[-1]["_redirectLimitReached"] is True
+    assert all("_redirectLimitReached" not in e for e in entries[:-1])
+
+
+def test_har_post_records_size_but_never_the_body(run: RunCommand, servers: Servers) -> None:
+    body = '{"secret": "HarBodyS3cret"}'
+    res = run(["--har", "-", "-X", "POST", "-d", body, servers.url(servers.origin, "/echo")]).expect(EXIT_OK)
+    (entry,) = _check_document(res.json())
+    request = entry["request"]
+    assert request["method"] == "POST"
+    assert request["bodySize"] == len(body)
+    assert "postData" not in request
+    assert "HarBodyS3cret" not in res.stdout
+
+
+def test_har_masks_sensitive_request_and_response_headers(run: RunCommand, servers: Servers) -> None:
+    res = run(
+        [
+            "--har",
+            "-",
+            "-H",
+            f"Authorization: Bearer {BEARER_SECRET}",
+            "-H",
+            "Cookie: session=HarCookieS3cretValue",
+            servers.url(servers.origin, "/set-cookie"),
+        ]
+    ).expect(EXIT_OK)
+    (entry,) = _check_document(res.json())
+    sent = {h["name"].lower(): h["value"] for h in entry["request"]["headers"]}
+    received = {h["name"].lower(): h["value"] for h in entry["response"]["headers"]}
+    assert "authorization" in sent
+    assert "cookie" in sent
+    assert "set-cookie" in received
+    assert_secret_absent(res, BEARER_SECRET)
+    assert_secret_absent(res, "HarCookieS3cretValue")
+    assert_secret_absent(res, srv.COOKIE_SECRET)
+
+
+def test_har_file_with_metrics_only_output(run: RunCommand, servers: Servers, out_dir: Path) -> None:
+    har = out_dir / "metrics.har"
+    res = run(["--metrics-only", "--har", str(har), servers.url(servers.origin, "/ok")]).expect(EXIT_OK)
+    assert parse_metrics(res.stdout)[0]["status"] == "200"
+    (entry,) = _check_document(_load(har))
+    assert entry["response"]["status"] == 200
