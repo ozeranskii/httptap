@@ -78,7 +78,7 @@ En cada versión se publican imágenes multiarquitectura firmadas (linux/amd64, 
 docker run --rm ghcr.io/ozeranskii/httptap:latest https://example.com
 ```
 
-Verifica la firma de la imagen con [cosign](https://docs.sigstore.dev/cosign/overview/) (Sigstore sin claves):
+Verifica la firma de la imagen con [cosign](https://docs.sigstore.dev/cosign/verifying/verify/) (Sigstore sin claves):
 
 ```bash
 cosign verify ghcr.io/ozeranskii/httptap:latest \
@@ -86,7 +86,7 @@ cosign verify ghcr.io/ozeranskii/httptap:latest \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-También se publican etiquetas mayores/menores fijadas (p. ej. `:0`, `:0.6`, `:0.6.0`).
+Cada versión también se etiqueta como `:MAJOR`, `:MAJOR.MINOR` y `:MAJOR.MINOR.PATCH`, para fijarla con la precisión que necesites.
 
 ## Instalación desde el código fuente
 
