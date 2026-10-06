@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from rich.markup import escape
 
-from .utils import url_hostname
+from .utils import url_hostname, write_text_atomically
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -51,7 +49,7 @@ class PrometheusExporter:
             OSError: If the destination cannot be written.
 
         """
-        self._write_textfile(self._render(steps), Path(output_path))
+        write_text_atomically(self._render(steps), Path(output_path))
         self.console.print(f"\n[green]✓ Exported Prometheus metrics to {escape(output_path)}[/green]")
 
     @staticmethod
@@ -95,26 +93,6 @@ class PrometheusExporter:
             lines.append(f'httptap_last_run_timestamp_seconds{{host="{host}"}} {timestamp:.3f}')
 
         return "\n".join(lines) + "\n"
-
-    @staticmethod
-    def _write_textfile(content: str, output_path: Path) -> None:
-        """Write a textfile atomically so collectors never observe partial data."""
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        file_descriptor, temporary_name = tempfile.mkstemp(
-            dir=output_path.parent,
-            prefix=f".{output_path.name}.",
-            suffix=".tmp",
-            text=True,
-        )
-        temporary_path = Path(temporary_name)
-        try:
-            with os.fdopen(file_descriptor, "w", encoding="utf-8") as output_file:
-                output_file.write(content)
-            temporary_path.chmod(0o644)
-            temporary_path.replace(output_path)
-        except OSError:
-            temporary_path.unlink(missing_ok=True)
-            raise
 
 
 def _label_value(value: str) -> str:

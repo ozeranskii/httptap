@@ -11,6 +11,7 @@ import re
 import socket
 import ssl
 import sys
+import tempfile
 from collections.abc import Collection, Mapping
 from contextlib import suppress
 from datetime import UTC, datetime
@@ -36,6 +37,7 @@ __all__ = [
     "url_hostname",
     "url_validation_error",
     "validate_url",
+    "write_text_atomically",
 ]
 
 SENSITIVE_HEADERS: set[str] = {
@@ -589,3 +591,31 @@ def _port_error(parts: SplitResult) -> str | None:
     if port == 0:
         return "port must be between 1 and 65535"
     return None
+
+
+def write_text_atomically(content: str, output_path: Path) -> None:
+    """Write a UTF-8 text file atomically so readers never observe partial data.
+
+    Parent directories are created as needed. The temporary file lives next to
+    the destination, so the final rename never crosses a filesystem boundary.
+
+    Raises:
+        OSError: If the destination cannot be written.
+
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    file_descriptor, temporary_name = tempfile.mkstemp(
+        dir=output_path.parent,
+        prefix=f".{output_path.name}.",
+        suffix=".tmp",
+        text=True,
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(file_descriptor, "w", encoding="utf-8") as output_file:
+            output_file.write(content)
+        temporary_path.chmod(0o644)
+        temporary_path.replace(output_path)
+    except OSError:
+        temporary_path.unlink(missing_ok=True)
+        raise

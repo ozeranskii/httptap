@@ -1776,3 +1776,176 @@ def test_main_rejects_empty_json_path(monkeypatch: pytest.MonkeyPatch, capsys: p
 
     assert main() == EXIT_USAGE_ERROR
     assert "JSON export path cannot be empty" in capsys.readouterr().err
+
+
+def test_cli_parser_accepts_har_option() -> None:
+    args = create_parser().parse_args(["--har", "run.har", "https://example.test"])
+
+    assert args.har == "run.har"
+
+
+def test_export_results_reports_har_write_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def raise_os_error(*_args: object, **_kwargs: object) -> None:
+        message = "read-only file system"
+        raise OSError(message)
+
+    monkeypatch.setattr("httptap.cli.HARExporter.export", raise_os_error)
+    args = Namespace(url="https://example.test", json=None, har="run.har", prometheus=None, otlp=None)
+
+    assert _export_results(cast("OutputRenderer", RendererStub()), [_make_step()], args) is False
+    assert "Failed to export HAR: read-only file system" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("mode_args", [["--metrics-only"], []], ids=["metrics-only", "rich"])
+def test_main_har_file_is_written_next_to_normal_output(
+    mode_args: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output_path = tmp_path / "run.har"
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", lambda *_args, **_kwargs: AnalyzerStub())
+    monkeypatch.setattr("sys.argv", ["httptap", *mode_args, "--har", str(output_path), "https://example.test"])
+
+    assert main() == EXIT_SUCCESS
+
+    captured = capsys.readouterr()
+    assert captured.out.strip(), "the normal report is still printed"
+    assert "Exported HAR to" in captured.err
+    log = json.loads(output_path.read_text(encoding="utf-8"))["log"]
+    assert log["entries"][0]["response"]["status"] == 200
+    assert log["pages"][0]["title"] == "https://example.test"
+
+
+@pytest.mark.parametrize("mode_args", [["--metrics-only"], ["--compact"], []], ids=["metrics-only", "compact", "rich"])
+def test_main_har_dash_writes_only_har_to_stdout(
+    mode_args: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", lambda *_args, **_kwargs: AnalyzerStub())
+    monkeypatch.setattr("sys.argv", ["httptap", *mode_args, "--har", "-", "https://example.test"])
+
+    assert main() == EXIT_SUCCESS
+
+    stdout = capsys.readouterr().out
+    assert stdout.startswith("{")
+    assert json.loads(stdout)["log"]["version"] == "1.2"
+    assert not (tmp_path / "-").exists()
+
+
+def test_main_json_dash_with_har_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output_path = tmp_path / "run.har"
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", lambda *_args, **_kwargs: AnalyzerStub())
+    monkeypatch.setattr("sys.argv", ["httptap", "--json", "-", "--har", str(output_path), "https://example.test"])
+
+    assert main() == EXIT_SUCCESS
+
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["schema_version"] == 1
+    assert "Exported HAR to" in captured.err
+    assert json.loads(output_path.read_text(encoding="utf-8"))["log"]["entries"]
+
+
+def test_main_har_dash_with_json_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output_path = tmp_path / "report.json"
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", lambda *_args, **_kwargs: AnalyzerStub())
+    monkeypatch.setattr("sys.argv", ["httptap", "--har", "-", "--json", str(output_path), "https://example.test"])
+
+    assert main() == EXIT_SUCCESS
+
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["log"]["version"] == "1.2"
+    assert "Exported analysis to" in captured.err
+    assert json.loads(output_path.read_text(encoding="utf-8"))["schema_version"] == 1
+
+
+def test_main_rejects_json_and_har_both_on_stdout(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    analyzer_calls: list[object] = []
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", lambda *args, **_kwargs: analyzer_calls.append(args))
+    monkeypatch.setattr("sys.argv", ["httptap", "--json", "-", "--har", "-", "https://example.test/"])
+
+    assert main() == EXIT_USAGE_ERROR
+
+    captured = capsys.readouterr()
+    assert "--json and --har cannot both write to stdout" in captured.err
+    assert captured.out == ""
+    assert analyzer_calls == []
+
+
+@pytest.mark.parametrize("path", ["", "   "])
+def test_main_rejects_empty_har_path(
+    path: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.argv", ["httptap", "--har", path, "https://example.test/"])
+
+    assert main() == EXIT_USAGE_ERROR
+    assert "HAR export path cannot be empty" in capsys.readouterr().err
+
+
+def test_main_har_path_is_trimmed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", lambda *_args, **_kwargs: AnalyzerStub())
+    monkeypatch.setattr("sys.argv", ["httptap", "--metrics-only", "--har", " run.har ", "https://example.test"])
+
+    assert main() == EXIT_SUCCESS
+    assert (tmp_path / "run.har").is_file()
+
+
+class _StepsAnalyzer:
+    def __init__(self, steps: list[StepMetrics]) -> None:
+        self.steps = steps
+
+    def analyze_url(self, _url: str, **_kwargs: object) -> list[StepMetrics]:
+        return self.steps
+
+
+@pytest.mark.parametrize(
+    ("step", "expected"),
+    [
+        (StepMetrics(response=ResponseInfo(status=200)), EXIT_EXPORT_ERROR),
+        (StepMetrics(response=ResponseInfo(status=500)), EXIT_EXPORT_ERROR),
+        (StepMetrics(error="refused", error_kind="network"), EXIT_NETWORK_ERROR),
+        (
+            StepMetrics(response=ResponseInfo(status=302, location="/next"), redirect_limit_reached=True),
+            EXIT_TOO_MANY_REDIRECTS,
+        ),
+    ],
+    ids=["alone", "beats-fail", "network-wins", "redirect-limit-wins"],
+)
+def test_main_unwritable_har_exit_code_precedence(
+    step: StepMetrics,
+    expected: int,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    blocker = tmp_path / "file"
+    blocker.write_text("x")
+    step.url = "https://example.test/"
+    monkeypatch.setattr("httptap.cli.HTTPTapAnalyzer", lambda *_args, **_kwargs: _StepsAnalyzer([step]))
+    monkeypatch.setattr(
+        "sys.argv",
+        ["httptap", "--metrics-only", "--fail", "--har", str(blocker / "run.har"), "https://example.test/"],
+    )
+
+    assert main() == expected
+    assert "Failed to export HAR" in capsys.readouterr().err
