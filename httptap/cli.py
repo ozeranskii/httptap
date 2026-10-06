@@ -45,6 +45,7 @@ from .constants import (
     UNIX_SIGNAL_EXIT_OFFSET,
     HTTPMethod,
 )
+from .har import HARExporter
 from .http_client import proxy_resolves_remotely
 from .implementations.dns import OverrideDNSResolver
 from .models import StepMetrics
@@ -230,6 +231,8 @@ Examples:
       httptap --compact --timeout 10 https://httpbin.io/delay/2
   - Metrics-only output and JSON export:
       httptap --metrics-only --json out/report.json https://httpbin.io/get
+  - Export the redirect chain as HAR for browser DevTools and HAR viewers:
+      httptap --follow --har run.har https://httpbin.io/redirect/2
   - Route through a proxy:
       httptap -x http://proxy:3128 https://httpbin.io/get
   - Ignore proxy environment variables and connect directly:
@@ -242,7 +245,7 @@ Exit codes:
   {EXIT_TOO_MANY_REDIRECTS:>3}              : Maximum redirects followed
   {EXIT_USAGE_ERROR:>3} (EX_USAGE)    : Invalid arguments
   {EXIT_FATAL_ERROR:>3} (EX_SOFTWARE) : Internal error
-  {EXIT_EXPORT_ERROR:>3} (EX_CANTCREAT): --json output could not be written
+  {EXIT_EXPORT_ERROR:>3} (EX_CANTCREAT): --json or --har output could not be written
   {EXIT_NETWORK_ERROR:>3} (EX_TEMPFAIL) : Network/TLS error (partial output available)
         """,
     )
@@ -390,6 +393,11 @@ Exit codes:
         help="Export the collected metrics, network, and response details to PATH. Use - for stdout.",
     )
     output_group.add_argument(
+        "--har",
+        metavar="PATH",
+        help="Export the request chain as a HAR 1.2 archive to PATH. Use - for stdout.",
+    )
+    output_group.add_argument(
         "--prometheus",
         metavar="PATH",
         help="Export timing metrics in Prometheus textfile collector format to PATH.",
@@ -447,7 +455,7 @@ def _execute_analysis(
 ) -> list[StepMetrics]:
     """Execute HTTP analysis with optional progress reporting."""
     # The spinner draws on stdout, which must stay machine-readable.
-    if args.metrics_only or args.json == "-":
+    if args.metrics_only or _exports_to_stdout(args):
         return analyzer.analyze_url(args.url, method=method, content=content, headers=headers)
 
     with Progress(
@@ -471,8 +479,8 @@ def _export_results(
 ) -> bool:
     """Export analysis results for each requested output format.
 
-    Returns ``False`` only when the JSON report could not be written;
-    Prometheus and OTLP delivery problems are reported as warnings.
+    Returns ``False`` only when the JSON report or the HAR archive could not be
+    written; Prometheus and OTLP delivery problems are reported as warnings.
     """
     exported = True
     if args.json:
@@ -481,6 +489,15 @@ def _export_results(
         except OSError as export_error:
             console.print(
                 f"[yellow]⚠ Warning:[/yellow] Failed to export JSON: {escape(str(export_error))}",
+            )
+            exported = False
+
+    if getattr(args, "har", None):
+        try:
+            HARExporter(Console(stderr=True)).export(steps, redact_url_credentials(args.url), args.har)
+        except OSError as export_error:
+            console.print(
+                f"[yellow]⚠ Warning:[/yellow] Failed to export HAR: {escape(str(export_error))}",
             )
             exported = False
 
@@ -510,8 +527,8 @@ def _render_results(
     *,
     slo_result: SLOResult | None = None,
 ) -> None:
-    """Render analysis output unless JSON is directed to stdout."""
-    if args.json != "-":
+    """Render analysis output unless an export is directed to stdout."""
+    if not _exports_to_stdout(args):
         renderer.render_analysis(steps, redact_url_credentials(args.url), slo_result=slo_result)
 
 
@@ -574,11 +591,22 @@ def _merge_headers(defaults: Mapping[str, str], overrides: Mapping[str, str]) ->
     return merged
 
 
+def _exports_to_stdout(args: argparse.Namespace) -> bool:
+    """Return whether ``--json`` or ``--har`` writes to stdout, which must then carry nothing else."""
+    return "-" in (args.json, getattr(args, "har", None))
+
+
 def _normalize_export_arguments(args: argparse.Namespace) -> None:
-    """Validate and normalize ``--json``, ``--prometheus`` and ``--otlp`` in place."""
+    """Validate and normalize ``--json``, ``--har``, ``--prometheus`` and ``--otlp`` in place."""
     json_path = getattr(args, "json", None)
     if json_path != "-":
         args.json = _validate_output_path(json_path, "JSON export")
+    har_path = getattr(args, "har", None)
+    if har_path != "-":
+        args.har = _validate_output_path(har_path, "HAR export")
+    elif args.json == "-":
+        msg = "--json and --har cannot both write to stdout (-); send one of them to a file."
+        raise ValueError(msg)
     args.prometheus = _validate_output_path(getattr(args, "prometheus", None), "Prometheus export")
     args.otlp = _validate_otlp_endpoint(getattr(args, "otlp", None))
     if args.otlp is not None:
@@ -881,7 +909,8 @@ def determine_exit_code(  # noqa: PLR0911 - one return per precedence level
     1. No steps or an internal error → ``EXIT_FATAL_ERROR`` (70).
     2. Redirect limit exceeded → ``EXIT_TOO_MANY_REDIRECTS`` (47).
     3. Network / TLS error → ``EXIT_NETWORK_ERROR`` (75).
-    4. ``--json`` report could not be written → ``EXIT_EXPORT_ERROR`` (73).
+    4. ``--json`` report or ``--har`` archive could not be written →
+       ``EXIT_EXPORT_ERROR`` (73).
     5. HTTP 4xx/5xx response with ``--fail`` → ``EXIT_HTTP_FAILURE`` (22).
     6. SLO violation on the final successful step →
        ``EXIT_SLO_VIOLATION`` (4).
@@ -895,7 +924,8 @@ def determine_exit_code(  # noqa: PLR0911 - one return per precedence level
             successful step.
         fail_on_http_error: Whether HTTP 4xx/5xx responses should fail the
             command after results have been rendered.
-        export_failed: Whether the ``--json`` report could not be written.
+        export_failed: Whether the ``--json`` report or the ``--har`` archive
+            could not be written.
 
     Returns:
         Appropriate exit code.
@@ -942,7 +972,8 @@ def main() -> int:
         Exit code: ``0`` on success, ``4`` on SLO threshold violation,
         ``22`` on HTTP failure with ``--fail``, ``47`` when the redirect limit
         is reached, ``64`` on invalid arguments, ``70`` on internal error,
-        ``73`` when the ``--json`` report cannot be written, and ``75`` on
+        ``73`` when the ``--json`` report or the ``--har`` archive cannot be
+        written, and ``75`` on
         network or TLS failure. See :func:`determine_exit_code` for precedence.
 
     """

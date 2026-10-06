@@ -51,6 +51,8 @@ el análisis de regresiones y el registro de líneas base de rendimiento.
 - **Múltiples modos de salida** – vista de cascada de Rich, resúmenes compactos de una sola línea o `--metrics-only` para scripting
 - **Exportación JSON** – conserva los datos completos de los pasos (incluidas las cadenas de redirecciones) para su
   procesamiento posterior, o envíalos a stdout con `--json -`
+- **Exportación HAR** – `--har PATH` escribe la cadena de solicitudes como un archivo HAR 1.2 que pueden abrir las
+  DevTools de los navegadores y los visores de HAR
 - **Exportación a Prometheus y OpenTelemetry** – `--prometheus PATH` escribe un archivo textfile de node_exporter;
   `--otlp ENDPOINT` envía spans por fase a un collector OTLP/HTTP (requiere `httptap[otel]`)
 - **Comprobación de umbrales SLO** – `--slo` y `--slo-file` condicionan trabajos de CI, sondas cron y comprobaciones de
@@ -87,6 +89,8 @@ Consulta el desglose detallado de la temporización de cada fase de la solicitud
 - **Modo de métricas** (`--metrics-only`): métricas en bruto para scripting y automatización
 - **Exportación JSON** (`--json`): datos completos de la solicitud, incluidas las cadenas de redirecciones, a un archivo o
   a stdout con `--json -`
+- **Exportación HAR** (`--har`): archivo HTTP Archive 1.2 para las DevTools de los navegadores y los visores de HAR, a un
+  archivo o a stdout con `--har -`
 - **Textfile de Prometheus** (`--prometheus`): gauges por fase para el textfile collector de node_exporter
 - **Trazas de OpenTelemetry** (`--otlp`): un span por solicitud con spans hijos por fase, enviados a un collector OTLP/HTTP
 

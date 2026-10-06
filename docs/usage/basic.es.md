@@ -275,6 +275,22 @@ El archivo JSON contiene:
 - Cadena completa de redirecciones (al usar `--follow`)
 - Evaluación de SLO (cuando se proporciona `--slo`)
 
+#### `--har PATH`
+
+Exporta la cadena de solicitudes como un archivo HTTP Archive (HAR 1.2) que
+pueden abrir las DevTools de los navegadores y los visores de HAR. Usa `-` para
+escribirlo en stdout; en ese caso se suprime el informe habitual. `--har` se
+puede combinar con `--json`, pero solo uno de ellos puede usar `-`.
+
+```bash
+httptap --follow --har run.har https://httpbin.io/redirect/2
+httptap --har - https://httpbin.io/get | jq '.log.entries[].timings'
+```
+
+Si no se puede escribir el archivo, httptap sale con el código `73`. Consulta
+[Exportación HAR](output-formats.md#har-export) para ver la correspondencia de
+tiempos y los campos que añade httptap.
+
 #### `--prometheus PATH`
 
 Escribe los tiempos por fase en el formato del textfile collector de Prometheus. Las duraciones

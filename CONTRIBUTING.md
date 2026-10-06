@@ -301,6 +301,7 @@ httptap/
 │   ├── request_executor.py # Custom request executor protocol
 │   ├── tls_inspector.py   # TLS certificate inspection
 │   ├── exporter.py        # JSON export functionality
+│   ├── har.py             # HAR 1.2 (HTTP Archive) export
 │   ├── prometheus.py      # Prometheus text-format export
 │   ├── otlp.py            # Optional OpenTelemetry OTLP export
 │   ├── slo.py             # SLO threshold parsing and evaluation

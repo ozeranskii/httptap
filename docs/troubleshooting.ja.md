@@ -118,7 +118,7 @@ Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
 
 ### どの終了コードを確認すべき？
 
-README の [Exit Codes](https://github.com/ozeranskii/httptap#exit-codes) セクションを参照してください。典型的な CI のパターン: `75`（ネットワーク / TLS、一時的）はリトライ可能として扱い、`64`（使用方法）、`70`（バグ）、`47`（`--follow` でリダイレクト上限に到達）、`73`（`--json` ファイルを書き込めなかった）、`22`（`--fail` 指定時の HTTP 4xx/5xx）、`4`（`--slo` を指定した場合の SLO 違反）ではハードに失敗させます。複数が該当する場合は、優先度の最も高いコードが採用されます。[優先順位の表](usage/slo.md#exit-codes)を参照してください。
+README の [Exit Codes](https://github.com/ozeranskii/httptap#exit-codes) セクションを参照してください。典型的な CI のパターン: `75`（ネットワーク / TLS、一時的）はリトライ可能として扱い、`64`（使用方法）、`70`（バグ）、`47`（`--follow` でリダイレクト上限に到達）、`73`（`--json` または `--har` のファイルを書き込めなかった）、`22`（`--fail` 指定時の HTTP 4xx/5xx）、`4`（`--slo` を指定した場合の SLO 違反）ではハードに失敗させます。複数が該当する場合は、優先度の最も高いコードが採用されます。[優先順位の表](usage/slo.md#exit-codes)を参照してください。
 
 ### リクエストが遅いのに `--slo` の予算が一度もトリガーされない。
 

@@ -247,6 +247,159 @@ jq '.steps[0].network.cert_days_left' output.json
 jq 'select(.summary.errors > 0)' output.json
 ```
 
+## HAR エクスポート { #har-export }
+
+`--har PATH` は、解析したリクエストチェーンを
+[HTTP Archive (HAR) 1.2](http://www.softwareishard.com/blog/har-12-spec/)
+ドキュメントとして書き出します。ブラウザーの DevTools や HAR ビューアーが読み込める形式です。
+パスに `-` を渡すと stdout に書き出し（通常のレポートは抑制されます）、ステータスメッセージは stderr に出力されます。
+
+```bash
+httptap --follow --har run.har https://httpbin.io/redirect/2
+httptap --har - https://httpbin.io/get | jq '.log.entries[].timings'
+```
+
+`--har` と `--json` は併用できますが、stdout に書き出せるのはどちらか一方だけです。
+ファイルを書き込めない場合、httptap は `--json` と同様に終了コード `73` で終了します。
+
+Chrome DevTools で開くには、**Network** パネルを開いて **Import HAR file**（ツールバーのアップロード矢印）を使うか、
+ファイルをパネルにドラッグします。Firefox DevTools では、Network パネルの設定メニューに **Import HAR** があります。
+
+### HAR の構造
+
+HTTPS リクエスト 1 件の例（一部省略）:
+
+```json
+{
+  "log": {
+    "version": "1.2",
+    "creator": { "name": "httptap", "version": "0.7.0" },
+    "pages": [
+      {
+        "startedDateTime": "2026-10-06T08:00:00.000+00:00",
+        "id": "page_1",
+        "title": "https://httpbin.io/get",
+        "pageTimings": { "onContentLoad": -1, "onLoad": -1 }
+      }
+    ],
+    "entries": [
+      {
+        "pageref": "page_1",
+        "startedDateTime": "2026-10-06T08:00:00.000+00:00",
+        "time": 448.2,
+        "request": {
+          "method": "GET",
+          "url": "https://httpbin.io/get",
+          "httpVersion": "HTTP/2.0",
+          "cookies": [],
+          "headers": [],
+          "queryString": [],
+          "headersSize": -1,
+          "bodySize": 0
+        },
+        "response": {
+          "status": 200,
+          "statusText": "OK",
+          "httpVersion": "HTTP/2.0",
+          "cookies": [],
+          "headers": [{ "name": "content-type", "value": "application/json; charset=utf-8" }],
+          "content": { "size": 389, "mimeType": "application/json; charset=utf-8" },
+          "redirectURL": "",
+          "headersSize": -1,
+          "bodySize": 389,
+          "_transferSize": 389
+        },
+        "cache": {},
+        "timings": {
+          "blocked": -1,
+          "dns": 8.9,
+          "connect": 291.6,
+          "send": 0,
+          "wait": 146.4,
+          "receive": 1.3,
+          "ssl": 194.6
+        },
+        "serverIPAddress": "44.211.11.205",
+        "_tls": {
+          "version": "TLSv1.2",
+          "cipher": "ECDHE-RSA-AES128-GCM-SHA256",
+          "certCN": "httpbin.io",
+          "certIssuer": "Amazon RSA 2048 M03",
+          "certDaysLeft": 200,
+          "verified": true
+        }
+      }
+    ]
+  }
+}
+```
+
+ドキュメントには次の内容が含まれます。
+
+- 実行全体を表す **ページ 1 件**。`title` は httptap に渡した URL です。ページ読み込みのタイミングは該当しないため `-1` です。
+- リダイレクトチェーンの順に **リクエストごとに 1 エントリ**。各エントリは `pageref` でページを参照します。
+  httptap が計測するのは所要時間であり実際の開始時刻ではないため、エントリは隙間なく順に並べられ、
+  最後のエントリはファイルを書き出した時点で終わります。
+- **リクエスト**: メソッド、URL、ネゴシエートされた HTTP バージョン、httptap に渡されたヘッダー
+  （`-H` と、`--data` から導出された `Content-Type`）、解析済みのクエリ文字列、`bodySize`。
+  リクエストボディ自体は書き出されません。
+- **レスポンス**: ステータス、HTTP バージョン、ヘッダー、`redirectURL`（`Location` ヘッダー）、
+  `content.mimeType`（`Content-Type`、ない場合は `x-unknown`）、ボディサイズ。
+  httptap はボディをデコードしないため、`content.size` と `bodySize` は `Content-Encoding` のデコード前、
+  ネットワーク上で受信したサイズです。ボディのテキストは含まれません。
+- **`serverIPAddress`**: httptap が接続したアドレス。
+
+`statusText` にはステータスコードの標準的な理由フレーズが入り（未知のコードでは空）、`headersSize` は `-1` です。httptap は実際に送られた理由フレーズやヘッダーサイズを記録しないためです。
+`cookies` 配列は空で、`Cookie` と `Set-Cookie` はマスクされた状態でヘッダーに含まれます。
+
+### タイミング
+
+| HAR フィールド | httptap の値           | 備考                                                         |
+| -------------- | ---------------------- | ------------------------------------------------------------ |
+| `blocked`      | `-1`                   | 計測しません。                                               |
+| `dns`          | `dns_ms`               |                                                              |
+| `connect`      | `connect_ms + tls_ms`  | HAR 仕様の定めどおり、TLS ハンドシェイクを含みます。          |
+| `ssl`          | `tls_ms`               | HTTPS のみ。平文の HTTP では `-1`。すでに `connect` に含まれます。 |
+| `send`         | `0`                    | 個別には計測しません。リクエストの送信は `wait` に含まれます。 |
+| `wait`         | `wait_ms`              | レスポンスの最初のバイトまでのサーバー処理時間。              |
+| `receive`      | `xfer_ms`              | ボディの転送時間。                                           |
+
+`time` は `blocked`、`dns`、`connect`、`send`、`wait`、`receive` のうち `-1` 以外の値の合計です。
+`ssl` はすでに `connect` に含まれているため、重ねて加算しません。値はミリ秒で、小数点以下 3 桁に丸められます。
+接続と TLS のフェーズが計測ではなく推定された場合（JSON エクスポートの `is_estimated`）、
+`timings` に `"_estimated": true` が付きます。
+
+### 失敗したリクエスト
+
+失敗したステップもエクスポートされます。`response.status` は `0`、またはすでに受信していたステータス
+（たとえば `-m/--max-time` を超えてボディが停止した場合）で、エラーメッセージは `response._error` に入ります。
+Chrome DevTools は HAR をインポートするとき、ここからエラーを読み取ります。
+失敗したステップには計測済みのフェーズがないため、`dns`、`connect`、`ssl` は `-1`、
+`send`、`wait`、`receive` は `0`、`time` は `0` です。
+
+### カスタムフィールド
+
+HAR 仕様では、`_` で始まるフィールドが拡張用に予約されています。httptap は次のフィールドを追加します。
+
+| フィールド               | 位置       | 内容                                                                              |
+| ------------------------ | ---------- | --------------------------------------------------------------------------------- |
+| `_tls`                   | エントリ   | `version`、`cipher`、`certCN`、`certIssuer`、`certDaysLeft`、`verified`。HTTPS のみ。 |
+| `_proxy`                 | エントリ   | リクエストが経由したプロキシの `url`（認証情報はマスク済み）と `source`。          |
+| `_redirectLimitReached`  | エントリ   | このステップで `--follow` が 10 回のリダイレクト上限に達して停止した場合に `true`。 |
+| `_estimated`             | `timings`  | 接続と TLS のタイミングが推定値の場合に `true`。                                   |
+| `_transferSize`          | `response` | ネットワーク上で受信したボディのバイト数。レスポンスがない場合は `-1`。            |
+| `_error`、`_errorKind`   | `response` | 失敗したステップのエラーメッセージとその種類（`network` または `internal`）。      |
+
+### 認証情報のマスク
+
+HAR エクスポートには JSON エクスポートと同じマスク処理が適用されます。URL の userinfo に含まれるパスワード
+（または単独のトークン）は、リクエスト URL、ページタイトル、`redirectURL`、`Location` と `Content-Location` ヘッダー、
+プロキシ URL で `****` に置き換えられ、`Authorization`、`Cookie`、`Set-Cookie` などの機密ヘッダーもマスクされます。
+
+!!! warning
+    パスとクエリ文字列はそのまま残ります。また、HAR ファイルはバグ報告に添付されることがよくあります。
+    共有する前に、HAR ファイルに機密データが含まれていないか確認してください。
+
 ## Prometheus テキストファイルエクスポート { #prometheus-textfile-export }
 
 `--prometheus PATH` で node_exporter の textfile collector 用レポートを書き出します:

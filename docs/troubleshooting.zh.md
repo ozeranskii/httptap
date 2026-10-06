@@ -118,7 +118,7 @@ Step 1: dns=30.1 ... tls_version=TLSv1.2 proxy=direct
 
 ### 我应该检查哪些退出码？
 
-参见 README 中的 [Exit Codes](https://github.com/ozeranskii/httptap#exit-codes) 部分。典型的 CI 模式：将 `75`（网络 / TLS，瞬时）视为可重试，遇到 `64`（用法）、`70`（缺陷）、`47`（使用 `--follow` 时达到重定向上限）、`73`（未能写入 `--json` 文件）、`22`（使用 `--fail` 时收到 HTTP 4xx/5xx）和 `4`（若你提供了 `--slo` 的 SLO 违规）则直接失败。当多个条件同时满足时，优先级最高的退出码胜出；参见[优先级表](usage/slo.md#exit-codes)。
+参见 README 中的 [Exit Codes](https://github.com/ozeranskii/httptap#exit-codes) 部分。典型的 CI 模式：将 `75`（网络 / TLS，瞬时）视为可重试，遇到 `64`（用法）、`70`（缺陷）、`47`（使用 `--follow` 时达到重定向上限）、`73`（未能写入 `--json` 或 `--har` 文件）、`22`（使用 `--fail` 时收到 HTTP 4xx/5xx）和 `4`（若你提供了 `--slo` 的 SLO 违规）则直接失败。当多个条件同时满足时，优先级最高的退出码胜出；参见[优先级表](usage/slo.md#exit-codes)。
 
 ### 即使请求很慢，我的 `--slo` 预算却从不触发。
 

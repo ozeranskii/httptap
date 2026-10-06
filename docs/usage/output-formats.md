@@ -269,6 +269,173 @@ jq '.steps[0].network.cert_days_left' output.json
 jq 'select(.summary.errors > 0)' output.json
 ```
 
+## HAR Export
+
+`--har PATH` writes the analysed request chain as an
+[HTTP Archive (HAR) 1.2](http://www.softwareishard.com/blog/har-12-spec/)
+document, the format that browser DevTools and HAR viewers read. Pass `-` to
+write it to stdout (the regular report is suppressed); status messages go to
+stderr:
+
+```bash
+httptap --follow --har run.har https://httpbin.io/redirect/2
+httptap --har - https://httpbin.io/get | jq '.log.entries[].timings'
+```
+
+`--har` and `--json` can be combined, but only one of them can write to
+stdout. If the file cannot be written, httptap exits with code `73`, as it does
+for `--json`.
+
+To open the file in Chrome DevTools, open the **Network** panel and use
+**Import HAR file** (the upload arrow in the toolbar), or drag the file onto the
+panel. Firefox DevTools offers **Import HAR** in the Network panel's settings
+menu.
+
+### HAR Structure
+
+A trimmed example for a single HTTPS request:
+
+```json
+{
+  "log": {
+    "version": "1.2",
+    "creator": { "name": "httptap", "version": "0.7.0" },
+    "pages": [
+      {
+        "startedDateTime": "2026-10-06T08:00:00.000+00:00",
+        "id": "page_1",
+        "title": "https://httpbin.io/get",
+        "pageTimings": { "onContentLoad": -1, "onLoad": -1 }
+      }
+    ],
+    "entries": [
+      {
+        "pageref": "page_1",
+        "startedDateTime": "2026-10-06T08:00:00.000+00:00",
+        "time": 448.2,
+        "request": {
+          "method": "GET",
+          "url": "https://httpbin.io/get",
+          "httpVersion": "HTTP/2.0",
+          "cookies": [],
+          "headers": [],
+          "queryString": [],
+          "headersSize": -1,
+          "bodySize": 0
+        },
+        "response": {
+          "status": 200,
+          "statusText": "OK",
+          "httpVersion": "HTTP/2.0",
+          "cookies": [],
+          "headers": [{ "name": "content-type", "value": "application/json; charset=utf-8" }],
+          "content": { "size": 389, "mimeType": "application/json; charset=utf-8" },
+          "redirectURL": "",
+          "headersSize": -1,
+          "bodySize": 389,
+          "_transferSize": 389
+        },
+        "cache": {},
+        "timings": {
+          "blocked": -1,
+          "dns": 8.9,
+          "connect": 291.6,
+          "send": 0,
+          "wait": 146.4,
+          "receive": 1.3,
+          "ssl": 194.6
+        },
+        "serverIPAddress": "44.211.11.205",
+        "_tls": {
+          "version": "TLSv1.2",
+          "cipher": "ECDHE-RSA-AES128-GCM-SHA256",
+          "certCN": "httpbin.io",
+          "certIssuer": "Amazon RSA 2048 M03",
+          "certDaysLeft": 200,
+          "verified": true
+        }
+      }
+    ]
+  }
+}
+```
+
+The document contains:
+
+- **One page** for the run. Its `title` is the URL passed to httptap; the page
+  load timings do not apply and are `-1`.
+- **One entry per request**, in redirect-chain order, each pointing to the page
+  through `pageref`. httptap measures durations rather than wall-clock start
+  times, so the entries are laid out back to back and the last one ends when
+  the file is written.
+- **Request**: method, URL, negotiated HTTP version, the headers httptap was
+  given (`-H` and the `Content-Type` derived from `--data`), the parsed query
+  string and `bodySize`. The request body itself is never written.
+- **Response**: status, HTTP version, headers, `redirectURL` (the `Location`
+  header), `content.mimeType` (the `Content-Type`, or `x-unknown` when absent)
+  and the body size. httptap does not decode the body, so `content.size` and
+  `bodySize` are the size as received on the wire, before `Content-Encoding`
+  decoding. The body text is never included.
+- **`serverIPAddress`**: the address httptap connected to.
+
+`statusText` is the standard reason phrase for the status code (empty for
+unknown codes), and `headersSize` is `-1`: httptap does not record the reason
+phrase or header sizes sent on the wire. The `cookies` arrays are empty; `Cookie` and `Set-Cookie` appear, masked,
+in the headers.
+
+### Timings
+
+| HAR field  | httptap value          | Notes                                                         |
+| ---------- | ---------------------- | ------------------------------------------------------------- |
+| `blocked`  | `-1`                   | Not measured.                                                 |
+| `dns`      | `dns_ms`               |                                                               |
+| `connect`  | `connect_ms + tls_ms`  | Includes the TLS handshake, as the HAR specification requires. |
+| `ssl`      | `tls_ms`               | HTTPS only, `-1` for plain HTTP. Already part of `connect`.   |
+| `send`     | `0`                    | Not measured separately; sending the request is part of `wait`. |
+| `wait`     | `wait_ms`              | Server processing, up to the first response byte.             |
+| `receive`  | `xfer_ms`              | Body transfer.                                                |
+
+`time` is the sum of `blocked`, `dns`, `connect`, `send`, `wait` and `receive`,
+leaving out `-1` values. `ssl` is not added again because `connect` already
+contains it. Values are milliseconds rounded to three decimals. When the
+connection and TLS phases were estimated rather than measured (`is_estimated`
+in the JSON export), `timings` carries `"_estimated": true`.
+
+### Failed Requests
+
+A step that failed is still exported. Its `response.status` is `0`, or the
+status that had already arrived (for example, when the body stalled past
+`-m/--max-time`), and the error message is in `response._error`, where Chrome
+DevTools reads it when importing a HAR. Because a failed step has no measured
+phases, its `dns`, `connect` and `ssl` are `-1`, `send`, `wait` and `receive`
+are `0`, and `time` is `0`.
+
+### Custom Fields
+
+The HAR specification reserves fields starting with `_` for extensions. httptap
+adds:
+
+| Field                    | Location   | Contents                                                                        |
+| ------------------------ | ---------- | ------------------------------------------------------------------------------- |
+| `_tls`                   | entry      | `version`, `cipher`, `certCN`, `certIssuer`, `certDaysLeft`, `verified`; HTTPS only. |
+| `_proxy`                 | entry      | `url` (credentials masked) and `source` of the proxy the request went through.  |
+| `_redirectLimitReached`  | entry      | `true` when `--follow` stopped at the 10-redirect limit on this step.           |
+| `_estimated`             | `timings`  | `true` when the connection and TLS timings were estimated.                      |
+| `_transferSize`          | `response` | Body bytes received on the wire, `-1` when no response arrived.                 |
+| `_error`, `_errorKind`   | `response` | Error message and its kind (`network` or `internal`) for a failed step.         |
+
+### Redaction
+
+The HAR export applies the same masking as the JSON export: the password (or a
+bare token) in URL userinfo is replaced with `****` in request URLs, the page
+title, `redirectURL`, the `Location` and `Content-Location` headers and the
+proxy URL, and sensitive headers such as `Authorization`, `Cookie` and
+`Set-Cookie` are masked.
+
+!!! warning
+    Paths and query strings are kept, and HAR files are often attached to bug
+    reports. Review a HAR file for sensitive data before sharing it.
+
 ## Prometheus Textfile Export
 
 Write a node_exporter textfile collector report with `--prometheus PATH`:

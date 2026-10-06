@@ -109,19 +109,19 @@ their key for deterministic output.
 
 `--slo` integrates with the overall exit-code precedence of `httptap`:
 
-| Priority | Condition                               | Exit code |
-|:--------:|-----------------------------------------|:---------:|
-| 1        | Invalid arguments (bad `--slo` spec)    | `64`      |
-| 2        | Internal error                          | `70`      |
-| 3        | Redirect limit reached (`-L`)           | `47`      |
-| 4        | Network / TLS failure on any step       | `75`      |
-| 5        | `--json` file could not be written      | `73`      |
-| 6        | HTTP 4xx/5xx response with `--fail`     | `22`      |
-| 7        | SLO violation on final successful step  | `4`       |
-| 8        | Success                                 | `0`       |
+| Priority | Condition                                     | Exit code |
+|:--------:|-----------------------------------------------|:---------:|
+| 1        | Invalid arguments (bad `--slo` spec)          | `64`      |
+| 2        | Internal error                                | `70`      |
+| 3        | Redirect limit reached (`-L`)                 | `47`      |
+| 4        | Network / TLS failure on any step             | `75`      |
+| 5        | `--json` or `--har` file could not be written | `73`      |
+| 6        | HTTP 4xx/5xx response with `--fail`           | `22`      |
+| 7        | SLO violation on final successful step        | `4`       |
+| 8        | Success                                       | `0`       |
 
 Internal errors, the redirect limit and network errors take precedence over the
-`--json` write status, `--fail` and SLO violations, so a failing host does not
+`--json`/`--har` write status, `--fail` and SLO violations, so a failing host does not
 masquerade as a latency regression in a CI log.
 
 ## Output Formats

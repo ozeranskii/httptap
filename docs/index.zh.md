@@ -46,6 +46,7 @@ description: 基于 Rich 的命令行工具，将一次 HTTP 请求拆解为每�
 - **TLS 洞察** —— 证书 CN、SAN、颁发者、序列号、有效期窗口与到期倒计时，以及加密套件和协议版本，均直接从当前连接自动采集（无需额外握手）。
 - **多种输出模式** —— 丰富的瀑布图视图、紧凑的单行摘要，或用于脚本化的 `--metrics-only`。
 - **JSON 导出** —— 持久化完整的分步数据（包含重定向链）以便后续处理，或通过 `--json -` 将其输出到标准输出。
+- **HAR 导出** —— `--har PATH` 将请求链写成 HAR 1.2 归档，可在浏览器 DevTools 和 HAR 查看器中打开。
 - **Prometheus 与 OpenTelemetry 导出** —— `--prometheus PATH` 写入 node_exporter textfile；`--otlp ENDPOINT`将分阶段 span 发送到 OTLP/HTTP collector（需要安装 `httptap[otel]`）。
 - **SLO 阈值校验** —— `--slo` 和 `--slo-file` 基于分阶段延迟预算为 CI 任务、cron 探测和就绪检查设置门禁。
 - **可脚本化的退出码** —— `-f/--fail` 在 HTTP 4xx/5xx 响应时以 `22` 退出；SLO 违规、网络错误和重定向次数上限也各有专属退出码。
@@ -77,6 +78,7 @@ httptap --data '{"name": "John"}' https://httpbin.io/post
 - **紧凑模式**（`--compact`）：适合日志的单行摘要
 - **指标模式**（`--metrics-only`）：用于脚本化和自动化的原始指标
 - **JSON 导出**（`--json`）：包含重定向链的完整请求数据，可写入文件，或通过 `--json -` 输出到标准输出
+- **HAR 导出**（`--har`）：供浏览器 DevTools 和 HAR 查看器使用的 HTTP Archive 1.2 文件，可写入文件，或通过 `--har -` 输出到标准输出
 - **Prometheus textfile**（`--prometheus`）：供 node_exporter textfile collector 使用的分阶段 gauge 指标
 - **OpenTelemetry trace**（`--otlp`）：每个请求一个 span，各阶段为其子 span，发送到 OTLP/HTTP collector
 

@@ -27,8 +27,8 @@ redirecciones) y muestra información de tiempos por fase e información de TLS.
 - acepta entrada de red de pares no confiables (no es un servidor);
 - gestiona cuentas de usuario, sesiones ni credenciales de larga duración;
 - ejecuta código remoto ni evalúa scripts proporcionados por el servidor;
-- persiste secretos ni datos de usuario más allá del informe opcional `--json` y
-  del textfile de `--prometheus`;
+- persiste secretos ni datos de usuario más allá del informe opcional `--json`, el
+  archivo `--har` y el textfile de `--prometheus`;
 - envía mediciones a ningún sitio que no sea el collector OTLP que el usuario indica
   con la opción `--otlp`.
 
@@ -56,12 +56,12 @@ Cada una se asigna a argumentos de apoyo en las secciones siguientes.
    └──────────┬──────────┘
               │
               ▼
-   ┌─────────────────────┐  --json, --prometheus  ┌─────────────────────┐
-   │ httptap process     │ ─────────────────────► │ Local files, stdout │  trusted
-   │ (Python 3.11+)      │                        └─────────────────────┘
-   │                     │  --otlp (OTLP/HTTP)    ┌─────────────────────┐
-   │                     │ ─────────────────────► │ OTLP collector      │  user-chosen
-   └──────────┬──────────┘                        └─────────────────────┘
+   ┌─────────────────────┐  --json, --har, --prometheus  ┌─────────────────────┐
+   │ httptap process     │ ────────────────────────────► │ Local files, stdout │  trusted
+   │ (Python 3.11+)      │                               └─────────────────────┘
+   │                     │  --otlp (OTLP/HTTP)           ┌─────────────────────┐
+   │                     │ ────────────────────────────► │ OTLP collector      │  user-chosen
+   └──────────┬──────────┘                               └─────────────────────┘
               │  TLS/HTTP  ◄─── untrusted: network, proxy, remote host
               ▼
    ┌─────────────────────┐
@@ -77,8 +77,9 @@ Cada una se asigna a argumentos de apoyo en las secciones siguientes.
   este límite se tratan como controlados por el atacante: cabeceras de respuesta,
   códigos de estado, valores `Location`, certificados TLS, cuerpos de contenido.
 - **httptap → salidas locales** es confiable: `--json` escribe el informe en un
-  archivo o en stdout, y `--prometheus` escribe un textfile de node_exporter de
-  forma atómica (archivo temporal en el mismo directorio y después un renombrado).
+  archivo o en stdout, `--har` escribe un archivo HAR 1.2 en un archivo o en
+  stdout, y `--har` y `--prometheus` escriben sus archivos de forma atómica
+  (archivo temporal en el mismo directorio y después un renombrado).
   Las etiquetas de Prometheus solo llevan el nombre de host y el número de paso de
   redirección, nunca rutas ni cadenas de consulta. Los archivos se crean donde el
   usuario indica y los puede leer cualquiera que tenga acceso a esa ubicación.
@@ -109,7 +110,7 @@ explícitamente como no objetivos.
 | **Tampering** | Canalización de CI envenenada mediante una action de terceros comprometida. | Toda action está fijada por SHA (impuesto por Scorecard Pinned-Dependencies 10/10 y zizmor pedantic); Dependabot abre PRs para actualizar los pines (SR-6, SR-7). |
 | **Repudiation** | — | Fuera de alcance; httptap no es un sistema multiusuario. |
 | **Information disclosure** | Las credenciales en `-H Authorization` se filtran al destino de redirección en un host diferente. | httptap sigue las redirecciones por sí mismo (`follow_redirects=False` en httpx) y descarta `Authorization`, `Cookie` y `Proxy-Authorization` cuando una redirección cambia el esquema, el host o el puerto; `303`, y `301`/`302` tras `POST`, pasan a `GET` sin cuerpo (SR-3). |
-| **Information disclosure** | La exportación `--json` incluye cabeceras de autenticación o credenciales de proxy en disco. | Las cabeceras `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie` y de claves de API se enmascaran en la salida y en la exportación, y las credenciales de las URL se ocultan en las URL de destino y de proxy, en las cabeceras `Location`/`Content-Location` y el destino de la redirección, y en el endpoint de `--otlp` que muestran los avisos de exportación; aun así, SECURITY.md y docs/troubleshooting.md aconsejan revisar las exportaciones antes de compartirlas. |
+| **Information disclosure** | La exportación `--json` o `--har` incluye cabeceras de autenticación o credenciales de proxy en disco. | Las cabeceras `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie` y de claves de API se enmascaran en la salida y en la exportación, y las credenciales de las URL se ocultan en las URL de destino y de proxy, en las cabeceras `Location`/`Content-Location` y el destino de la redirección, y en el endpoint de `--otlp` que muestran los avisos de exportación; aun así, SECURITY.md y docs/troubleshooting.md aconsejan revisar las exportaciones antes de compartirlas. |
 | **Information disclosure** | Las exportaciones de telemetría revelan detalles de la solicitud a quien lea el textfile o gestione el collector. | Las etiquetas de Prometheus se limitan al nombre de host y al paso; los spans OTLP omiten la URL completa y las cabeceras. La exportación OTLP es de habilitación explícita y solo se envía al endpoint indicado con `--otlp`; se recomienda `https://` para collectors remotos. |
 | **Information disclosure** | MITM en un proxy inseguro. | Las URL de proxy se validan (esquema, host, puerto); se recomienda `socks5h://` / `https://` para destinos sensibles; el origen del proxy se reporta en la salida y en el JSON para auditoría. |
 | **Denial of service** | Un servidor malicioso transmite un cuerpo sin límite. | `-m/--timeout` (20s por defecto) es un plazo estricto para toda la cadena: un temporizador cierra la conexión cuando vence, de modo que un servidor que se detiene o envía bytes con cuentagotas no puede prolongar la ejecución. |

@@ -51,6 +51,8 @@ performance baselines.
 - **Multiple output modes** – rich waterfall view, compact single-line summaries, or `--metrics-only` for scripting
 - **JSON export** – persist full step data (including redirect chains) for later processing, or stream it to stdout with
   `--json -`
+- **HAR export** – `--har PATH` writes the request chain as a HAR 1.2 archive that browser DevTools and HAR viewers can
+  open
 - **Prometheus and OpenTelemetry export** – `--prometheus PATH` writes a node_exporter textfile; `--otlp ENDPOINT` sends
   per-phase spans to an OTLP/HTTP collector (requires `httptap[otel]`)
 - **SLO threshold checking** – `--slo` and `--slo-file` gate CI jobs, cron probes, and readiness checks on per-phase
@@ -86,6 +88,7 @@ View detailed timing breakdown for each phase of the HTTP request with a beautif
 - **Compact mode** (`--compact`): Single-line summaries suitable for logs
 - **Metrics mode** (`--metrics-only`): Raw metrics for scripting and automation
 - **JSON export** (`--json`): Full request data including redirect chains, to a file or to stdout with `--json -`
+- **HAR export** (`--har`): HTTP Archive 1.2 file for browser DevTools and HAR viewers, to a file or to stdout with `--har -`
 - **Prometheus textfile** (`--prometheus`): Per-phase gauges for the node_exporter textfile collector
 - **OpenTelemetry traces** (`--otlp`): One span per request with child spans per phase, sent to an OTLP/HTTP collector
 

@@ -246,7 +246,8 @@ class StepMetrics:
         network: Network and security information.
         response: HTTP response information.
         error: Error message if request failed.
-        error_kind: Internal error classification, excluded from exports.
+        error_kind: Internal error classification; not part of the JSON export
+            (the HAR export carries it as ``response._errorKind``).
         note: Additional notes or context.
         proxied_via: Proxy URL used for this request, if any.
         request_method: HTTP method used (GET, POST, PUT, etc.).

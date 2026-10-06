@@ -122,6 +122,7 @@
   连接自动采集（无需额外握手）。
 - **多种输出模式** —— 丰富的瀑布图视图、紧凑的单行摘要，或用于脚本化的 `--metrics-only`。
 - **JSON 导出** —— 持久化完整的分步数据（包含重定向链）以便后续处理，或通过 `--json -` 将其输出到标准输出。
+- **HAR 导出** —— `--har PATH`（或使用 `--har -` 输出到标准输出）将请求链写成 HAR 1.2 归档，可在浏览器 DevTools 和 HAR 查看器中打开。
 - **Prometheus 与 OpenTelemetry 导出** —— `--prometheus PATH` 写入 node_exporter textfile；`--otlp ENDPOINT` 将分阶段 span 发送到 OTLP/HTTP collector（需要安装 `httptap[otel]`）。
 - **SLO 阈值校验** —— `--slo total=500,ttfb=200`（或通过 `--slo-file` 从文件读取阈值）可基于各阶段延迟预算为 CI 任务、cron 探针和就绪检查设置门禁；超标时以非零码退出，同时仍渲染完整报告。
 - **可脚本化的退出码** —— `-f/--fail` 在 HTTP 4xx/5xx 响应时以 `22` 退出；SLO 违规、网络错误和重定向次数上限也各有专属的[退出码](#退出码)。
@@ -277,7 +278,7 @@ eval "$(register-python-argcomplete httptap)"
 ```shell
 # 补全命令选项
 httptap --<TAB>
-# 显示：--help --version --request --method --data --location --follow --max-time --timeout --no-http2 --http1.1 --fail --ipv4 --ipv6 --resolve --insecure --ignore-ssl --cacert --ca-bundle --proxy --header --compact --metrics-only --json --prometheus --otlp --slo --slo-file
+# 显示：--help --version --request --method --data --location --follow --max-time --timeout --no-http2 --http1.1 --fail --ipv4 --ipv6 --resolve --insecure --ignore-ssl --cacert --ca-bundle --proxy --header --compact --metrics-only --json --har --prometheus --otlp --slo --slo-file
 
 # 输入部分选项后补全
 httptap --fol<TAB>
@@ -363,6 +364,12 @@ httptap \
 
 ```shell
 httptap --follow --json out/report.json https://httpbin.io/redirect/2
+```
+
+也可以将重定向链导出为 HAR 1.2 归档，并导入浏览器 DevTools 的 Network 面板：
+
+```shell
+httptap --follow --har out/run.har https://httpbin.io/redirect/2
 ```
 
 重定向到无法请求的 URL（端口无效、缺少主机、非 HTTP 协议）时，重定向链以失败步骤 `Invalid redirect target: …` 结束，退出码为 `75`。`Location` URL 中的凭证在输出和 JSON 导出中会被遮蔽。
@@ -494,7 +501,7 @@ httptap 遵循 BSD `sysexits.h` 约定，因此能与 shell 管道、CI 任务�
 | `47` | — | 已跟随到最大重定向次数。 |
 | `64` | `EX_USAGE` | 命令行参数无效。 |
 | `70` | `EX_SOFTWARE` | 内部错误（意外异常、缺陷）。 |
-| `73` | `EX_CANTCREAT` | 无法写入 `--json` 输出文件。 |
+| `73` | `EX_CANTCREAT` | 无法写入 `--json` 或 `--har` 输出文件。 |
 | `75` | `EX_TEMPFAIL` | 网络 / TLS 错误（可能仍会渲染部分输出）。 |
 | `128 + N` | 信号偏移 | 被信号 `N` 终止（例如 `130` 对应 `SIGINT` / Ctrl-C）。 |
 
