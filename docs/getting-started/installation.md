@@ -78,7 +78,7 @@ Signed multi-arch (linux/amd64, linux/arm64) images are published to GitHub Cont
 docker run --rm ghcr.io/ozeranskii/httptap:latest https://example.com
 ```
 
-Verify the image signature with [cosign](https://docs.sigstore.dev/cosign/overview/) (keyless Sigstore):
+Verify the image signature with [cosign](https://docs.sigstore.dev/cosign/verifying/verify/) (keyless Sigstore):
 
 ```bash
 cosign verify ghcr.io/ozeranskii/httptap:latest \
@@ -86,7 +86,7 @@ cosign verify ghcr.io/ozeranskii/httptap:latest \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-Pinned major/minor tags (e.g. `:0`, `:0.6`, `:0.6.0`) are also published.
+Every release is also tagged `:MAJOR`, `:MAJOR.MINOR` and `:MAJOR.MINOR.PATCH`, so you can pin as tightly as you need.
 
 ## Installing from Source
 

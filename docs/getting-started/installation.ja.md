@@ -78,7 +78,7 @@ uvx --from "httptap[completion]" httptap https://example.com
 docker run --rm ghcr.io/ozeranskii/httptap:latest https://example.com
 ```
 
-イメージの署名を [cosign](https://docs.sigstore.dev/cosign/overview/)（keyless Sigstore）で検証します:
+イメージの署名を [cosign](https://docs.sigstore.dev/cosign/verifying/verify/)（keyless Sigstore）で検証します:
 
 ```bash
 cosign verify ghcr.io/ozeranskii/httptap:latest \
@@ -86,7 +86,7 @@ cosign verify ghcr.io/ozeranskii/httptap:latest \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-固定されたメジャー/マイナータグ（例: `:0`、`:0.6`、`:0.6.0`）も公開されています。
+各リリースには `:MAJOR`、`:MAJOR.MINOR`、`:MAJOR.MINOR.PATCH` のタグも付くため、必要な粒度でバージョンを固定できます。
 
 ## ソースからインストールする
 

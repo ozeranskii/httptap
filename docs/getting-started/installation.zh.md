@@ -78,7 +78,7 @@ uvx --from "httptap[completion]" httptap https://example.com
 docker run --rm ghcr.io/ozeranskii/httptap:latest https://example.com
 ```
 
-使用 [cosign](https://docs.sigstore.dev/cosign/overview/)（无密钥 Sigstore）校验镜像签名：
+使用 [cosign](https://docs.sigstore.dev/cosign/verifying/verify/)（无密钥 Sigstore）校验镜像签名：
 
 ```bash
 cosign verify ghcr.io/ozeranskii/httptap:latest \
@@ -86,7 +86,7 @@ cosign verify ghcr.io/ozeranskii/httptap:latest \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-固定的主/次版本标签（例如 `:0`、`:0.6`、`:0.6.0`）也会一并发布。
+每个版本还会打上 `:MAJOR`、`:MAJOR.MINOR` 和 `:MAJOR.MINOR.PATCH` 标签，便于按需要的精度固定版本。
 
 ## 从源码安装
 
