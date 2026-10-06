@@ -27,6 +27,7 @@ def test_help_lists_options_and_exit_codes(run: RunCommand) -> None:
         "--proxy",
         "--json",
         "--prometheus",
+        "--har",
         "--otlp",
         "--slo",
         "--slo-file",

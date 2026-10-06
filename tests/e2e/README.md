@@ -37,8 +37,9 @@ Python interpreter (the project virtual environment under `uv run`), then `httpt
 
 On Linux, host networking puts the container on the host's loopback (`127.0.0.1` and `::1`), so
 the loopback-only tests run too. Files the suite shares with httptap (certificates,
-`--json`/`--prometheus` outputs, `--slo-file` inputs) live in `--shared-dir`, which must be mounted
-at the same path. The suite keeps its directories private, so the container runs as your user:
+`--json`/`--har`/`--prometheus` outputs, `--slo-file` inputs) live in `--shared-dir`, which must be
+mounted at the same path. The suite keeps its directories private, so the container runs as your
+user:
 
 ```bash
 SHARED=/tmp/httptap-e2e; mkdir -p "$SHARED"
@@ -123,3 +124,4 @@ Windows). If httptap cannot reach the servers, a preflight check stops the sessi
 | `test_network.py`      | Refused and unresolvable targets, address families, `--resolve`, deadlines, signals.        |
 | `test_proxies.py`      | HTTP, CONNECT and SOCKS5 proxies, proxy auth, environment proxies and `NO_PROXY`.           |
 | `test_exports_slo.py`  | OTLP export, SLO evaluation, exit-code precedence and credential redaction in every sink.   |
+| `test_har.py`          | HAR export: structure, timings, failed steps, stdout mode, redaction and write failures.    |
