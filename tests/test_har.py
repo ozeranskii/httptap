@@ -316,7 +316,7 @@ def test_response_fields() -> None:
 
     response = entry["response"]
     assert response["status"] == 200
-    assert response["statusText"] == ""
+    assert response["statusText"] == "OK"
     assert response["httpVersion"] == "HTTP/2.0"
     assert response["content"] == {"size": 512, "mimeType": "application/json"}
     assert response["bodySize"] == 512
@@ -501,3 +501,13 @@ def test_exporter_propagates_write_errors(tmp_path: pathlib.Path) -> None:
 
     with pytest.raises(OSError, match=r".+"):
         HARExporter(Console(record=True)).export([_success_step()], "https://example.test/", str(blocker / "run.har"))
+
+
+@pytest.mark.parametrize(("status", "text"), [(301, "Moved Permanently"), (599, ""), (None, "")])
+def test_status_text_uses_the_standard_reason_phrase(status: int | None, text: str) -> None:
+    step = _success_step()
+    step.response.status = status
+
+    (entry,) = _entries([step])
+
+    assert entry["response"]["statusText"] == text

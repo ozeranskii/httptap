@@ -299,7 +299,7 @@ httptap 会像 `--json` 一样以代码 `73` 退出。
         },
         "response": {
           "status": 200,
-          "statusText": "",
+          "statusText": "OK",
           "httpVersion": "HTTP/2.0",
           "cookies": [],
           "headers": [{ "name": "content-type", "value": "application/json; charset=utf-8" }],
@@ -347,7 +347,7 @@ httptap 会像 `--json` 一样以代码 `73` 退出。
   响应体文本永远不会被包含。
 - **`serverIPAddress`**：httptap 连接的地址。
 
-由于 httptap 不记录它们，`statusText` 为空，`headersSize` 为 `-1`。`cookies` 数组为空；
+`statusText` 为该状态码的标准原因短语（未知状态码时为空），`headersSize` 为 `-1`：httptap 不记录线上实际发送的原因短语和头部大小。`cookies` 数组为空；
 `Cookie` 和 `Set-Cookie` 以掩码形式出现在头部中。
 
 ### 计时

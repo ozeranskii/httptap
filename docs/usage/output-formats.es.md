@@ -325,7 +325,7 @@ Un ejemplo recortado para una única solicitud HTTPS:
         },
         "response": {
           "status": 200,
-          "statusText": "",
+          "statusText": "OK",
           "httpVersion": "HTTP/2.0",
           "cookies": [],
           "headers": [{ "name": "content-type", "value": "application/json; charset=utf-8" }],
@@ -378,8 +378,9 @@ El documento contiene:
   decodificar `Content-Encoding`. El texto del cuerpo nunca se incluye.
 - **`serverIPAddress`**: la dirección a la que se conectó httptap.
 
-`statusText` está vacío y `headersSize` vale `-1` porque httptap no los
-registra. Los arrays `cookies` están vacíos; `Cookie` y `Set-Cookie` aparecen,
+`statusText` es la frase estándar del código de estado (vacía para códigos
+desconocidos) y `headersSize` vale `-1`: httptap no registra la frase ni el
+tamaño de las cabeceras enviadas por la red. Los arrays `cookies` están vacíos; `Cookie` y `Set-Cookie` aparecen,
 enmascaradas, en las cabeceras.
 
 ### Tiempos

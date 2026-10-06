@@ -299,7 +299,7 @@ HTTPS リクエスト 1 件の例（一部省略）:
         },
         "response": {
           "status": 200,
-          "statusText": "",
+          "statusText": "OK",
           "httpVersion": "HTTP/2.0",
           "cookies": [],
           "headers": [{ "name": "content-type", "value": "application/json; charset=utf-8" }],
@@ -349,7 +349,7 @@ HTTPS リクエスト 1 件の例（一部省略）:
   ネットワーク上で受信したサイズです。ボディのテキストは含まれません。
 - **`serverIPAddress`**: httptap が接続したアドレス。
 
-httptap は記録していないため、`statusText` は空で `headersSize` は `-1` です。
+`statusText` にはステータスコードの標準的な理由フレーズが入り（未知のコードでは空）、`headersSize` は `-1` です。httptap は実際に送られた理由フレーズやヘッダーサイズを記録しないためです。
 `cookies` 配列は空で、`Cookie` と `Set-Cookie` はマスクされた状態でヘッダーに含まれます。
 
 ### タイミング

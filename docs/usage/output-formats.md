@@ -325,7 +325,7 @@ A trimmed example for a single HTTPS request:
         },
         "response": {
           "status": 200,
-          "statusText": "",
+          "statusText": "OK",
           "httpVersion": "HTTP/2.0",
           "cookies": [],
           "headers": [{ "name": "content-type", "value": "application/json; charset=utf-8" }],
@@ -378,8 +378,9 @@ The document contains:
   decoding. The body text is never included.
 - **`serverIPAddress`**: the address httptap connected to.
 
-`statusText` is empty and `headersSize` is `-1` because httptap does not record
-them. The `cookies` arrays are empty; `Cookie` and `Set-Cookie` appear, masked,
+`statusText` is the standard reason phrase for the status code (empty for
+unknown codes), and `headersSize` is `-1`: httptap does not record the reason
+phrase or header sizes sent on the wire. The `cookies` arrays are empty; `Cookie` and `Set-Cookie` appear, masked,
 in the headers.
 
 ### Timings

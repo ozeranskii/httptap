@@ -12,6 +12,7 @@ import json
 import sys
 import time
 from datetime import datetime, timedelta
+from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl
@@ -164,6 +165,16 @@ def _request(step: StepMetrics) -> dict[str, Any]:
     }
 
 
+def _status_text(status: int | None) -> str:
+    """Return the standard reason phrase for ``status``; httptap does not record the one sent."""
+    if status is None:
+        return ""
+    try:
+        return HTTPStatus(status).phrase
+    except ValueError:
+        return ""
+
+
 def _response(step: StepMetrics) -> dict[str, Any]:
     """Describe the response, or an empty one (status 0) when none arrived.
 
@@ -174,7 +185,7 @@ def _response(step: StepMetrics) -> dict[str, Any]:
     received = response.status is not None
     har_response: dict[str, Any] = {
         "status": response.status if received else 0,
-        "statusText": "",
+        "statusText": _status_text(response.status),
         "httpVersion": step.network.http_version or "",
         "cookies": [],
         "headers": _name_value_pairs(response.headers),
