@@ -18,7 +18,7 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 - 接受来自不受信任对端的网络输入（它不是服务器）；
 - 管理用户账户、会话或长期凭证；
 - 执行远程代码或求值服务器提供的脚本；
-- 在可选的 `--json` 报告和 `--prometheus` textfile 之外持久化任何机密或用户数据；
+- 在可选的 `--json` 报告、`--har` 归档和 `--prometheus` textfile 之外持久化任何机密或用户数据；
 - 将测量数据发送到用户通过可选的 `--otlp` 指定的 OTLP collector 之外的任何地方。
 
 ## 安全需求
@@ -44,12 +44,12 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
    └──────────┬──────────┘
               │
               ▼
-   ┌─────────────────────┐  --json, --prometheus  ┌─────────────────────┐
-   │ httptap process     │ ─────────────────────► │ Local files, stdout │  trusted
-   │ (Python 3.11+)      │                        └─────────────────────┘
-   │                     │  --otlp (OTLP/HTTP)    ┌─────────────────────┐
-   │                     │ ─────────────────────► │ OTLP collector      │  user-chosen
-   └──────────┬──────────┘                        └─────────────────────┘
+   ┌─────────────────────┐  --json, --har, --prometheus  ┌─────────────────────┐
+   │ httptap process     │ ────────────────────────────► │ Local files, stdout │  trusted
+   │ (Python 3.11+)      │                               └─────────────────────┘
+   │                     │  --otlp (OTLP/HTTP)           ┌─────────────────────┐
+   │                     │ ────────────────────────────► │ OTLP collector      │  user-chosen
+   └──────────┬──────────┘                               └─────────────────────┘
               │  TLS/HTTP  ◄─── untrusted: network, proxy, remote host
               ▼
    ┌─────────────────────┐
@@ -59,7 +59,7 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 
 - **用户 → httptap** 是受信任的：假定用户有正当理由发起任何给定请求。输入校验仍会拒绝格式错误的 URL、方法、超时等，以防止操作者的失误。
 - **httptap → 网络 → 远程服务器** 是不受信任的。所有跨越此边界的数据都被视为受攻击者控制：响应头、状态码、`Location` 值、TLS 证书、内容体。
-- **httptap → 本地输出** 是受信任的：`--json` 将报告写入文件或 stdout，`--prometheus` 以原子方式写出 node_exporter textfile（先在同一目录中写临时文件，再重命名）。Prometheus 标签只携带主机名和重定向步骤编号，从不包含路径或查询字符串。文件会落在用户指定的位置，任何能够读取该位置的人都可以读取它们。
+- **httptap → 本地输出** 是受信任的：`--json` 将报告、`--har` 将 HAR 1.2 归档写入文件或 stdout，`--har` 和 `--prometheus` 以原子方式写出文件（先在同一目录中写临时文件，再重命名）。Prometheus 标签只携带主机名和重定向步骤编号，从不包含路径或查询字符串。文件会落在用户指定的位置，任何能够读取该位置的人都可以读取它们。
 - **httptap → OTLP collector** 会经由网络到达用户通过 `--otlp`（可选的 `httptap[otel]` extra）提供的端点，按给定的 `http://` 或 `https://` 进行传输。每个请求步骤会成为一个 span，并为每个阶段生成子 span，携带方法、状态码、响应体大小、主机名、对端 IP、HTTP 与 TLS 版本，以及失败步骤的错误信息。span 从不包含完整 URL（路径、查询字符串、凭证）或任何请求头。投递失败会以警告形式报告，不会改变退出码。
 - **构建流水线 → PyPI / GitHub Releases** 是一个独立的信任边界，由 GitHub OIDC（无长期密钥）、Sigstore 签名以及按 SHA 固定的 actions 加以保护。
 
@@ -75,7 +75,7 @@ httptap 是一个命令行诊断工具。开发者提供单个 URL（并可选�
 | **Tampering（篡改）** | CI 流水线因第三方 action 被攻陷而遭投毒。 | 每个 action 都按 SHA 固定（由 Scorecard Pinned-Dependencies 10/10 和 zizmor pedantic 强制执行）；Dependabot 提交 PR 以更新固定项（SR-6、SR-7）。 |
 | **Repudiation（抵赖）** | — | 超出范围；httptap 不是多用户系统。 |
 | **Information disclosure（信息泄露）** | `-H Authorization` 中的凭证泄露给位于不同主机上的重定向目标。 | httptap 自行处理重定向（httpx 中 `follow_redirects=False`），当重定向改变协议、主机或端口时丢弃 `Authorization`、`Cookie` 和 `Proxy-Authorization`；`303`，以及 `POST` 之后的 `301`/`302`，会切换为不带请求体的 `GET`（SR-3）。 |
-| **Information disclosure（信息泄露）** | `--json` 导出将认证请求头或代理凭证写入磁盘。 | `Authorization`、`Proxy-Authorization`、`Cookie`、`Set-Cookie` 和 API 密钥请求头在输出和导出中会被遮蔽，目标和代理 URL、`Location`/`Content-Location` 请求头和重定向目标，以及导出警告中显示的 `--otlp` 端点中的 URL 凭证都会被脱敏；SECURITY.md 和 docs/troubleshooting.md 仍建议用户在共享前检查导出内容。 |
+| **Information disclosure（信息泄露）** | `--json` 或 `--har` 导出将认证请求头或代理凭证写入磁盘。 | `Authorization`、`Proxy-Authorization`、`Cookie`、`Set-Cookie` 和 API 密钥请求头在输出和导出中会被遮蔽，目标和代理 URL、`Location`/`Content-Location` 请求头和重定向目标，以及导出警告中显示的 `--otlp` 端点中的 URL 凭证都会被脱敏；SECURITY.md 和 docs/troubleshooting.md 仍建议用户在共享前检查导出内容。 |
 | **Information disclosure（信息泄露）** | 遥测导出会向读取 textfile 或运行 collector 的人泄露请求详情。 | Prometheus 标签仅限主机名和步骤；OTLP span 省略完整 URL 和请求头。OTLP 导出需显式启用，并且只会发送到通过 `--otlp` 指定的端点；对于远程 collector，推荐使用 `https://`。 |
 | **Information disclosure（信息泄露）** | 在不安全的代理上发生 MITM。 | 代理 URL 会被校验（协议方案、主机、端口）；对敏感目标推荐使用 `socks5h://` / `https://`；代理来源会在输出和 JSON 中报告以供审计。 |
 | **Denial of service（拒绝服务）** | 恶意服务器流式发送无界的请求体。 | `-m/--timeout`（默认 20 秒）是整个请求链的硬性截止时间：到期时看门狗会关闭连接，因此停滞或缓慢发送字节的服务器无法延长运行时间。 |

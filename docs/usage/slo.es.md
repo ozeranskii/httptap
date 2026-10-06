@@ -109,19 +109,19 @@ su clave para una salida determinista.
 
 `--slo` se integra con la precedencia general de códigos de salida de `httptap`:
 
-| Prioridad | Condición                                                 | Código de salida |
-|:--------:|-----------------------------------------------------------|:---------:|
-| 1        | Argumentos inválidos (especificación `--slo` incorrecta)  | `64`      |
-| 2        | Error interno                                             | `70`      |
-| 3        | Límite de redirecciones alcanzado (`-L`)                  | `47`      |
-| 4        | Fallo de red / TLS en cualquier paso                      | `75`      |
-| 5        | No se pudo escribir el archivo de `--json`                | `73`      |
-| 6        | Respuesta HTTP 4xx/5xx con `--fail`                       | `22`      |
-| 7        | Violación de SLO en el paso final correcto                | `4`       |
-| 8        | Éxito                                                     | `0`       |
+| Prioridad | Condición                                                | Código de salida |
+|:---------:|----------------------------------------------------------|:----------------:|
+| 1         | Argumentos inválidos (especificación `--slo` incorrecta) | `64`             |
+| 2         | Error interno                                            | `70`             |
+| 3         | Límite de redirecciones alcanzado (`-L`)                 | `47`             |
+| 4         | Fallo de red / TLS en cualquier paso                     | `75`             |
+| 5         | No se pudo escribir el archivo de `--json` o `--har`     | `73`             |
+| 6         | Respuesta HTTP 4xx/5xx con `--fail`                      | `22`             |
+| 7         | Violación de SLO en el paso final correcto               | `4`              |
+| 8         | Éxito                                                    | `0`              |
 
 Los errores internos, el límite de redirecciones y los errores de red tienen prioridad sobre
-la escritura de `--json`, `--fail` y las violaciones de SLO, de modo que un host que falla
+la escritura de `--json`/`--har`, `--fail` y las violaciones de SLO, de modo que un host que falla
 no se hace pasar por una regresión de latencia en un registro de CI.
 
 ## Formatos de salida

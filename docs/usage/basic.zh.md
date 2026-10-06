@@ -263,6 +263,17 @@ httptap --json - https://httpbin.io | jq '.summary'
 - 完整的重定向链（使用 `--follow` 时）
 - SLO 评估（提供 `--slo` 时）
 
+#### `--har PATH`
+
+将请求链导出为浏览器 DevTools 和 HAR 查看器可以打开的 HTTP Archive（HAR 1.2）文件。使用 `-` 可将其写入 stdout；此时常规报告会被抑制。`--har` 可以与 `--json` 同时使用，但只能有一个使用 `-`。
+
+```bash
+httptap --follow --har run.har https://httpbin.io/redirect/2
+httptap --har - https://httpbin.io/get | jq '.log.entries[].timings'
+```
+
+如果文件无法写入，httptap 会以代码 `73` 退出。计时的对应关系以及 httptap 添加的字段请参见 [HAR 导出](output-formats.md#har-export)。
+
 #### `--prometheus PATH`
 
 以 Prometheus textfile collector 格式写出各阶段计时。持续时间以 `httptap_request_duration_seconds` gauge 导出，带有 `host`、`step` 和 `phase` 标签，同时还会导出 `httptap_request_success` 和 `httptap_last_run_timestamp_seconds`；路径和查询字符串绝不会作为标签。

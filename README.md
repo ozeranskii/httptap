@@ -125,6 +125,8 @@ performance baselines.
 - **Multiple output modes** – rich waterfall view, compact single-line summaries, or `--metrics-only` for scripting.
 - **JSON export** – persist full step data (including redirect chains) for later processing, or stream it to stdout with
   `--json -`.
+- **HAR export** – `--har PATH` (or `--har -` for stdout) writes the request chain as a HAR 1.2 archive that browser
+  DevTools and HAR viewers can open.
 - **Prometheus and OpenTelemetry export** – `--prometheus PATH` writes a node_exporter textfile; `--otlp ENDPOINT` sends
   per-phase spans to an OTLP/HTTP collector (requires `httptap[otel]`).
 - **SLO threshold checking** – `--slo total=500,ttfb=200` (or thresholds read from a file with `--slo-file`) gates CI
@@ -285,7 +287,7 @@ Once completions are installed, you can use `Tab` to autocomplete commands and o
 ```shell
 # Complete command options
 httptap --<TAB>
-# Shows: --help --version --request --method --data --location --follow --max-time --timeout --no-http2 --http1.1 --fail --ipv4 --ipv6 --resolve --insecure --ignore-ssl --cacert --ca-bundle --proxy --header --compact --metrics-only --json --prometheus --otlp --slo --slo-file
+# Shows: --help --version --request --method --data --location --follow --max-time --timeout --no-http2 --http1.1 --fail --ipv4 --ipv6 --resolve --insecure --ignore-ssl --cacert --ca-bundle --proxy --header --compact --metrics-only --json --har --prometheus --otlp --slo --slo-file
 
 # Complete after typing partial option
 httptap --fol<TAB>
@@ -372,6 +374,12 @@ Follow redirect chains and dump metrics to JSON:
 
 ```shell
 httptap --follow --json out/report.json https://httpbin.io/redirect/2
+```
+
+Or export the chain as a HAR 1.2 archive and import it into the browser DevTools Network panel:
+
+```shell
+httptap --follow --har out/run.har https://httpbin.io/redirect/2
 ```
 
 A redirect to a URL that cannot be requested (invalid port, missing host, non-HTTP scheme) ends the chain with a failed
@@ -525,7 +533,7 @@ shell pipelines, CI jobs, and systemd services.
 | `47`  | —                       | Maximum redirects followed.                                |
 | `64`  | `EX_USAGE`              | Invalid command-line arguments.                            |
 | `70`  | `EX_SOFTWARE`           | Internal error (unexpected exception, bug).                |
-| `73`  | `EX_CANTCREAT`          | `--json` output file could not be written.                 |
+| `73`  | `EX_CANTCREAT`          | `--json` or `--har` output file could not be written.      |
 | `75`  | `EX_TEMPFAIL`           | Network / TLS error (partial output may still be rendered). |
 | `128 + N` | Signal offset       | Killed by signal `N` (e.g., `130` for `SIGINT` / Ctrl-C).  |
 

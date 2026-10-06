@@ -129,6 +129,8 @@
   `--metrics-only`。
 - **JSON エクスポート** —— 後続の処理のために完全なステップデータ（リダイレクトチェーンを含む）を永続化するか、
   `--json -` で stdout にストリーム出力します。
+- **HAR エクスポート** —— `--har PATH`（stdout へは `--har -`）は、リクエストチェーンをブラウザーの DevTools や
+  HAR ビューアーで開ける HAR 1.2 アーカイブとして書き出します。
 - **Prometheus と OpenTelemetry へのエクスポート** —— `--prometheus PATH` は node_exporter のテキストファイルを
   書き出し、`--otlp ENDPOINT` はフェーズごとのスパンを OTLP/HTTP コレクターへ送信します（`httptap[otel]` が必要）。
 - **SLO しきい値チェック** —— `--slo total=500,ttfb=200`（または `--slo-file` でファイルから読み込んだしきい値）は、
@@ -295,7 +297,7 @@ eval "$(register-python-argcomplete httptap)"
 ```shell
 # Complete command options
 httptap --<TAB>
-# Shows: --help --version --request --method --data --location --follow --max-time --timeout --no-http2 --http1.1 --fail --ipv4 --ipv6 --resolve --insecure --ignore-ssl --cacert --ca-bundle --proxy --header --compact --metrics-only --json --prometheus --otlp --slo --slo-file
+# Shows: --help --version --request --method --data --location --follow --max-time --timeout --no-http2 --http1.1 --fail --ipv4 --ipv6 --resolve --insecure --ignore-ssl --cacert --ca-bundle --proxy --header --compact --metrics-only --json --har --prometheus --otlp --slo --slo-file
 
 # Complete after typing partial option
 httptap --fol<TAB>
@@ -386,6 +388,12 @@ httptap \
 
 ```shell
 httptap --follow --json out/report.json https://httpbin.io/redirect/2
+```
+
+チェーンを HAR 1.2 アーカイブとしてエクスポートし、ブラウザーの DevTools の Network パネルにインポートすることもできます：
+
+```shell
+httptap --follow --har out/run.har https://httpbin.io/redirect/2
 ```
 
 リクエストできない URL（無効なポート、ホストの欠落、HTTP 以外のスキーム）へのリダイレクトは、失敗ステップ `Invalid redirect target: …` と終了コード `75` でチェーンを終了します。`Location` URL の認証情報は出力と JSON エクスポートでマスクされます。
@@ -535,7 +543,7 @@ httptap は BSD の `sysexits.h` の慣習に従うため、shell パイプラ�
 | `47`  | —                       | リダイレクトの最大回数まで追跡した。                          |
 | `64`  | `EX_USAGE`              | 不正なコマンドライン引数。                                    |
 | `70`  | `EX_SOFTWARE`           | 内部エラー（予期しない例外、バグ）。                          |
-| `73`  | `EX_CANTCREAT`          | `--json` の出力ファイルを書き込めなかった。                   |
+| `73`  | `EX_CANTCREAT`          | `--json` または `--har` の出力ファイルを書き込めなかった。     |
 | `75`  | `EX_TEMPFAIL`           | ネットワーク／TLS エラー（部分的な出力がレンダリングされる場合があります）。 |
 | `128 + N` | シグナルオフセット    | シグナル `N` によって終了（例：`SIGINT`／Ctrl-C の場合は `130`）。 |
 

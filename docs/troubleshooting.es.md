@@ -180,7 +180,7 @@ tokenización `key=value`.
 Consulta la sección [Exit Codes](https://github.com/ozeranskii/httptap#exit-codes)
 del README. Patrón típico de CI: trata `75` (red / TLS, transitorio) como
 reintentable, falla de forma rotunda con `64` (uso), `70` (error interno), `47` (límite de
-redirecciones alcanzado con `--follow`), `73` (no se escribió el archivo de `--json`), `22` (HTTP
+redirecciones alcanzado con `--follow`), `73` (no se escribió el archivo de `--json` o `--har`), `22` (HTTP
 4xx/5xx con `--fail`) y `4` (violación de SLO si proporcionaste `--slo`).
 Cuando se aplican varios, gana el código de mayor prioridad; consulta la
 [tabla de prioridades](usage/slo.md#codigos-de-salida).

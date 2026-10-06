@@ -263,6 +263,17 @@ JSON ファイルには以下が含まれます:
 - 完全なリダイレクトチェーン（`--follow` を使用した場合）
 - SLO 評価（`--slo` を指定した場合）
 
+#### `--har PATH`
+
+リクエストチェーンを、ブラウザーの DevTools や HAR ビューアーで開ける HTTP Archive（HAR 1.2）ファイルとしてエクスポートします。標準出力に書き出すには `-` を使用します。その場合、通常のレポートは抑制されます。`--har` は `--json` と併用できますが、`-` を使えるのはどちらか一方だけです。
+
+```bash
+httptap --follow --har run.har https://httpbin.io/redirect/2
+httptap --har - https://httpbin.io/get | jq '.log.entries[].timings'
+```
+
+ファイルを書き込めない場合、httptap は終了コード `73` で終了します。タイミングの対応関係と httptap が追加するフィールドについては、[HAR エクスポート](output-formats.md#har-export)を参照してください。
+
 #### `--prometheus PATH`
 
 フェーズごとのタイミングを Prometheus の textfile collector 形式で書き出します。所要時間は `host`、`step`、`phase` ラベル付きの `httptap_request_duration_seconds` ゲージとしてエクスポートされ、`httptap_request_success` と `httptap_last_run_timestamp_seconds` も併せて出力されます。パスやクエリ文字列がラベルになることはありません。

@@ -130,6 +130,8 @@ análisis de regresiones y el registro de líneas base de rendimiento.
   para scripting.
 - **Exportación a JSON** – conserva los datos completos de cada paso (incluidas las cadenas de redirección) para su
   procesamiento posterior, o envíalos a stdout con `--json -`.
+- **Exportación a HAR** – `--har PATH` (o `--har -` para stdout) escribe la cadena de solicitudes como un archivo HAR 1.2
+  que pueden abrir las DevTools de los navegadores y los visores de HAR.
 - **Exportación a Prometheus y OpenTelemetry** – `--prometheus PATH` escribe un archivo textfile de node_exporter;
   `--otlp ENDPOINT` envía spans por fase a un collector OTLP/HTTP (requiere `httptap[otel]`).
 - **Comprobación de umbrales SLO** – `--slo total=500,ttfb=200` (o umbrales leídos de un archivo con `--slo-file`)
@@ -290,7 +292,7 @@ Una vez instalado el autocompletado, puedes usar `Tab` para autocompletar comand
 ```shell
 # Complete command options
 httptap --<TAB>
-# Shows: --help --version --request --method --data --location --follow --max-time --timeout --no-http2 --http1.1 --fail --ipv4 --ipv6 --resolve --insecure --ignore-ssl --cacert --ca-bundle --proxy --header --compact --metrics-only --json --prometheus --otlp --slo --slo-file
+# Shows: --help --version --request --method --data --location --follow --max-time --timeout --no-http2 --http1.1 --fail --ipv4 --ipv6 --resolve --insecure --ignore-ssl --cacert --ca-bundle --proxy --header --compact --metrics-only --json --har --prometheus --otlp --slo --slo-file
 
 # Complete after typing partial option
 httptap --fol<TAB>
@@ -377,6 +379,12 @@ Sigue las cadenas de redirección y vuelca las métricas a JSON:
 
 ```shell
 httptap --follow --json out/report.json https://httpbin.io/redirect/2
+```
+
+O exporta la cadena como un archivo HAR 1.2 e impórtalo en el panel Network de las DevTools del navegador:
+
+```shell
+httptap --follow --har out/run.har https://httpbin.io/redirect/2
 ```
 
 Una redirección a una URL que no se puede solicitar (puerto no válido, falta el host, esquema no HTTP) termina la cadena
@@ -533,7 +541,7 @@ con pipelines de shell, trabajos de CI y servicios de systemd.
 | `47`  | —                       | Se alcanzó el número máximo de redirecciones seguidas.     |
 | `64`  | `EX_USAGE`              | Argumentos de línea de comandos no válidos.                |
 | `70`  | `EX_SOFTWARE`           | Error interno (excepción inesperada, error de programa).   |
-| `73`  | `EX_CANTCREAT`          | No se pudo escribir el archivo de salida de `--json`.      |
+| `73`  | `EX_CANTCREAT`          | No se pudo escribir el archivo de salida de `--json` o `--har`. |
 | `75`  | `EX_TEMPFAIL`           | Error de red / TLS (aún puede mostrarse salida parcial).   |
 | `128 + N` | Desplazamiento de señal | Terminado por la señal `N` (p. ej., `130` para `SIGINT` / Ctrl-C). |
 

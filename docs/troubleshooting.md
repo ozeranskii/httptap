@@ -179,7 +179,7 @@ tokenization.
 See the [Exit Codes](https://github.com/ozeranskii/httptap#exit-codes) section
 in the README. Typical CI pattern: treat `75` (network / TLS, transient) as
 retryable, fail hard on `64` (usage), `70` (bug), `47` (redirect limit
-reached with `--follow`), `73` (`--json` file not written), `22` (HTTP
+reached with `--follow`), `73` (`--json` or `--har` file not written), `22` (HTTP
 4xx/5xx with `--fail`), and `4` (SLO violation if you supplied `--slo`).
 When several apply, the highest-priority code wins; see the
 [precedence table](usage/slo.md#exit-codes).

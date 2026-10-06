@@ -246,6 +246,157 @@ jq '.steps[0].network.cert_days_left' output.json
 jq 'select(.summary.errors > 0)' output.json
 ```
 
+## HAR 导出 { #har-export }
+
+`--har PATH` 会将分析的请求链写成
+[HTTP Archive (HAR) 1.2](http://www.softwareishard.com/blog/har-12-spec/)
+文档，这是浏览器 DevTools 和 HAR 查看器可以读取的格式。将路径设为 `-` 可写入
+stdout（常规报告会被抑制）；状态消息输出到 stderr：
+
+```bash
+httptap --follow --har run.har https://httpbin.io/redirect/2
+httptap --har - https://httpbin.io/get | jq '.log.entries[].timings'
+```
+
+`--har` 和 `--json` 可以同时使用，但只能有一个写入 stdout。如果文件无法写入，
+httptap 会像 `--json` 一样以代码 `73` 退出。
+
+要在 Chrome DevTools 中打开该文件，请打开 **Network** 面板并使用 **Import HAR file**
+（工具栏中的上传箭头），或将文件拖到面板上。Firefox DevTools 在 Network 面板的设置菜单中提供
+**Import HAR**。
+
+### HAR 结构
+
+单个 HTTPS 请求的示例（已截取）：
+
+```json
+{
+  "log": {
+    "version": "1.2",
+    "creator": { "name": "httptap", "version": "0.7.0" },
+    "pages": [
+      {
+        "startedDateTime": "2026-10-06T08:00:00.000+00:00",
+        "id": "page_1",
+        "title": "https://httpbin.io/get",
+        "pageTimings": { "onContentLoad": -1, "onLoad": -1 }
+      }
+    ],
+    "entries": [
+      {
+        "pageref": "page_1",
+        "startedDateTime": "2026-10-06T08:00:00.000+00:00",
+        "time": 448.2,
+        "request": {
+          "method": "GET",
+          "url": "https://httpbin.io/get",
+          "httpVersion": "HTTP/2.0",
+          "cookies": [],
+          "headers": [],
+          "queryString": [],
+          "headersSize": -1,
+          "bodySize": 0
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "httpVersion": "HTTP/2.0",
+          "cookies": [],
+          "headers": [{ "name": "content-type", "value": "application/json; charset=utf-8" }],
+          "content": { "size": 389, "mimeType": "application/json; charset=utf-8" },
+          "redirectURL": "",
+          "headersSize": -1,
+          "bodySize": 389,
+          "_transferSize": 389
+        },
+        "cache": {},
+        "timings": {
+          "blocked": -1,
+          "dns": 8.9,
+          "connect": 291.6,
+          "send": 0,
+          "wait": 146.4,
+          "receive": 1.3,
+          "ssl": 194.6
+        },
+        "serverIPAddress": "44.211.11.205",
+        "_tls": {
+          "version": "TLSv1.2",
+          "cipher": "ECDHE-RSA-AES128-GCM-SHA256",
+          "certCN": "httpbin.io",
+          "certIssuer": "Amazon RSA 2048 M03",
+          "certDaysLeft": 200,
+          "verified": true
+        }
+      }
+    ]
+  }
+}
+```
+
+文档包含：
+
+- 本次运行的**一个页面**。其 `title` 是传给 httptap 的 URL；页面加载计时不适用，值为 `-1`。
+- 按重定向链顺序，**每个请求一个条目**，每个条目通过 `pageref` 指向该页面。httptap
+  测量的是持续时间而不是实际开始时间，因此条目首尾相接排列，最后一个条目在写入文件时结束。
+- **请求**：方法、URL、协商的 HTTP 版本、httptap 收到的请求头（`-H` 以及由 `--data`
+  推导出的 `Content-Type`）、解析后的查询字符串和 `bodySize`。请求体本身永远不会被写入。
+- **响应**：状态码、HTTP 版本、响应头、`redirectURL`（`Location` 响应头）、`content.mimeType`
+  （`Content-Type`，缺失时为 `x-unknown`）以及响应体大小。httptap 不解码响应体，因此
+  `content.size` 和 `bodySize` 是在 `Content-Encoding` 解码之前、在网络上接收到的大小。
+  响应体文本永远不会被包含。
+- **`serverIPAddress`**：httptap 连接的地址。
+
+由于 httptap 不记录它们，`statusText` 为空，`headersSize` 为 `-1`。`cookies` 数组为空；
+`Cookie` 和 `Set-Cookie` 以掩码形式出现在头部中。
+
+### 计时
+
+| HAR 字段   | httptap 值             | 说明                                               |
+| ---------- | ---------------------- | -------------------------------------------------- |
+| `blocked`  | `-1`                   | 不测量。                                           |
+| `dns`      | `dns_ms`               |                                                    |
+| `connect`  | `connect_ms + tls_ms`  | 按照 HAR 规范的要求，包含 TLS 握手。               |
+| `ssl`      | `tls_ms`               | 仅限 HTTPS，明文 HTTP 为 `-1`。已包含在 `connect` 中。 |
+| `send`     | `0`                    | 不单独测量；发送请求的时间包含在 `wait` 中。       |
+| `wait`     | `wait_ms`              | 服务器处理时间，直到收到响应的第一个字节。         |
+| `receive`  | `xfer_ms`              | 响应体传输时间。                                   |
+
+`time` 是 `blocked`、`dns`、`connect`、`send`、`wait` 和 `receive` 中非 `-1` 值的总和。
+`ssl` 不会再次累加，因为 `connect` 已经包含它。数值单位为毫秒，四舍五入到小数点后三位。
+当连接和 TLS 阶段是估算而非实测时（JSON 导出中的 `is_estimated`），`timings` 会带有
+`"_estimated": true`。
+
+### 失败的请求
+
+失败的步骤仍会被导出。其 `response.status` 为 `0`，或者是失败前已经收到的状态码（例如响应体停滞超过
+`-m/--max-time` 时），错误消息位于 `response._error` 中，Chrome DevTools 在导入 HAR 时会从这里读取。
+由于失败的步骤没有已测量的阶段，其 `dns`、`connect` 和 `ssl` 为 `-1`，`send`、`wait` 和
+`receive` 为 `0`，`time` 为 `0`。
+
+### 自定义字段
+
+HAR 规范将以 `_` 开头的字段保留给扩展使用。httptap 添加了：
+
+| 字段                     | 位置       | 内容                                                                       |
+| ------------------------ | ---------- | -------------------------------------------------------------------------- |
+| `_tls`                   | 条目       | `version`、`cipher`、`certCN`、`certIssuer`、`certDaysLeft`、`verified`；仅限 HTTPS。 |
+| `_proxy`                 | 条目       | 请求所经过代理的 `url`（凭据已掩码）和 `source`。                          |
+| `_redirectLimitReached`  | 条目       | 当 `--follow` 在此步骤达到 10 次重定向上限而停止时为 `true`。              |
+| `_estimated`             | `timings`  | 连接和 TLS 计时为估算值时为 `true`。                                       |
+| `_transferSize`          | `response` | 在网络上接收到的响应体字节数，未收到响应时为 `-1`。                        |
+| `_error`、`_errorKind`   | `response` | 失败步骤的错误消息及其类型（`network` 或 `internal`）。                    |
+
+### 凭据脱敏
+
+HAR 导出采用与 JSON 导出相同的掩码处理：URL userinfo 中的密码（或单独的令牌）在请求 URL、页面标题、
+`redirectURL`、`Location` 和 `Content-Location` 头以及代理 URL 中会被替换为 `****`，`Authorization`、
+`Cookie` 和 `Set-Cookie` 等敏感头也会被掩码。
+
+!!! warning
+    路径和查询字符串会被保留，而且 HAR 文件经常被附加到缺陷报告中。分享 HAR 文件之前，
+    请检查其中是否包含敏感数据。
+
 ## Prometheus Textfile 导出 { #prometheus-textfile-export }
 
 使用 `--prometheus PATH` 写出 node_exporter textfile collector 报告：
