@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-10-06
+
+### Bug Fixes
+
+- **docker:** Rebuild the project instead of reusing a cached wheel ([372b5c1](https://github.com/ozeranskii/httptap/commit/372b5c18f270d759d143844fc95a6773bfdaab1d))
+
+### Documentation
+
+- **installation:** Fix the cosign link and stop pinning example tags to 0.6 ([e08bac1](https://github.com/ozeranskii/httptap/commit/e08bac156b414697cb9e1dd93a6e7f1b23591596))
+
+### Features
+
+- **har:** Export the request chain as a HAR 1.2 archive with --har ([4945c34](https://github.com/ozeranskii/httptap/commit/4945c34ebc37db77194384780a714eef9a760859))
+
+### Testing
+
+- **http_client:** Give the total-deadline test more room on slow runners ([3798d8f](https://github.com/ozeranskii/httptap/commit/3798d8f1f3a62e548d2567ddeea984258d9014bf))
+
+
 ## [0.7.0] - 2026-10-05
 
 ### Bug Fixes
