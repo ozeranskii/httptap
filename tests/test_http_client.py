@@ -409,7 +409,7 @@ def _serve_stalling_response(header_chunks: list[bytes], delay: float) -> tuple[
 @pytest.mark.parametrize(
     ("header_chunks", "delay"),
     [
-        ([b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nx"], 0.6),
+        ([b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nx"], 0.9),
         ([bytes([byte]) for byte in b"HTTP/1.1 200 OK\r\n"], 0.1),
     ],
     ids=["late-headers-then-body-stall", "trickling-headers"],
@@ -423,7 +423,9 @@ def test_make_request_total_deadline_is_independent_of_read_timing(header_chunks
     with pytest.raises(HTTPClientError, match="total deadline exceeded") as exc_info:
         make_request(f"http://127.0.0.1:{port}/", timeout=1.0, http2=False)
 
-    assert time.monotonic() - started < 1.4
+    # Honouring only the read timeout would take at least 1.9 s (late headers)
+    # or 2.7 s (trickling); 1.6 s leaves slow shared runners room above 1.0 s.
+    assert time.monotonic() - started < 1.6
     assert exc_info.value.network_info is not None
     assert exc_info.value.network_info.ip == "127.0.0.1"
     thread.join(timeout=5)
