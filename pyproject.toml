@@ -140,7 +140,7 @@ audit = [
 # Not installed anywhere: astral-sh/setup-uv reads the uv version to install
 # from uv.lock, so CI uses the locked uv and Dependabot bumps it.
 ci = [
-    "uv>=0.12.23",
+    "uv>=0.12.24",
 ]
 precommit = [
     "pre-commit>=4.6.2",

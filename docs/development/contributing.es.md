@@ -133,7 +133,7 @@ uv run --extra otel pytest tests/e2e --no-cov -n auto
 uv run pytest tests/e2e --no-cov -n auto --httptap /path/to/venv/bin/httptap
 ```
 
-CI la ejecuta contra el wheel compilado y contra la imagen de contenedor, y el flujo diario **E2E matrix** la repite en Linux, macOS y Windows con Python 3.11, 3.13, 3.14 y 3.14t. Consulta [tests/e2e/README.md](https://github.com/ozeranskii/httptap/blob/main/tests/e2e/README.md) para ejecutarla contra una imagen de Docker y para ver todas las opciones.
+CI la ejecuta contra el wheel compilado y contra la imagen de contenedor, y el flujo diario **E2E matrix** la repite en Linux, macOS y Windows con Python 3.11, 3.13, 3.14, 3.14t, 3.15 y 3.15t. Consulta [tests/e2e/README.md](https://github.com/ozeranskii/httptap/blob/main/tests/e2e/README.md) para ejecutarla contra una imagen de Docker y para ver todas las opciones.
 
 ### Ejecutar localmente
 
