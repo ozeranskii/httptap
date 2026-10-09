@@ -82,7 +82,7 @@ Issues = "https://github.com/ozeranskii/httptap/issues"
 Changelog = "https://github.com/ozeranskii/httptap/blob/main/CHANGELOG.md"
 
 [build-system]
-requires = ["uv_build>=0.10.2,<0.13.0"]
+requires = ["uv_build>=0.10.2,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.uv]
@@ -140,7 +140,7 @@ audit = [
 # Not installed anywhere: astral-sh/setup-uv reads the uv version to install
 # from uv.lock, so CI uses the locked uv and Dependabot bumps it.
 ci = [
-    "uv>=0.12.24",
+    "uv>=0.13.0",
 ]
 precommit = [
     "pre-commit>=4.6.2",
