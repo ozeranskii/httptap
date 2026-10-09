@@ -131,7 +131,7 @@ uv run --extra otel pytest tests/e2e --no-cov -n auto
 uv run pytest tests/e2e --no-cov -n auto --httptap /path/to/venv/bin/httptap
 ```
 
-CI 会针对构建出的 wheel 和容器镜像运行它，每日运行的 **E2E matrix** 工作流还会在 Linux、macOS 和 Windows 上使用 Python 3.11、3.13、3.14 和 3.14t 重复运行。关于针对 Docker 镜像运行以及全部选项，请参阅 [tests/e2e/README.md](https://github.com/ozeranskii/httptap/blob/main/tests/e2e/README.md)。
+CI 会针对构建出的 wheel 和容器镜像运行它，每日运行的 **E2E matrix** 工作流还会在 Linux、macOS 和 Windows 上使用 Python 3.11、3.13、3.14、3.14t、3.15 和 3.15t 重复运行。关于针对 Docker 镜像运行以及全部选项，请参阅 [tests/e2e/README.md](https://github.com/ozeranskii/httptap/blob/main/tests/e2e/README.md)。
 
 ### 在本地运行
 

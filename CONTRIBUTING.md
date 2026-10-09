@@ -169,7 +169,7 @@ uv run --extra otel pytest tests/e2e --no-cov -n auto
 uv run pytest tests/e2e --no-cov -n auto --httptap /path/to/venv/bin/httptap
 ```
 
-CI runs it against the built wheel and the container image, and the daily **E2E matrix** workflow repeats it on Linux, macOS and Windows with Python 3.11, 3.13, 3.14 and 3.14t. See [tests/e2e/README.md](tests/e2e/README.md) for running it against a Docker image and for all options.
+CI runs it against the built wheel and the container image, and the daily **E2E matrix** workflow repeats it on Linux, macOS and Windows with Python 3.11, 3.13, 3.14, 3.14t, 3.15 and 3.15t. See [tests/e2e/README.md](tests/e2e/README.md) for running it against a Docker image and for all options.
 
 ### Writing Tests
 

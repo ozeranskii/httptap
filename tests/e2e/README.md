@@ -75,7 +75,7 @@ those bytes with U+FFFD. Signals reach httptap through the signal proxy of `dock
 | `ci.yml`, job `test-e2e` (every push and pull request)   | The wheel built in the job, with the `otel` extra                            |
 | `ci.yml`, job `container-build` (amd64 and arm64)        | The image built and loaded in the job                                        |
 | `release.yml`, job `build`                               | The release wheel, before it is attested or uploaded                         |
-| `e2e.yml` (daily, manual, and pull requests touching it) | The wheel on Linux, macOS and Windows with Python 3.11, 3.13, 3.14 and 3.14t |
+| `e2e.yml` (daily, manual, and pull requests touching it) | The wheel on Linux, macOS and Windows with Python 3.11, 3.13, 3.14, 3.14t, 3.15 and 3.15t |
 
 The container job runs the suite on the runner with host networking, against the tag it has just
 loaded (`--pull never` keeps Docker from fetching anything else):
