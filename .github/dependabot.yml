@@ -114,3 +114,8 @@ updates:
       prefix: "chore"
       include: "scope"
     rebase-strategy: "auto"
+    ignore:
+      # Skip the repo's library crate tags, e.g. varcon-core-v5.0.7.
+      - dependency-name: "https://github.com/crate-ci/typos"
+        versions:
+          - ">= 2.0.0"
