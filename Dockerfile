@@ -1,6 +1,10 @@
 # syntax=docker/dockerfile:1
 
-FROM ghcr.io/astral-sh/uv:0.13.0-python3.14-trixie-slim@sha256:8e70ac2e85d09a5bb7ef09753b80671a60a71c8d24f195e4890d71e03865e36d AS builder
+FROM ghcr.io/astral-sh/uv:0.13.0@sha256:cdc6093146eb3ff6a40107b38f008b789e050e77ad87865e381d9917da55a168 AS uv
+
+FROM python:3.15-slim-trixie@sha256:ea4f1f290e071bf7d28199cfb3e09f5dbad31b50e9c32fd58f2f2d7be915f3ae AS builder
+
+COPY --link --from=uv /uv /usr/local/bin/uv
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -22,7 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --extra otel --no-editable --reinstall-package httptap
 
 
-FROM python:3.14-slim-trixie@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS runtime
+FROM python:3.15-slim-trixie@sha256:ea4f1f290e071bf7d28199cfb3e09f5dbad31b50e9c32fd58f2f2d7be915f3ae AS runtime
 
 ENV PATH="/app/.venv/bin:$PATH" \
     HOME=/tmp \
@@ -49,4 +53,4 @@ LABEL org.opencontainers.image.title="httptap" \
       org.opencontainers.image.source="https://github.com/ozeranskii/httptap" \
       org.opencontainers.image.vendor="Sergei Ozeranskii" \
       org.opencontainers.image.licenses="Apache-2.0" \
-      org.opencontainers.image.base.name="python:3.14-slim-trixie"
+      org.opencontainers.image.base.name="python:3.15-slim-trixie"
