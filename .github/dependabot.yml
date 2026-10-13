@@ -115,8 +115,7 @@ updates:
       include: "scope"
     rebase-strategy: "auto"
     ignore:
-      # The typos repo also tags its library crates (e.g. varcon-core-v5.0.7);
-      # Dependabot reads those as typos versions, while the CLI is still 1.x.
+      # Skip the repo's library crate tags, e.g. varcon-core-v5.0.7.
       - dependency-name: "https://github.com/crate-ci/typos"
         versions:
           - ">= 2.0.0"
