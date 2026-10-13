@@ -3,8 +3,8 @@
   "@id": "https://raw.githubusercontent.com/ozeranskii/httptap/main/.vex/httptap.openvex.json",
   "author": "Sergei Ozeranskii",
   "role": "project maintainer",
-  "timestamp": "2026-10-09T19:55:01Z",
-  "version": 6,
+  "timestamp": "2026-10-13T11:10:45Z",
+  "version": 7,
   "tooling": "manual",
   "statements": [
     {
@@ -13,7 +13,7 @@
         "name": "GHSA-pgxm-hj3g-p7wv",
         "description": "Credentials and request body leak to cross-origin redirect targets when using --follow; unescaped server-controlled Rich markup in output."
       },
-      "timestamp": "2026-10-09T19:55:01Z",
+      "timestamp": "2026-10-13T11:10:45Z",
       "products": [
         {
           "@id": "pkg:pypi/httptap@0.6.2"
@@ -29,6 +29,9 @@
         },
         {
           "@id": "pkg:pypi/httptap@0.8.1"
+        },
+        {
+          "@id": "pkg:pypi/httptap@0.8.2"
         }
       ],
       "status": "fixed",
