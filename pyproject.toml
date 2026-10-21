@@ -44,6 +44,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3.15",
+    "Programming Language :: Python :: 3.16",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: Free Threading :: 3 - Stable",
     "Environment :: Console",
@@ -140,7 +141,7 @@ audit = [
 # Not installed anywhere: astral-sh/setup-uv reads the uv version to install
 # from uv.lock, so CI uses the locked uv and Dependabot bumps it.
 ci = [
-    "uv>=0.13.0",
+    "uv>=0.13.1",
 ]
 precommit = [
     "pre-commit>=4.6.2",

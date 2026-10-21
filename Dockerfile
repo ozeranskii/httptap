@@ -1,10 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM ghcr.io/astral-sh/uv:0.13.1@sha256:4a1f3666816dafadd20ceb71eac9a7d56d7ef30279f7d64048519ab901ada336 AS uv
-
-FROM python:3.15-slim-trixie@sha256:ea4f1f290e071bf7d28199cfb3e09f5dbad31b50e9c32fd58f2f2d7be915f3ae AS builder
-
-COPY --link --from=uv /uv /usr/local/bin/uv
+FROM ghcr.io/astral-sh/uv:0.13.1-python3.15-trixie-slim@sha256:0b0de4f8931fd2f61fb7708b1326e50838767c8f9e7ced92fcf72ec60ae6c457 AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
