@@ -175,7 +175,7 @@ análisis de regresiones y el registro de líneas base de rendimiento.
 
 ## Requisitos
 
-- Python 3.11-3.15 (CPython)
+- Python 3.11-3.16 (CPython)
 - macOS, Linux o Windows (probado en CPython)
 - Sin dependencias del sistema más allá de la red estándar
 - El código debe seguir la Google Python Style Guide (docstrings, formato). Consulta
