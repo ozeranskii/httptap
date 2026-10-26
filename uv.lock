@@ -30,9 +30,9 @@ wheels = [
 
 [[package]]
 name = "argparse-manpage"
-version = "4.7"
+version = "4.8"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d0/6e/2907db04890c23728eecfcb04c37f66cba24d7903fe0ff6b8dc84d943ca5/argparse_manpage-4.7.tar.gz", hash = "sha256:1deab76b212ac8753cbb67b9d2d2bc0949bbc338bb1cc3547f0890cb34108b32", size = 58871, upload-time = "2025-08-15T10:24:20.601Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/93/1d/7cad52af343d6445fdfff5dfc603259ea4404f9cd55e30f2d0699a3b2836/argparse_manpage-4.8.tar.gz", hash = "sha256:d55ce1c246479ddd82871170a8cc543a6831bb68c87a298e47f0663a9330b74f", size = 59211, upload-time = "2026-10-14T08:40:44.822Z" }
 
 [[package]]
 name = "ast-serialize"
